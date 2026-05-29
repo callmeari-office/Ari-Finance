@@ -1,0 +1,186 @@
+.loaderContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 1.5rem;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.05);
+  border-left-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.mainContent {
+  flex: 1;
+  padding: 2rem;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(214, 168, 168, 0.12) 0%, rgba(99, 77, 62, 0.03) 100%);
+  border: 1px solid rgba(214, 168, 168, 0.22);
+  border-radius: 16px;
+  padding: 1.75rem 2rem;
+  margin-bottom: 2.5rem;
+}
+
+.bannerText h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--brand-brown);
+  margin-bottom: 0.25rem;
+}
+
+.bannerText p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+.statCard {
+  position: relative;
+  overflow: hidden;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.cardIcon {
+  color: var(--primary);
+}
+
+.statCard h3 {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.cardInfo {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Color Themes for Cards */
+.blueCard {
+  border-left: 4px solid var(--primary);
+}
+.blueCard .cardIcon { color: var(--primary); }
+
+.yellowCard {
+  border-left: 4px solid var(--warning);
+}
+.yellowCard .cardIcon { color: var(--warning); }
+
+.purpleCard {
+  border-left: 4px solid var(--info);
+}
+.purpleCard .cardIcon { color: var(--info); }
+
+.greenCard {
+  border-left: 4px solid var(--success);
+}
+.greenCard .cardIcon { color: var(--success); }
+
+.redCard {
+  border-left: 4px solid var(--danger);
+}
+.redCard .cardIcon { color: var(--danger); }
+
+.largeCard {
+  grid-column: span 4;
+  margin-top: 1rem;
+}
+
+.cardTitleBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.cardTitleBar h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.loaderSmall {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 1024px) {
+  .dashboardGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .largeCard {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 1.5rem 1rem;
+  }
+  .banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.25rem;
+    padding: 1.25rem;
+  }
+  .bannerText h1 {
+    font-size: 1.5rem;
+  }
+  .actions {
+    width: 100%;
+  }
+  .actions button {
+    width: 100%;
+  }
+  .dashboardGrid {
+    grid-template-columns: 1fr;
+  }
+  .largeCard {
+    grid-column: span 1;
+  }
+}

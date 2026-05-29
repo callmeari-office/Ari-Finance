@@ -1,0 +1,188 @@
+.loginContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+}
+
+.loginBox {
+  width: 100%;
+  max-width: 480px;
+  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: rgba(214, 168, 168, 0.15); /* Nền hồng phấn */
+  border: 1px solid rgba(214, 168, 168, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+  box-shadow: 0 8px 30px rgba(214, 168, 168, 0.15);
+}
+
+.logoIcon {
+  color: var(--brand-brown); /* Logo icon nâu ấm */
+  stroke-width: 2.5px;
+}
+
+.header h1 {
+  font-size: 2.25rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #d6a8a8 0%, #634d3e 100%); /* Đổi sang gradient Hồng đất -> Nâu ấm cực kỳ sang trọng */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.card h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--brand-brown); /* Màu tiêu đề chính nâu ấm */
+  margin-bottom: 0.25rem;
+}
+
+.cardDesc {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.inputWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 1rem;
+ top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.errorAlert {
+  background: rgba(207, 141, 141, 0.12);
+  border: 1px solid rgba(207, 141, 141, 0.25);
+  color: #c27a7a;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  animation: shake 0.4s ease-in-out;
+}
+
+.successAlert {
+  background: rgba(125, 160, 142, 0.12);
+  border: 1px solid rgba(125, 160, 142, 0.25);
+  color: #4b6656;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+/* Quick Login Panel - Beautiful Warm Box */
+.quickLoginBox {
+  margin-top: 2rem;
+  text-align: center;
+  background: rgba(99, 77, 62, 0.03); /* Nền nâu kem nhạt */
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.quickLoginBox h3 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--brand-brown); /* Đổi sang nâu ấm */
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.quickLoginBox p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.quickButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.quickBtn {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(99, 77, 62, 0.02);
+}
+
+.quickBtn span {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.quickBtn small {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.125rem;
+}
+
+.quickBtn:hover {
+  transform: translateY(-1px);
+  background: var(--surface-hover);
+  box-shadow: 0 4px 12px rgba(99, 77, 62, 0.06);
+}
+
+.ownerBtn span { color: #b27b12; }
+.ownerBtn:hover { border-color: rgba(194, 149, 113, 0.4); }
+
+.managerBtn span { color: var(--brand-brown); }
+.managerBtn:hover { border-color: rgba(99, 77, 62, 0.4); }
+
+.staffBtn span { color: #4b6656; }
+.staffBtn:hover { border-color: rgba(125, 160, 142, 0.4); }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}

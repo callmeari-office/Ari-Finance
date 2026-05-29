@@ -1,0 +1,262 @@
+:root {
+  /* Bảng màu của shop thời trang - Clean, Minimalist & Warm Theme */
+  --primary: #d6a8a8; /* Hồng phấn / Hồng đất làm màu nhấn chính */
+  --primary-hover: #c49393;
+  --primary-rgb: 214, 168, 168;
+
+  --brand-brown: #634d3e; /* Nâu ấm làm màu nhận diện chính, tiêu đề, Sidebar */
+  --brand-brown-hover: #523f32;
+  --brand-brown-rgb: 99, 77, 62;
+
+  --success: #7da08e; /* Xanh lá pastel thanh nhã */
+  --success-bg: rgba(125, 160, 142, 0.15);
+  --warning: #c29571; /* Cam đất / Nâu nhạt ấm áp */
+  --warning-bg: rgba(194, 149, 113, 0.15);
+  --danger: #cf8d8d; /* Hồng đỏ pastel dịu */
+  --danger-bg: rgba(207, 141, 141, 0.15);
+  --info: #95aab8; /* Xanh ghi thanh lịch */
+  --info-bg: rgba(149, 170, 184, 0.15);
+
+  --font-sans: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Theme: Premium Warm Light Mode */
+  --background: #ffffff; /* Nền trắng thoáng đãng */
+  --bg-gradient: linear-gradient(135deg, #fcfbfa 0%, #ffffff 100%); /* Ánh kem mộc mạc */
+  
+  --surface: #ffffff;
+  --surface-hover: #faf8f6;
+  --border: rgba(99, 77, 62, 0.12); /* Đường viền màu nâu ấm nhẹ nhàng tinh tế */
+  --border-focus: rgba(214, 168, 168, 0.6);
+  
+  --text-main: #333333; /* Xám đậm cực kỳ dễ đọc, sang trọng */
+  --text-muted: #78716c; /* Xám đá ấm mộc mạc */
+  
+  --shadow: 0 10px 30px -10px rgba(99, 77, 62, 0.08); /* Đổ bóng mờ nâu ấm tinh xảo */
+  --glass-bg: rgba(255, 255, 255, 0.85); /* Kính mờ trắng đục cao cấp */
+  --glass-blur: blur(16px);
+  
+  --sidebar-bg: #f9f6f3; /* Màu kem nâu ấm cho Sidebar */
+}
+
+/* Reset & Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--background);
+  background-image: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  line-height: 1.5;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* Base Layout Classes */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* Glassmorphism Card styling */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  border-color: rgba(214, 168, 168, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Form Styles */
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--brand-brown); /* Đổi sang màu nâu ấm nhận diện */
+  margin-bottom: 0.5rem;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(99, 77, 62, 0.03); /* Đổi sang màu kem nhạt tinh tế */
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-main);
+  outline: none;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+}
+
+.form-control:focus {
+  border-color: var(--primary);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.25);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #ffffff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(214, 168, 168, 0.3);
+}
+
+.btn-secondary {
+  background: rgba(99, 77, 62, 0.05);
+  border: 1px solid var(--border);
+  color: var(--brand-brown);
+}
+
+.btn-secondary:hover {
+  background: rgba(99, 77, 62, 0.08);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: var(--brand-brown); /* Text màu nâu ấm sang trọng trên nền pastel */
+  font-weight: 700;
+}
+
+.btn-danger:hover {
+  background: #c27a7a;
+  transform: translateY(-1px);
+}
+
+/* Status Badges - Beautiful Pastels */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-paid {
+  background: var(--success-bg);
+  color: #4b6656;
+  border: 1px solid rgba(125, 160, 142, 0.3);
+}
+
+.badge-pending {
+  background: var(--warning-bg);
+  color: #8c5b32;
+  border: 1px solid rgba(194, 149, 113, 0.3);
+}
+
+.badge-reimburse {
+  background: var(--info-bg);
+  color: #536978;
+  border: 1px solid rgba(149, 170, 184, 0.3);
+}
+
+.badge-cancelled {
+  background: var(--danger-bg);
+  color: #8c5353;
+  border: 1px solid rgba(207, 141, 141, 0.3);
+}
+
+/* Table Styles */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.custom-table th {
+  padding: 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--brand-brown); /* Chuyển th sang màu thương hiệu */
+  border-bottom: 2px solid var(--border);
+}
+
+.custom-table td {
+  padding: 1rem;
+  font-size: 0.95rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  color: var(--text-main);
+}
+
+.custom-table tbody tr:hover {
+  background: rgba(99, 77, 62, 0.02); /* Di chuyển màu hover sang màu kem nâu */
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Navigation Layout */
+.layout-wrapper {
+  display: flex;
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .layout-wrapper {
+    flex-direction: column;
+  }
+}

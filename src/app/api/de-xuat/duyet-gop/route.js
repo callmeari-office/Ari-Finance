@@ -1,0 +1,158 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getSession, checkRole } from '@/lib/auth';
+
+// Hàm sinh mã phiếu Thu-Chi: TC-YYMMDD-xxxx
+async function generateMaThuChi() {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const prefix = `TC-${yy}${mm}${dd}-`;
+
+  const count = await prisma.thuChi.count({
+    where: {
+      maPhieu: {
+        startsWith: prefix,
+      },
+    },
+  });
+
+  const xxxx = String(count + 1).padStart(4, '0');
+  return `${prefix}${xxxx}`;
+}
+
+export async function POST(request) {
+  try {
+    const user = await getSession();
+    if (!user) {
+      return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+    }
+
+    // Chỉ Owner/Manager được duyệt hoàn ứng gộp
+    if (!checkRole(user, ['OWNER', 'MANAGER'])) {
+      return NextResponse.json(
+        { error: 'Chỉ Chủ shop (Owner) hoặc Quản lý (Manager) mới có quyền duyệt hoàn ứng.' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { ids, quyThanhToanId, ghiChu } = body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { error: 'Vui lòng cung cấp danh sách đề xuất cần hoàn ứng.' },
+        { status: 400 }
+      );
+    }
+
+    if (!quyThanhToanId) {
+      return NextResponse.json(
+        { error: 'Vui lòng chọn quỹ shop dùng để chi trả hoàn ứng.' },
+        { status: 400 }
+      );
+    }
+
+    // Lấy thông tin các đề xuất được chọn
+    const proposals = await prisma.deXuatChiPhi.findMany({
+      where: {
+        id: { in: ids },
+      },
+      include: {
+        danhMuc: true,
+      },
+    });
+
+    if (proposals.length !== ids.length) {
+      return NextResponse.json(
+        { error: 'Một số đề xuất không tồn tại trong hệ thống.' },
+        { status: 400 }
+      );
+    }
+
+    // Kiểm tra tính hợp lệ:
+    // 1. Phải ở trạng thái CHO_HOAN_UNG
+    // 2. Phải cùng nguồn tiền TIEN_CA_NHAN
+    // 3. Phải thuộc CÙNG một nhân viên đề xuất
+    const staffId = proposals[0].nguoiTaoId;
+    for (const prop of proposals) {
+      if (prop.trangThai !== 'CHO_HOAN_UNG') {
+        return NextResponse.json(
+          { error: `Đề xuất ${prop.maPhieu} không ở trạng thái chờ hoàn ứng.` },
+          { status: 400 }
+        );
+      }
+      if (prop.nguonTien !== 'TIEN_CA_NHAN') {
+        return NextResponse.json(
+          { error: `Đề xuất ${prop.maPhieu} không phải là nguồn tiền cá nhân ứng.` },
+          { status: 400 }
+        );
+      }
+      if (prop.nguoiTaoId !== staffId) {
+        return NextResponse.json(
+          { error: 'Không thể duyệt gộp các đề xuất của nhiều nhân viên khác nhau.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Tính tổng tiền hoàn ứng
+    const tongTien = proposals.reduce((sum, prop) => sum + prop.soTien, 0);
+
+    // Lấy thông tin nhân viên đề xuất để ghi nội dung
+    const staffUser = await prisma.nhanVien.findUnique({
+      where: { id: staffId },
+    });
+
+    const maThuChi = await generateMaThuChi();
+    const firstProp = proposals[0];
+
+    // Thực hiện trong một transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Tạo MỘT phiếu ThuChi loại Chi đại diện cho toàn bộ khoản gộp này
+      const phieuChi = await tx.thuChi.create({
+        data: {
+          maPhieu: maThuChi,
+          ngayGiaoDich: new Date(),
+          loaiGiaoDich: 'CHI',
+          soTien: tongTien,
+          quyId: quyThanhToanId,
+          danhMucId: firstProp.danhMucId, // Dùng danh mục của đề xuất đầu tiên làm đại diện
+          nhaCungCapId: firstProp.nhaCungCapId,
+          noiDung: `Hoàn ứng gộp ${proposals.length} phiếu chi cho NV ${staffUser.hoTen}. DS đề xuất: ${proposals.map(p => p.maPhieu).join(', ')}`,
+          nguoiTaoId: user.id,
+          ghiChu: ghiChu || `Duyệt gộp hoàn ứng cho nhân viên. ${ghiChu || ''}`,
+        },
+      });
+
+      // 2. Cập nhật tất cả đề xuất trỏ về phiếu ThuChi gộp này và chuyển trạng thái
+      await tx.deXuatChiPhi.updateMany({
+        where: {
+          id: { in: ids },
+        },
+        data: {
+          trangThai: 'DA_THANH_TOAN',
+          quyThanhToanId,
+          thuChiId: phieuChi.id,
+          ngayThanhToan: new Date(),
+          nguoiDuyetId: user.id,
+        },
+      });
+
+      return phieuChi;
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Đã duyệt gộp hoàn ứng thành công cho ${proposals.length} đề xuất. Sinh phiếu chi ${maThuChi} với tổng tiền ${tongTien.toLocaleString('vi-VN')} VND.`,
+      thuChi: result,
+    });
+  } catch (error) {
+    console.error('Merge reimbursement error:', error);
+    return NextResponse.json(
+      { error: 'Đã xảy ra lỗi trên hệ thống.' },
+      { status: 500 }
+    );
+  }
+}

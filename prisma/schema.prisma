@@ -1,0 +1,144 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model NhanVien {
+  id        String    @id @default(uuid())
+  hoTen     String
+  tenNgan   String?   // Tên viết tắt/ngắn gọn (Ví dụ: Trúc Linh, Bảo Nam)
+
+  email     String    @unique // Email liên hệ
+  username  String    @unique // Tên đăng nhập (ID trơn)
+  phone     String?   // Số điện thoại
+  phongBan  String?   // Phòng ban (PHÒNG KẾ TOÁN, FINANCE & IT...)
+  viTri     String?   // Vị trí (Giám đốc, Admin...)
+  matKhau   String
+  role      String    // OWNER, MANAGER, STAFF
+  trangThai String    // ACTIVE, INACTIVE
+  createdAt DateTime  @default(now())
+
+  sessions            Session[]
+  deXuatTao           DeXuatChiPhi[] @relation("NguoiTao")
+  deXuatDuyet         DeXuatChiPhi[] @relation("NguoiDuyet")
+  thuChiTao           ThuChi[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  expiresAt DateTime
+  nhanVien  NhanVien @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VaiTroQuyen {
+  id          String @id @default(uuid())
+  role        String @unique // OWNER, MANAGER, STAFF
+  permissions String // Chuỗi JSON phân quyền module
+}
+
+model Quy {
+  id           String   @id
+  tenQuy       String
+  loaiQuy      String
+  soDuDauKy    Float
+  trangThai    String   // ACTIVE, INACTIVE
+  createdAt    DateTime @default(now())
+
+  deXuatThanhToan DeXuatChiPhi[]
+  thuChi          ThuChi[]
+}
+
+model NhomChiPhi {
+  id        String    @id
+  tenNhom   String
+  thuTu     Int
+  danhmuc   DanhMuc[]
+}
+
+model DanhMuc {
+  id              String         @id
+  tenDanhMuc      String
+  nhomChiPhiId    String
+  loaiGiaoDich    String         // CHI, THU
+  chucVuDuocXem   String         // JSON string array, e.g. '["OWNER", "MANAGER", "STAFF"]'
+  yeuCauNCC       Boolean
+  trangThai       String         // ACTIVE, INACTIVE
+
+  nhomChiPhi      NhomChiPhi     @relation(fields: [nhomChiPhiId], references: [id])
+  deXuatChiPhi    DeXuatChiPhi[]
+  thuChi          ThuChi[]
+}
+
+model NhaCungCap {
+  id          String         @id
+  tenNCC      String
+  soTaiKhoan  String
+  tenNganHang String
+  maQR        String?        // Hình ảnh mã QR ngân hàng (chấp nhận base64 hoặc URL)
+
+  deXuatChiPhi DeXuatChiPhi[]
+  thuChi       ThuChi[]
+}
+
+model DeXuatChiPhi {
+  id               String      @id @default(uuid())
+  maPhieu          String      @unique
+  ngayPhatSinh     DateTime
+  danhMucId        String
+  noiDung          String
+  soTien           Float
+  nhaCungCapId     String?
+  anhHoaDon        String?     // base64 hoặc URL
+  nguonTien        String      // TIEN_SHOP, TIEN_CA_NHAN
+  trangThai        String      // CHO_THANH_TOAN, CHO_HOAN_UNG, DA_THANH_TOAN, HUY
+  quyThanhToanId   String?
+  thuChiId         String?
+  nguoiTaoId       String
+  ngayThanhToan    DateTime?
+  nguoiDuyetId     String?
+  ghiChu           String?
+  ngayTao          DateTime    @default(now())
+  ngayCanThanhToan DateTime?   // Ngày cần thanh toán mong muốn
+
+
+  danhMuc         DanhMuc     @relation(fields: [danhMucId], references: [id])
+  nhaCungCap      NhaCungCap? @relation(fields: [nhaCungCapId], references: [id])
+  quyThanhToan    Quy?        @relation(fields: [quyThanhToanId], references: [id])
+  thuChi          ThuChi?     @relation(fields: [thuChiId], references: [id], onDelete: SetNull)
+  nguoiTao        NhanVien    @relation("NguoiTao", fields: [nguoiTaoId], references: [id])
+  nguoiDuyet      NhanVien?   @relation("NguoiDuyet", fields: [nguoiDuyetId], references: [id])
+}
+
+model ThuChi {
+  id            String    @id @default(uuid())
+  maPhieu       String    @unique
+  ngayGiaoDich  DateTime
+  loaiGiaoDich  String    // CHI, THU
+  soTien        Float
+  quyId         String
+  danhMucId     String
+  nhaCungCapId  String?
+  noiDung       String
+  nguoiTaoId    String
+  ghiChu        String?
+  ngayTao       DateTime  @default(now())
+
+  quy           Quy       @relation(fields: [quyId], references: [id])
+  danhMuc       DanhMuc   @relation(fields: [danhMucId], references: [id])
+  nhaCungCap    NhaCungCap? @relation(fields: [nhaCungCapId], references: [id])
+  nguoiTao      NhanVien  @relation(fields: [nguoiTaoId], references: [id])
+  deXuatChiPhi  DeXuatChiPhi[]
+}
+
+model NganHang {
+  id          String   @id @default(uuid())
+  tenVietTat  String   @unique // Ví dụ: VCB, TCB, MB
+  tenDayDu    String   // Ví dụ: Vietcombank, Techcombank
+  createdAt   DateTime @default(now())
+}
