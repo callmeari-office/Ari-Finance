@@ -309,10 +309,6 @@ button, input, select, textarea {
 }
 
 /* Tinh chỉnh các vị trí dùng màu cố định (hardcoded) cho hợp nền tối */
-[data-theme="dark"] body {
-  /* màu nền & gradient đã đổi qua biến — giữ nguyên rule body */
-}
-
 [data-theme="dark"] .form-control {
   background: rgba(255, 255, 255, 0.04);
 }
