@@ -19,7 +19,7 @@ Chạy trong `web-app/` (Windows + PowerShell):
 - Next.js 16 (App Router, Turbopack) + React 19. Code trong `src/app/` (pages + `api/` route handlers), `src/components/`, `src/lib/`.
 - Tailwind CSS v4 + CSS Modules + class global `glass-card`, `custom-table`. Icons: `lucide-react`.
 - DB: PostgreSQL (Supabase) qua **Prisma 7 + adapter `@prisma/adapter-pg` + Pool `pg`**. Schema: `prisma/schema.prisma`.
-- Auth: session tự build (cookie HTTP-only `session_token`, TTL 24h), hash `bcryptjs`. Không dùng NextAuth.
+- Auth: session tự build (cookie HTTP-only `session_token`, TTL **30 ngày sliding** — auto-gia hạn mỗi request), hash `bcryptjs`. Không dùng NextAuth.
 - **Mobile-first, giữ app nhẹ** — cảnh báo trước khi thêm tính năng nặng (heavy query, chart phức tạp); nén ảnh hóa đơn client-side → WebP.
 
 ## 3. Lưu ý kỹ thuật quan trọng
