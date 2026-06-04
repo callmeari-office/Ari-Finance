@@ -19,6 +19,8 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import FilterDropdown from '@/components/FilterDropdown';
+import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
 import styles from './de-xuat.module.css';
 
 export default function DeXuatPage() {
@@ -32,13 +34,13 @@ export default function DeXuatPage() {
   const [vendors, setVendors] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Filter states
-  const [filterTrangThai, setFilterTrangThai] = useState('');
-  const [filterNguonTien, setFilterNguonTien] = useState('');
-  const [filterThang, setFilterThang] = useState(String(new Date().getMonth() + 1));
+  // Filter states (arrays = multi-select, string = single)
+  const [filterTrangThai, setFilterTrangThai] = useState([]);
+  const [filterNguonTien, setFilterNguonTien] = useState([]);
+  const [filterThang, setFilterThang] = useState([String(new Date().getMonth() + 1)]);
   const [filterNam, setFilterNam] = useState(String(new Date().getFullYear()));
-  const [filterDanhMuc, setFilterDanhMuc] = useState('');
-  const [filterNguoiTao, setFilterNguoiTao] = useState('');
+  const [filterDanhMuc, setFilterDanhMuc] = useState([]);
+  const [filterNguoiTao, setFilterNguoiTao] = useState([]);
   const [filterSearch, setFilterSearch] = useState('');
 
   // Modal / Form state
@@ -203,7 +205,7 @@ export default function DeXuatPage() {
           if (cat.loaiGiaoDich !== 'CHI') return false;
           try {
             const roles = JSON.parse(cat.chucVuDuocXem);
-            return roles.includes(userRole);
+            return canViewCategory(userRole, roles);
           } catch (e) {
             return true;
           }
@@ -261,7 +263,7 @@ export default function DeXuatPage() {
   const canEdit = (prop) => {
     if (!user) return false;
     if (user.role === 'OWNER') return true;
-    if (user.role === 'STAFF' && prop.nguoiTaoId !== user.id) return false;
+    if (isRestrictedToOwnProposals(user.role) && prop.nguoiTaoId !== user.id) return false;
     if (prop.trangThai === 'HUY') return false;
     if (prop.trangThai === 'DA_THANH_TOAN' && prop.thuChiId !== null) return false;
     return true;
@@ -527,14 +529,14 @@ export default function DeXuatPage() {
 
   // Lọc dữ liệu hiển thị trên Client
   const filteredProposals = proposals.filter((p) => {
-    if (filterTrangThai && p.trangThai !== filterTrangThai) return false;
-    if (filterNguonTien && p.nguonTien !== filterNguonTien) return false;
+    if (filterTrangThai.length > 0 && !filterTrangThai.includes(p.trangThai)) return false;
+    if (filterNguonTien.length > 0 && !filterNguonTien.includes(p.nguonTien)) return false;
 
     const propDate = new Date(p.ngayPhatSinh);
-    if (filterThang && propDate.getMonth() + 1 !== Number(filterThang)) return false;
+    if (filterThang.length > 0 && !filterThang.includes(String(propDate.getMonth() + 1))) return false;
     if (filterNam && propDate.getFullYear() !== Number(filterNam)) return false;
-    if (filterDanhMuc && p.danhMucId !== filterDanhMuc) return false;
-    if (filterNguoiTao && p.nguoiTao.id !== filterNguoiTao) return false;
+    if (filterDanhMuc.length > 0 && !filterDanhMuc.includes(p.danhMucId)) return false;
+    if (filterNguoiTao.length > 0 && !filterNguoiTao.includes(p.nguoiTao.id)) return false;
 
     // Tìm kiếm theo mã phiếu, nội dung, NCC
     if (filterSearch) {
@@ -632,8 +634,8 @@ export default function DeXuatPage() {
           <div>
             <h1>Đề xuất chi phí</h1>
             <p className={styles.pageDesc}>
-              {user.role === 'STAFF' 
-                ? 'Quản lý và tạo mới các đề xuất chi tiêu cá nhân của bạn' 
+              {isRestrictedToOwnProposals(user.role)
+                ? 'Quản lý và tạo mới các đề xuất chi tiêu cá nhân của bạn'
                 : 'Xem danh sách và quản lý các đề xuất chi tiêu nội bộ của shop'}
             </p>
           </div>
@@ -669,31 +671,12 @@ export default function DeXuatPage() {
             </div>
           </div>
 
-          {/* Hàng 2: Các filter dropdown */}
-          <div className={styles.filterGroup} style={{ flexWrap: 'wrap', gap: '1rem' }}>
-            <div className={styles.filterItem} style={{ minWidth: '180px', flex: 1 }}>
-              <label className="form-label">Trạng thái</label>
-              <select className="form-control" value={filterTrangThai} onChange={(e) => setFilterTrangThai(e.target.value)}>
-                <option value="">-- Tất cả --</option>
-                <option value="CHO_THANH_TOAN">Chờ thanh toán</option>
-                <option value="CHO_HOAN_UNG">Chờ hoàn ứng</option>
-                <option value="DA_THANH_TOAN">Đã thanh toán</option>
-                <option value="HUY">Đã hủy</option>
-              </select>
-            </div>
-
-            <div className={styles.filterItem} style={{ minWidth: '160px', flex: 1 }}>
-              <label className="form-label">Nguồn tiền</label>
-              <select className="form-control" value={filterNguonTien} onChange={(e) => setFilterNguonTien(e.target.value)}>
-                <option value="">-- Tất cả --</option>
-                <option value="TIEN_SHOP">🏦 Tiền Shop</option>
-                <option value="TIEN_CA_NHAN">👤 Cá nhân ứng</option>
-              </select>
-            </div>
-
-            <div className={styles.filterItem} style={{ minWidth: '100px', flex: '0 1 120px' }}>
-              <label className="form-label">Năm</label>
-              <select className="form-control" value={filterNam} onChange={(e) => setFilterNam(e.target.value)}>
+          {/* Hàng 2: filter dropdowns */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'flex-end' }}>
+            {/* Năm — dropdown đơn */}
+            <div>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>Năm</label>
+              <select className="form-control" style={{ minWidth: '100px' }} value={filterNam} onChange={(e) => setFilterNam(e.target.value)}>
                 <option value="">Tất cả</option>
                 {availableYears.map((y) => (
                   <option key={y} value={y}>{y}</option>
@@ -701,36 +684,49 @@ export default function DeXuatPage() {
               </select>
             </div>
 
-            <div className={styles.filterItem} style={{ minWidth: '100px', flex: '0 1 110px' }}>
-              <label className="form-label">Tháng</label>
-              <select className="form-control" value={filterThang} onChange={(e) => setFilterThang(e.target.value)}>
-                <option value="">Tất cả</option>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                  <option key={m} value={m}>Tháng {m}</option>
-                ))}
-              </select>
-            </div>
+            <FilterDropdown
+              label="Tháng"
+              options={Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `Tháng ${i + 1}` }))}
+              selected={filterThang}
+              onChange={setFilterThang}
+            />
 
-            <div className={styles.filterItem} style={{ minWidth: '180px', flex: 1 }}>
-              <label className="form-label">Danh mục</label>
-              <select className="form-control" value={filterDanhMuc} onChange={(e) => setFilterDanhMuc(e.target.value)}>
-                <option value="">-- Tất cả --</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.tenDanhMuc}</option>
-                ))}
-              </select>
-            </div>
+            <FilterDropdown
+              label="Trạng thái"
+              options={[
+                { value: 'CHO_THANH_TOAN', label: 'Chờ thanh toán' },
+                { value: 'CHO_HOAN_UNG', label: 'Chờ hoàn ứng' },
+                { value: 'DA_THANH_TOAN', label: 'Đã thanh toán' },
+                { value: 'HUY', label: 'Đã hủy' },
+              ]}
+              selected={filterTrangThai}
+              onChange={setFilterTrangThai}
+            />
+
+            <FilterDropdown
+              label="Nguồn tiền"
+              options={[
+                { value: 'TIEN_SHOP', label: 'Tiền Shop' },
+                { value: 'TIEN_CA_NHAN', label: 'Cá nhân ứng' },
+              ]}
+              selected={filterNguonTien}
+              onChange={setFilterNguonTien}
+            />
+
+            <FilterDropdown
+              label="Danh mục"
+              options={categories.map((c) => ({ value: c.id, label: c.tenDanhMuc }))}
+              selected={filterDanhMuc}
+              onChange={setFilterDanhMuc}
+            />
 
             {(user.role === 'OWNER' || user.role === 'MANAGER') && (
-              <div className={styles.filterItem} style={{ minWidth: '180px', flex: 1 }}>
-                <label className="form-label">Người đề xuất</label>
-                <select className="form-control" value={filterNguoiTao} onChange={(e) => setFilterNguoiTao(e.target.value)}>
-                  <option value="">-- Tất cả --</option>
-                  {availableCreators.map((nv) => (
-                    <option key={nv.id} value={nv.id}>{nv.tenNgan || nv.hoTen}</option>
-                  ))}
-                </select>
-              </div>
+              <FilterDropdown
+                label="Người đề xuất"
+                options={availableCreators.map((nv) => ({ value: nv.id, label: nv.tenNgan || nv.hoTen }))}
+                selected={filterNguoiTao}
+                onChange={setFilterNguoiTao}
+              />
             )}
           </div>
         </div>

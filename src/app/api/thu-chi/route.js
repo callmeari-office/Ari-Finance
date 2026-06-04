@@ -24,6 +24,7 @@ export async function GET(request) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(500, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10)));
     const skip = (page - 1) * limit;
+    const includeHistory = searchParams.get('includeHistory') === 'true';
 
     const include = {
       quy: true,
@@ -57,6 +58,51 @@ export async function GET(request) {
       soPhieuDeXuat: tc.deXuatChiPhi.length,
       tongTienDeXuat: tc.deXuatChiPhi.reduce((sum, dx) => sum + dx.soTien, 0),
     }));
+
+    // Khi includeHistory=true: gộp thêm phiếu lịch sử từ DeXuatChiPhi vào kết quả
+    // (chỉ dùng cho báo cáo/dashboard, không ảnh hưởng quỹ)
+    if (includeHistory) {
+      const lichSuRecords = await prisma.deXuatChiPhi.findMany({
+        where: { laLichSu: true },
+        include: {
+          danhMuc: { include: { nhomChiPhi: true } },
+          nhaCungCap: true,
+          nguoiTao: { select: { id: true, hoTen: true, tenNgan: true, email: true } },
+        },
+        orderBy: { ngayPhatSinh: 'desc' },
+      });
+
+      const normalizedLichSu = lichSuRecords.map((dx) => ({
+        id: dx.id,
+        maPhieu: dx.maPhieu,
+        ngayGiaoDich: dx.ngayThanhToan || dx.ngayPhatSinh,
+        loaiGiaoDich: 'CHI',
+        soTien: dx.soTien,
+        danhMucId: dx.danhMucId,
+        danhMuc: dx.danhMuc,
+        nhaCungCapId: dx.nhaCungCapId,
+        nhaCungCap: dx.nhaCungCap,
+        noiDung: dx.noiDung,
+        ghiChu: dx.ghiChu,
+        quyId: null,
+        quy: null,
+        nguoiTaoId: dx.nguoiTaoId,
+        nguoiTao: dx.nguoiTao,
+        deXuatChiPhi: [],
+        soPhieuDeXuat: 0,
+        tongTienDeXuat: dx.soTien,
+        laLichSu: true,
+      }));
+
+      const allData = [...data, ...normalizedLichSu].sort(
+        (a, b) => new Date(b.ngayGiaoDich) - new Date(a.ngayGiaoDich)
+      );
+
+      return NextResponse.json({
+        data: allData,
+        pagination: { page, limit, total: total + lichSuRecords.length },
+      });
+    }
 
     return NextResponse.json({ data, pagination: { page, limit, total } });
   } catch (error) {

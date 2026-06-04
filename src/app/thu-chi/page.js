@@ -17,6 +17,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import FilterDropdown from '@/components/FilterDropdown';
 import styles from './thu-chi.module.css';
 
 export default function ThuChiPage() {
@@ -31,11 +32,11 @@ export default function ThuChiPage() {
   const [allCategories, setAllCategories] = useState([]); // Tất cả danh mục để phục vụ filter
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Filter states
-  const [filterLoai, setFilterLoai] = useState('');
-  const [filterQuy, setFilterQuy] = useState('');
-  const [filterThang, setFilterThang] = useState(String(new Date().getMonth() + 1));
-  const [filterDanhMuc, setFilterDanhMuc] = useState('');
+  // Filter states (array-based cho FilterDropdown)
+  const [filterLoai, setFilterLoai] = useState([]);
+  const [filterQuy, setFilterQuy] = useState([]);
+  const [filterThang, setFilterThang] = useState([String(new Date().getMonth() + 1)]);
+  const [filterDanhMuc, setFilterDanhMuc] = useState([]);
 
   // Modal: TẠO PHIẾU THU TRỰC TIẾP (TH4)
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -185,17 +186,15 @@ export default function ThuChiPage() {
 
   // Lọc danh sách trên client
   const filteredTransactions = transactions.filter((tx) => {
-    if (filterLoai && tx.loaiGiaoDich !== filterLoai) return false;
-    if (filterQuy && tx.quyId !== filterQuy) return false;
-    
-    // Lọc theo Tháng
-    if (filterThang) {
-      const txMonth = new Date(tx.ngayGiaoDich).getMonth() + 1;
-      if (txMonth !== Number(filterThang)) return false;
+    if (filterLoai.length > 0 && !filterLoai.includes(tx.loaiGiaoDich)) return false;
+    if (filterQuy.length > 0 && !filterQuy.includes(tx.quyId)) return false;
+
+    if (filterThang.length > 0) {
+      const txMonth = String(new Date(tx.ngayGiaoDich).getMonth() + 1);
+      if (!filterThang.includes(txMonth)) return false;
     }
 
-    // Lọc theo Danh mục
-    if (filterDanhMuc && tx.danhMucId !== filterDanhMuc) return false;
+    if (filterDanhMuc.length > 0 && !filterDanhMuc.includes(tx.danhMucId)) return false;
 
     return true;
   });
@@ -231,65 +230,37 @@ export default function ThuChiPage() {
 
         {/* Filter Bar */}
         <div className={`${styles.filterCard} glass-card`}>
-          <div className={styles.filterGroup} style={{ flexWrap: 'wrap', gap: '1rem' }}>
-            <div className={styles.filterItem} style={{ minWidth: '180px', flex: 1 }}>
-              <label className="form-label">Loại giao dịch</label>
-              <select 
-                className="form-control"
-                value={filterLoai}
-                onChange={(e) => setFilterLoai(e.target.value)}
-              >
-                <option value="">-- Tất cả loại --</option>
-                <option value="THU">📈 Phiếu THU (Dòng tiền vào)</option>
-                <option value="CHI">📉 Phiếu CHI (Dòng tiền ra)</option>
-              </select>
-            </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'flex-end' }}>
+            <FilterDropdown
+              label="Loại giao dịch"
+              options={[
+                { value: 'THU', label: 'Phiếu THU (Dòng vào)' },
+                { value: 'CHI', label: 'Phiếu CHI (Dòng ra)' },
+              ]}
+              selected={filterLoai}
+              onChange={setFilterLoai}
+            />
 
-            <div className={styles.filterItem} style={{ minWidth: '180px', flex: 1 }}>
-              <label className="form-label">Lọc theo Quỹ</label>
-              <select 
-                className="form-control"
-                value={filterQuy}
-                onChange={(e) => setFilterQuy(e.target.value)}
-              >
-                <option value="">-- Tất cả Quỹ --</option>
-                {funds.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.tenQuy}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FilterDropdown
+              label="Quỹ"
+              options={funds.map((f) => ({ value: f.id, label: f.tenQuy }))}
+              selected={filterQuy}
+              onChange={setFilterQuy}
+            />
 
-            <div className={styles.filterItem} style={{ minWidth: '150px', flex: 1 }}>
-              <label className="form-label">Lọc theo Tháng</label>
-              <select 
-                className="form-control"
-                value={filterThang}
-                onChange={(e) => setFilterThang(e.target.value)}
-              >
-                <option value="">-- Tất cả tháng --</option>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                  <option key={m} value={m}>Tháng {m}</option>
-                ))}
-              </select>
-            </div>
+            <FilterDropdown
+              label="Tháng"
+              options={Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `Tháng ${i + 1}` }))}
+              selected={filterThang}
+              onChange={setFilterThang}
+            />
 
-            <div className={styles.filterItem} style={{ minWidth: '220px', flex: 1 }}>
-              <label className="form-label">Lọc theo Danh mục</label>
-              <select 
-                className="form-control"
-                value={filterDanhMuc}
-                onChange={(e) => setFilterDanhMuc(e.target.value)}
-              >
-                <option value="">-- Tất cả danh mục --</option>
-                {allCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.tenDanhMuc}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <FilterDropdown
+              label="Danh mục"
+              options={allCategories.map((c) => ({ value: c.id, label: c.tenDanhMuc }))}
+              selected={filterDanhMuc}
+              onChange={setFilterDanhMuc}
+            />
           </div>
         </div>
 

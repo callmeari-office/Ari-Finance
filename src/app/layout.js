@@ -18,6 +18,13 @@ export default function RootLayout({ children }) {
     <html lang="vi" className={`${outfit.variable}`} suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {/* Áp dụng theme đã lưu TRƯỚC khi paint để tránh nhấp nháy (FOUC) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('ari-theme');if(t==='dark'){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();",
+          }}
+        />
       </head>
       <body suppressHydrationWarning>{children}</body>
     </html>

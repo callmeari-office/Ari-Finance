@@ -37,6 +37,7 @@ export default function VendorsPage() {
   const [quickBankDayDu, setQuickBankDayDu] = useState('');
   const [quickBankLoading, setQuickBankLoading] = useState(false);
   const [quickBankError, setQuickBankError] = useState('');
+  const [deletingBankId, setDeletingBankId] = useState(null);
 
   // Form Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -595,7 +596,7 @@ export default function VendorsPage() {
           <div className={styles.modalOverlay} style={{ zIndex: 1100 }}>
             <div className={`${styles.modalContent} glass-card`} style={{ maxWidth: '440px' }}>
               <div className={styles.modalHeader}>
-                <h2>Thêm Nhanh Ngân Hàng Danh Mục</h2>
+                <h2>Quản Lý Ngân Hàng</h2>
                 <button type="button" onClick={() => setIsQuickBankOpen(false)} className={styles.closeBtn}>
                   <X size={20} />
                 </button>
@@ -607,6 +608,53 @@ export default function VendorsPage() {
                   <span>{quickBankError}</span>
                 </div>
               )}
+
+              {/* Danh sách ngân hàng hiện có — chỉ OWNER thấy nút xóa */}
+              {banks.length > 0 && (
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Danh sách hiện có ({banks.length})
+                  </div>
+                  <div style={{ maxHeight: '160px', overflowY: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    {banks.map((b) => (
+                      <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderBottom: '1px solid var(--border)', gap: '8px' }}>
+                        <span style={{ fontSize: '0.85rem' }}>
+                          <b style={{ color: 'var(--brand-accent)' }}>{b.tenVietTat}</b>
+                          <span style={{ color: 'var(--text-muted)', marginLeft: '6px' }}>{b.tenDayDu}</span>
+                        </span>
+                        {user?.role === 'OWNER' && (
+                          <button
+                            type="button"
+                            disabled={deletingBankId === b.id}
+                            title={`Xóa ${b.tenVietTat}`}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '2px', flexShrink: 0, opacity: deletingBankId === b.id ? 0.5 : 1 }}
+                            onClick={async () => {
+                              if (!confirm(`Xóa ngân hàng "${b.tenVietTat} - ${b.tenDayDu}"?\nNCC đã lưu sẽ không bị ảnh hưởng.`)) return;
+                              setDeletingBankId(b.id);
+                              try {
+                                const res = await fetch(`/api/ngan-hang/${b.id}`, { method: 'DELETE' });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
+                                await fetchBanks();
+                              } catch (err) {
+                                setQuickBankError(err.message);
+                              } finally {
+                                setDeletingBankId(null);
+                              }
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Thêm ngân hàng mới
+              </div>
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label className="form-label">Tên viết tắt (Ví dụ: VCB, TCB, MB) *</label>

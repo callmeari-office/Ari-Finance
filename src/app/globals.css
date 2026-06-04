@@ -55,6 +55,8 @@ body {
   line-height: 1.5;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  /* Chuyển màu mượt khi đổi Sáng/Tối */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 a {
@@ -259,4 +261,87 @@ button, input, select, textarea {
   .layout-wrapper {
     flex-direction: column;
   }
+}
+
+/* =========================================================
+   COZY DARK MODE — tông nâu ấm / xám ấm, KHÔNG dùng #000 đen kịt
+   & KHÔNG dùng #fff trắng tinh, đồng bộ phong cách thời trang mộc mạc.
+   Kích hoạt qua thuộc tính [data-theme="dark"] trên thẻ <html>.
+   ========================================================= */
+[data-theme="dark"] {
+  /* Màu nhấn giữ nguyên tinh thần ấm, chỉ làm sáng nhẹ để nổi trên nền tối */
+  --primary: #d6a8a8;
+  --primary-hover: #e2b9b9;
+  --primary-rgb: 214, 168, 168;
+
+  /* "Nâu thương hiệu" đảo sang tông be/tan sáng để chữ tiêu đề đọc rõ trên nền tối */
+  --brand-brown: #e3c7b0;
+  --brand-brown-hover: #efd6c2;
+  --brand-brown-rgb: 227, 199, 176;
+
+  --success: #8fbfa6;
+  --success-bg: rgba(143, 191, 166, 0.16);
+  --warning: #d3a87f;
+  --warning-bg: rgba(211, 168, 127, 0.16);
+  --danger: #d99a9a;
+  --danger-bg: rgba(217, 154, 154, 0.16);
+  --info: #a3b6c4;
+  --info-bg: rgba(163, 182, 196, 0.16);
+
+  /* Nền nâu sô-cô-la đậm ấm (không phải đen tuyệt đối) */
+  --background: #211b16;
+  --bg-gradient: linear-gradient(135deg, #1d1813 0%, #26201a 100%);
+
+  --surface: #2a231d;
+  --surface-hover: #332b24;
+  --border: rgba(227, 199, 176, 0.14);
+  --border-focus: rgba(214, 168, 168, 0.55);
+
+  /* Chữ trắng ngà ấm (không phải trắng tinh #fff) */
+  --text-main: #ece3da;
+  --text-muted: #a89c90;
+
+  --shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --glass-bg: rgba(42, 35, 29, 0.82);
+  --glass-blur: blur(16px);
+
+  --sidebar-bg: #1c1712;
+}
+
+/* Tinh chỉnh các vị trí dùng màu cố định (hardcoded) cho hợp nền tối */
+[data-theme="dark"] body {
+  /* màu nền & gradient đã đổi qua biến — giữ nguyên rule body */
+}
+
+[data-theme="dark"] .form-control {
+  background: rgba(255, 255, 255, 0.04);
+}
+[data-theme="dark"] .form-control:focus {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: rgba(255, 255, 255, 0.05);
+}
+[data-theme="dark"] .btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+[data-theme="dark"] .btn-danger {
+  color: #3a2a20; /* chữ nâu đậm trên nền hồng pastel để đủ tương phản */
+}
+
+[data-theme="dark"] .custom-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+/* Badge: làm sáng chữ để đọc rõ trên nền tối (nền badge là lớp mờ) */
+[data-theme="dark"] .badge-paid { color: #a7d0bb; }
+[data-theme="dark"] .badge-pending { color: #e3bb91; }
+[data-theme="dark"] .badge-reimburse { color: #aac3d4; }
+[data-theme="dark"] .badge-cancelled { color: #e6acac; }
+
+/* Logo vẫn đặt trên nền sáng nhẹ để không bị "cháy" trên nền tối */
+[data-theme="dark"] .glass-card {
+  border-color: var(--border);
 }

@@ -18,9 +18,11 @@ import {
   BarChart3,
   Store,
   Bell,
-  CalendarRange
+  CalendarRange,
+  TrendingUp
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import ThemeToggle from './ThemeToggle';
 import styles from './Sidebar.module.css';
 
 export default function Sidebar({ user }) {
@@ -69,14 +71,14 @@ export default function Sidebar({ user }) {
       name: 'Tổng quan',
       path: '/',
       icon: LayoutDashboard,
-      roles: ['OWNER', 'MANAGER', 'STAFF'],
+      roles: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
     },
     {
       key: 'deXuat',
       name: 'Đề xuất chi phí',
       path: '/de-xuat',
       icon: FileText,
-      roles: ['OWNER', 'MANAGER', 'STAFF'],
+      roles: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
     },
     {
       key: 'duyet',
@@ -107,6 +109,13 @@ export default function Sidebar({ user }) {
       roles: ['OWNER', 'MANAGER'],
     },
     {
+      key: 'doanhThu',
+      name: 'Kế hoạch doanh thu',
+      path: '/doanh-thu',
+      icon: TrendingUp,
+      roles: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
+    },
+    {
       key: 'baoCao',
       name: 'Báo cáo Thu - Chi',
       path: '/bao-cao',
@@ -125,7 +134,7 @@ export default function Sidebar({ user }) {
       name: 'Nhà cung cấp',
       path: '/ncc',
       icon: Store,
-      roles: ['OWNER', 'MANAGER', 'STAFF'],
+      roles: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
     },
     {
       key: 'quyen',
@@ -192,7 +201,7 @@ export default function Sidebar({ user }) {
           <div className={styles.userInfo}>
             <p className={styles.userName}>{user.tenNgan || user.hoTen}</p>
             <p className={styles.userRole}>
-              {user.role === 'OWNER' ? 'Chủ shop (Owner)' : user.role === 'MANAGER' ? 'Quản lý (Manager)' : 'Nhân viên (Staff)'}
+              {user.role === 'OWNER' ? 'Chủ shop (Owner)' : user.role === 'MANAGER' ? 'Quản lý (Manager)' : user.role === 'LEADER' ? 'Trưởng nhóm (Leader)' : 'Nhân viên (Staff)'}
             </p>
           </div>
           {(user.role === 'OWNER' || user.role === 'MANAGER') && pendingCount > 0 && (
@@ -227,8 +236,9 @@ export default function Sidebar({ user }) {
           })}
         </nav>
 
-        {/* Logout Section */}
+        {/* Logout + Theme Section */}
         <div className={styles.sidebarFooter}>
+          <ThemeToggle />
           <button onClick={handleLogout} className={styles.logoutBtn}>
             <LogOut size={20} />
             <span>Đăng xuất</span>

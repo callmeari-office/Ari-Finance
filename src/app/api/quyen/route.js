@@ -17,7 +17,20 @@ export async function GET() {
       );
     }
 
-    const quyens = await prisma.vaiTroQuyen.findMany();
+    let quyens = await prisma.vaiTroQuyen.findMany();
+
+    // Tự bảo đảm vai trò LEADER luôn tồn tại (sao chép quyền STAFF hiện tại
+    // nếu chưa có) — để không phải re-seed DB khi triển khai thực tế.
+    if (!quyens.some((q) => q.role === 'LEADER')) {
+      const staff = quyens.find((q) => q.role === 'STAFF');
+      const leaderPermissions = staff
+        ? staff.permissions
+        : JSON.stringify({ tongQuan: true, deXuat: true, doanhThu: true });
+      const leader = await prisma.vaiTroQuyen.create({
+        data: { role: 'LEADER', permissions: leaderPermissions },
+      });
+      quyens = [...quyens, leader];
+    }
 
     return NextResponse.json(quyens);
   } catch (error) {

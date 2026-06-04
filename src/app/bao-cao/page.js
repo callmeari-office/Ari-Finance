@@ -15,6 +15,7 @@ import {
   Download
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import FilterDropdown from '@/components/FilterDropdown';
 import styles from './bao-cao.module.css';
 
 export default function BaoCaoThuChiPage() {
@@ -28,11 +29,12 @@ export default function BaoCaoThuChiPage() {
   const [groups, setGroups] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  // Filter States
-  const [filterNam, setFilterNam] = useState('2026');
-  const [filterThang, setFilterThang] = useState('');
-  const [filterNhom, setFilterNhom] = useState('');
-  const [filterDanhMuc, setFilterDanhMuc] = useState('');
+  // Filter States (arrays = multi-select, string = single)
+  const [filterNam, setFilterNam] = useState(String(new Date().getFullYear()));
+  const [filterThang, setFilterThang] = useState([String(new Date().getMonth() + 1)]);
+  const [filterNhom, setFilterNhom] = useState([]);
+  const [filterDanhMuc, setFilterDanhMuc] = useState([]);
+
 
   useEffect(() => {
     // 1. Kiểm tra session & vai trò (Chỉ OWNER/MANAGER được vào dựa trên permissions)
@@ -68,7 +70,7 @@ export default function BaoCaoThuChiPage() {
     setDataLoading(true);
     try {
       // 1. Fetch transactions
-      const txRes = await fetch('/api/thu-chi?limit=1000');
+      const txRes = await fetch('/api/thu-chi?limit=2000&includeHistory=true');
       if (txRes.ok) {
         const txData = await txRes.json();
         setTransactions(txData.data || []);
@@ -100,19 +102,10 @@ export default function BaoCaoThuChiPage() {
   // --- LỌC DỮ LIỆU PHÁT SINH THEO BỘ LỌC CHỌN ---
   const filteredTx = transactions.filter((tx) => {
     const txDate = new Date(tx.ngayGiaoDich);
-    
-    // 1. Lọc theo Năm
     if (filterNam && txDate.getFullYear().toString() !== filterNam) return false;
-
-    // 2. Lọc theo Tháng
-    if (filterThang && (txDate.getMonth() + 1).toString() !== filterThang) return false;
-
-    // 3. Lọc theo Nhóm Danh mục
-    if (filterNhom && tx.danhMuc.nhomChiPhiId !== filterNhom) return false;
-
-    // 4. Lọc theo Danh mục
-    if (filterDanhMuc && tx.danhMucId !== filterDanhMuc) return false;
-
+    if (filterThang.length > 0 && !filterThang.includes(String(txDate.getMonth() + 1))) return false;
+    if (filterNhom.length > 0 && !filterNhom.includes(tx.danhMuc.nhomChiPhiId)) return false;
+    if (filterDanhMuc.length > 0 && !filterDanhMuc.includes(tx.danhMucId)) return false;
     return true;
   });
 
@@ -204,8 +197,10 @@ export default function BaoCaoThuChiPage() {
       return;
     }
 
-    const periodLabel = filterThang
-      ? `Tháng ${filterThang}-${filterNam || 'TatCa'}`
+    const periodLabel = filterThang.length === 1
+      ? `Tháng ${filterThang[0]}-${filterNam || 'TatCa'}`
+      : filterThang.length > 1
+      ? `T${filterThang.join('_')}-${filterNam || 'TatCa'}`
       : filterNam
       ? `Nam ${filterNam}`
       : 'TatCa';
@@ -247,8 +242,8 @@ export default function BaoCaoThuChiPage() {
   };
 
   // Lọc động dropdown danh mục theo Nhóm đã chọn
-  const filteredCategoriesForDropdown = filterNhom 
-    ? categories.filter(c => c.nhomChiPhiId === filterNhom)
+  const filteredCategoriesForDropdown = filterNhom.length > 0
+    ? categories.filter(c => filterNhom.includes(c.nhomChiPhiId))
     : categories;
 
   return (
@@ -279,67 +274,37 @@ export default function BaoCaoThuChiPage() {
             <span>Bộ lọc báo cáo tài chính</span>
           </div>
 
-          <div className={styles.filterGrid}>
-            <div className="form-group">
-              <label className="form-label">Chọn Năm</label>
-              <select 
-                className="form-control"
-                value={filterNam}
-                onChange={(e) => {
-                  setFilterNam(e.target.value);
-                  setFilterThang('');
-                }}
-              >
-                <option value="">-- Tất cả các năm --</option>
-                <option value="2026">Năm 2026</option>
-                <option value="2025">Năm 2025</option>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end' }}>
+            {/* Năm — dropdown đơn */}
+            <div>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>Năm</label>
+              <select className="form-control" style={{ minWidth: '110px' }} value={filterNam} onChange={(e) => setFilterNam(e.target.value)}>
+                <option value="">Tất cả</option>
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
               </select>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Chọn Tháng</label>
-              <select 
-                className="form-control"
-                value={filterThang}
-                onChange={(e) => setFilterThang(e.target.value)}
-              >
-                <option value="">-- Tất cả các tháng --</option>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                  <option key={m} value={m}>Tháng {m}</option>
-                ))}
-              </select>
-            </div>
+            <FilterDropdown
+              label="Tháng"
+              options={Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `Tháng ${i + 1}` }))}
+              selected={filterThang}
+              onChange={setFilterThang}
+            />
 
-            <div className="form-group">
-              <label className="form-label">Chọn Nhóm Danh Mục</label>
-              <select 
-                className="form-control"
-                value={filterNhom}
-                onChange={(e) => {
-                  setFilterNhom(e.target.value);
-                  setFilterDanhMuc('');
-                }}
-              >
-                <option value="">-- Tất cả các nhóm --</option>
-                {groups.map(g => (
-                  <option key={g.id} value={g.id}>[{g.id}] {g.tenNhom}</option>
-                ))}
-              </select>
-            </div>
+            <FilterDropdown
+              label="Nhóm danh mục"
+              options={groups.map(g => ({ value: g.id, label: g.tenNhom }))}
+              selected={filterNhom}
+              onChange={(v) => { setFilterNhom(v); setFilterDanhMuc([]); }}
+            />
 
-            <div className="form-group">
-              <label className="form-label">Chọn Danh Mục</label>
-              <select 
-                className="form-control"
-                value={filterDanhMuc}
-                onChange={(e) => setFilterDanhMuc(e.target.value)}
-              >
-                <option value="">-- Tất cả danh mục --</option>
-                {filteredCategoriesForDropdown.map(c => (
-                  <option key={c.id} value={c.id}>{c.tenDanhMuc}</option>
-                ))}
-              </select>
-            </div>
+            <FilterDropdown
+              label="Danh mục"
+              options={filteredCategoriesForDropdown.map(c => ({ value: c.id, label: c.tenDanhMuc }))}
+              selected={filterDanhMuc}
+              onChange={setFilterDanhMuc}
+            />
           </div>
         </div>
 
@@ -577,7 +542,7 @@ export default function BaoCaoThuChiPage() {
                           <span className={styles.chiBadge}>CHI</span>
                         )}
                       </td>
-                      <td style={{ fontWeight: '600' }}>{tx.quy.tenQuy}</td>
+                      <td style={{ fontWeight: '600' }}>{tx.quy ? tx.quy.tenQuy : <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Lịch sử</span>}</td>
                       <td>{tx.danhMuc.tenDanhMuc}</td>
                       <td>{tx.noiDung}</td>
                       <td style={{ 

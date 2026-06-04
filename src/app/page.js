@@ -15,6 +15,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { isRestrictedToOwnProposals } from '@/lib/roles';
 import styles from './dashboard.module.css';
 
 export default function Dashboard() {
@@ -92,7 +93,7 @@ export default function Dashboard() {
 
   const fetchTransactions = async () => {
     try {
-      const res = await fetch('/api/thu-chi?limit=1000');
+      const res = await fetch('/api/thu-chi?limit=2000&includeHistory=true');
       if (res.ok) {
         const data = await res.json();
         setTransactions(data.data || []);
@@ -339,8 +340,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ================= STAFF DASHBOARD VIEW ================= */}
-        {user.role === 'STAFF' && (
+        {/* ================= STAFF / LEADER DASHBOARD VIEW ================= */}
+        {isRestrictedToOwnProposals(user.role) && (
           <div className={styles.dashboardGrid}>
             <div className={`${styles.statCard} ${styles.blueCard} glass-card`}>
               <div className={styles.cardHeader}>

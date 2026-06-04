@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaDeXuat } from '@/lib/generateId';
+import { notifyManagersChoThanhToan } from '@/lib/email';
+import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
 
 const DEFAULT_LIMIT = 20;
 
@@ -26,8 +28,8 @@ export async function GET(request) {
     if (nguonTien) where.nguonTien = nguonTien;
     if (nhaCungCapId) where.nhaCungCapId = nhaCungCapId;
 
-    // Staff chỉ thấy đề xuất của mình
-    if (user.role === 'STAFF') {
+    // Staff (và Leader) chỉ thấy đề xuất của mình
+    if (isRestrictedToOwnProposals(user.role)) {
       where.nguoiTaoId = user.id;
     }
 
@@ -54,7 +56,7 @@ export async function GET(request) {
       if (user.role === 'OWNER' || user.role === 'MANAGER') return true;
       try {
         const allowedRoles = JSON.parse(prop.danhMuc.chucVuDuocXem);
-        return allowedRoles.includes(user.role);
+        return canViewCategory(user.role, allowedRoles);
       } catch {
         return false;
       }
@@ -130,7 +132,7 @@ export async function POST(request) {
 
     try {
       const allowedRoles = JSON.parse(danhMuc.chucVuDuocXem);
-      if (!allowedRoles.includes(user.role)) {
+      if (!canViewCategory(user.role, allowedRoles)) {
         return NextResponse.json(
           { error: 'Bạn không có quyền chọn danh mục chi phí này.' },
           { status: 403 }
@@ -167,6 +169,13 @@ export async function POST(request) {
             : null,
       },
     });
+
+    // Gửi email thông báo cho OWNER + MANAGER khi phiếu ở trạng thái "Chờ thanh toán".
+    // Await để chắc chắn email được gửi trên môi trường serverless, nhưng hàm này
+    // tự bắt lỗi bên trong nên KHÔNG làm hỏng luồng tạo phiếu nếu gửi mail thất bại.
+    if (newProposal.trangThai === 'CHO_THANH_TOAN') {
+      await notifyManagersChoThanhToan(newProposal.id);
+    }
 
     return NextResponse.json({
       success: true,

@@ -89,6 +89,46 @@ model KeHoach {
   @@unique([nam, thang, danhMucId])
 }
 
+model KenhBan {
+  id        String   @id @default(uuid())
+  tenKenh   String                       // POS, Shopee, Harasocial, Web, Zalo, Instagram...
+  thuTu     Int      @default(0)          // thứ tự hiển thị
+  mauSac    String?                       // mã màu cột biểu đồ (vd "#10b981")
+  trangThai String   @default("ACTIVE")   // ACTIVE | INACTIVE (ẩn kênh thay vì xoá cứng)
+  createdAt DateTime @default(now())
+
+  keHoachDoanhThu  KeHoachDoanhThu[]
+  doanhThuHangNgay DoanhThuHangNgay[]
+}
+
+model DoanhThuHangNgay {
+  id        String   @id @default(uuid())
+  ngay      DateTime // Ngày phát sinh doanh thu (đã chuẩn hóa giờ về 00:00:00 UTC)
+  kenhBanId String
+  soTien    Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kenhBan   KenhBan  @relation(fields: [kenhBanId], references: [id])
+
+  @@unique([ngay, kenhBanId])
+}
+
+model KeHoachDoanhThu {
+  id        String   @id @default(uuid())
+  nam       Int
+  thang     Int      // 1-12
+  kenhBanId String
+  chiTieu   Float    @default(0)   // số kế hoạch (chỉ tiêu)
+  thucTe    Float    @default(0)   // số thực tế (nhập tay)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kenhBan   KenhBan  @relation(fields: [kenhBanId], references: [id])
+
+  @@unique([nam, thang, kenhBanId])
+}
+
 model NhaCungCap {
   id           String         @id
   tenNCC       String

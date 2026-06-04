@@ -2,6 +2,10 @@ import { cookies } from 'next/headers';
 import { prisma } from './prisma';
 import { logger } from './logger';
 
+// Thời hạn phiên đăng nhập: 30 ngày, tự gia hạn khi người dùng còn hoạt động (sliding session).
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 ngày
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
 export async function getSession() {
   try {
     const cookieStore = await cookies();
@@ -31,9 +35,29 @@ export async function getSession() {
 
     if (!session) return null;
 
-    if (new Date() > session.expiresAt) {
+    const now = new Date();
+    if (now > session.expiresAt) {
       await prisma.session.delete({ where: { id: session.id } });
       return null;
+    }
+
+    // Sliding renewal: nếu phiên đã trôi qua >1 ngày, gia hạn về đủ 30 ngày + làm mới cookie.
+    // Throttle ~1 lần/ngày để tránh ghi DB mỗi request.
+    const remaining = session.expiresAt.getTime() - now.getTime();
+    if (remaining < SESSION_TTL_MS - ONE_DAY_MS) {
+      const newExpiry = new Date(now.getTime() + SESSION_TTL_MS);
+      await prisma.session.update({ where: { id: session.id }, data: { expiresAt: newExpiry } });
+      try {
+        cookieStore.set('session_token', session.id, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          expires: newExpiry,
+          path: '/',
+        });
+      } catch {
+        // Một số ngữ cảnh (render server component) không cho set cookie — bỏ qua an toàn.
+      }
     }
 
     return session.nhanVien;
@@ -44,7 +68,7 @@ export async function getSession() {
 }
 
 export async function createSession(userId) {
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
   const session = await prisma.session.create({
     data: { userId, expiresAt },

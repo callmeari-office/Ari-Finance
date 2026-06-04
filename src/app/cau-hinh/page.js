@@ -57,6 +57,7 @@ export default function CauHinhPage() {
   const [viewRoles, setViewRoles] = useState({
     OWNER: true,
     MANAGER: true,
+    LEADER: true,
     STAFF: true
   });
   const [yeuCauNCC, setYeuCauNCC] = useState(false);
@@ -157,7 +158,7 @@ export default function CauHinhPage() {
     setTenDanhMuc('');
     if (groups.length > 0) setNhomChiPhiId(groups[0].id);
     setLoaiGiaoDich('CHI');
-    setViewRoles({ OWNER: true, MANAGER: true, STAFF: true });
+    setViewRoles({ OWNER: true, MANAGER: true, LEADER: true, STAFF: true });
     setYeuCauNCC(false);
     setHanMucThang('');
     setTrangThai('ACTIVE');
@@ -182,10 +183,11 @@ export default function CauHinhPage() {
       setViewRoles({
         OWNER: roles.includes('OWNER'),
         MANAGER: roles.includes('MANAGER'),
+        LEADER: roles.includes('LEADER'),
         STAFF: roles.includes('STAFF')
       });
     } catch (e) {
-      setViewRoles({ OWNER: true, MANAGER: true, STAFF: true });
+      setViewRoles({ OWNER: true, MANAGER: true, LEADER: true, STAFF: true });
     }
 
     setFormError('');
@@ -936,7 +938,16 @@ export default function CauHinhPage() {
                       <span>Manager</span>
                     </label>
                     <label className={styles.checkboxLabel}>
-                      <input 
+                      <input
+                        type="checkbox"
+                        checked={viewRoles.LEADER}
+                        onChange={(e) => setViewRoles({ ...viewRoles, LEADER: e.target.checked })}
+                        disabled={formLoading}
+                      />
+                      <span>Leader</span>
+                    </label>
+                    <label className={styles.checkboxLabel}>
+                      <input
                         type="checkbox"
                         checked={viewRoles.STAFF}
                         onChange={(e) => setViewRoles({ ...viewRoles, STAFF: e.target.checked })}

@@ -41,6 +41,7 @@ export default function QuyenPage() {
     thuChi: false,
     quy: false,
     keHoach: false,
+    doanhThu: false,
     baoCao: false,
     ncc: true,
     nhanSu: false,
@@ -60,6 +61,7 @@ export default function QuyenPage() {
     { key: 'thuChi', name: 'Giao dịch Thu - Chi', path: '/thu-chi', desc: 'Lớp ghi nhận dòng tiền thực tế tác động trực tiếp vào các quỹ' },
     { key: 'quy', name: 'Thông tin Quỹ', path: '/quy', desc: 'Theo dõi số dư realtime chi tiết của các quỹ tiền' },
     { key: 'keHoach', name: 'Kế hoạch chi phí', path: '/ke-hoach', desc: 'Lập kế hoạch chi phí cả năm theo danh mục và so sánh với thực tế' },
+    { key: 'doanhThu', name: 'Kế hoạch doanh thu', path: '/doanh-thu', desc: 'Lập chỉ tiêu & nhập doanh thu thực tế theo kênh bán, xem Dashboard so sánh' },
     { key: 'baoCao', name: 'Báo cáo Thu - Chi', path: '/bao-cao', desc: 'Xem phân tích doanh thu, cơ cấu chi phí và đối soát thu chi của shop' },
     { key: 'ncc', name: 'Nhà cung cấp', path: '/ncc', desc: 'Quản lý danh sách nhà cung cấp, tài khoản ngân hàng và mã QR' },
     { key: 'nhanSu', name: 'Nhân sự', path: '/nhan-su', desc: 'Quản lý tài khoản, thêm nhân viên, đổi mật khẩu và cấp role' },
@@ -251,6 +253,11 @@ export default function QuyenPage() {
         return {
           title: 'Sales Admin (MANAGER)',
           desc: 'Quản lý bán hàng, kế toán trưởng',
+        };
+      case 'LEADER':
+        return {
+          title: 'Trưởng nhóm (LEADER)',
+          desc: 'Trưởng nhóm tác nghiệp — quyền cơ sở giống Nhân viên, có thể nâng thêm',
         };
       case 'STAFF':
       default:

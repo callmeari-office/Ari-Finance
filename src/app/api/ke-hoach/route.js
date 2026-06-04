@@ -22,28 +22,51 @@ export async function GET(request) {
       include: { danhMuc: { include: { nhomChiPhi: true } } },
     });
 
-    // Lấy thực tế từ ThuChi trong năm (CHI only)
+    // Lấy thực tế từ ThuChi + phiếu lịch sử (laLichSu=true) trong năm
     const startOfYear = new Date(nam, 0, 1);
     const endOfYear = new Date(nam + 1, 0, 1);
-    const thucTeRaw = await prisma.thuChi.groupBy({
-      by: ['danhMucId', 'loaiGiaoDich'],
-      where: {
-        ngayGiaoDich: { gte: startOfYear, lt: endOfYear },
-      },
-      _sum: { soTien: true },
-    });
 
-    // Thực tế theo tháng × danh mục
-    const thucTeByMonth = await prisma.$queryRaw`
+    // ThuChi theo tháng × danh mục
+    const thucTeByMonthThuChi = await prisma.$queryRaw`
       SELECT
         EXTRACT(MONTH FROM "ngayGiaoDich")::int AS thang,
         "danhMucId",
-        "loaiGiaoDich",
+        'CHI' AS "loaiGiaoDich",
         SUM("soTien") AS total
       FROM "ThuChi"
       WHERE "ngayGiaoDich" >= ${startOfYear} AND "ngayGiaoDich" < ${endOfYear}
-      GROUP BY thang, "danhMucId", "loaiGiaoDich"
+        AND "loaiGiaoDich" = 'CHI'
+      GROUP BY thang, "danhMucId"
     `;
+
+    // Phiếu lịch sử theo tháng × danh mục (dùng ngayThanhToan, fallback ngayPhatSinh)
+    const thucTeByMonthLichSu = await prisma.$queryRaw`
+      SELECT
+        EXTRACT(MONTH FROM COALESCE("ngayThanhToan", "ngayPhatSinh"))::int AS thang,
+        "danhMucId",
+        'CHI' AS "loaiGiaoDich",
+        SUM("soTien") AS total
+      FROM "DeXuatChiPhi"
+      WHERE COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startOfYear}
+        AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endOfYear}
+        AND "laLichSu" = true
+      GROUP BY thang, "danhMucId"
+    `;
+
+    // Gộp 2 nguồn: cộng dồn theo thang+danhMucId
+    const mergedMapSimple = {};
+    const mergeSimple = (rows) => {
+      for (const row of rows) {
+        const key = `${row.thang}__${row.danhMucId}__${row.loaiGiaoDich}`;
+        if (!mergedMapSimple[key]) {
+          mergedMapSimple[key] = { thang: Number(row.thang), danhMucId: row.danhMucId, loaiGiaoDich: row.loaiGiaoDich, total: 0 };
+        }
+        mergedMapSimple[key].total += Number(row.total);
+      }
+    };
+    mergeSimple(thucTeByMonthThuChi);
+    mergeSimple(thucTeByMonthLichSu);
+    const thucTeByMonth = Object.values(mergedMapSimple);
 
     return NextResponse.json({ keHoach: keHoachList, thucTeByMonth, nam });
   } catch (error) {

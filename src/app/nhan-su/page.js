@@ -177,7 +177,7 @@ export default function NhanSuPage() {
       } else if (formType === 'EDIT') {
         url = `/api/nhan-su/${selectedEmp.id}`;
         method = 'PUT';
-        payload = { hoTen, tenNgan, phone, phongBan, viTri, ghiChu, role, trangThai };
+        payload = { hoTen, tenNgan, email, phone, phongBan, viTri, ghiChu, role, trangThai };
       } else if (formType === 'PASSWORD') {
         url = `/api/nhan-su/${selectedEmp.id}`;
         method = 'PUT';
@@ -269,6 +269,8 @@ export default function NhanSuPage() {
         return 'badge-cancelled'; // pink/red
       case 'MANAGER':
         return 'badge-pending'; // orange/brown
+      case 'LEADER':
+        return 'badge-paid'; // green
       case 'STAFF':
       default:
         return 'badge-reimburse'; // blue/ghi
@@ -278,6 +280,7 @@ export default function NhanSuPage() {
   const getRoleText = (r) => {
     if (r === 'OWNER') return 'GIÁM ĐỐC';
     if (r === 'MANAGER') return 'QUẢN LÝ';
+    if (r === 'LEADER') return 'TRƯỞNG NHÓM';
     return 'NHÂN VIÊN';
   };
 
@@ -320,6 +323,7 @@ export default function NhanSuPage() {
                 <option value="">Tất cả quyền</option>
                 <option value="OWNER">OWNER (Giám đốc)</option>
                 <option value="MANAGER">MANAGER (Quản lý)</option>
+                <option value="LEADER">LEADER (Trưởng nhóm)</option>
                 <option value="STAFF">STAFF (Nhân viên)</option>
               </select>
             </div>
@@ -543,7 +547,7 @@ export default function NhanSuPage() {
                         className="form-control"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        disabled={formLoading || formType === 'EDIT'}
+                        disabled={formLoading}
                       />
                     </div>
                   </div>
@@ -570,6 +574,7 @@ export default function NhanSuPage() {
                         disabled={formLoading || (selectedEmp?.id === user.id)} // Không tự giáng chức mình
                       >
                         <option value="STAFF">STAFF (Nhân viên)</option>
+                        <option value="LEADER">LEADER (Trưởng nhóm)</option>
                         <option value="MANAGER">MANAGER (Quản lý)</option>
                         <option value="OWNER">OWNER (Giám đốc)</option>
                       </select>

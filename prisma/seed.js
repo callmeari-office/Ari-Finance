@@ -14,6 +14,7 @@ async function main() {
   await prisma.danhMuc.deleteMany();
   await prisma.nhomChiPhi.deleteMany();
   await prisma.nhaCungCap.deleteMany();
+  await prisma.keHoachDoanhThu.deleteMany();
 
   console.log('Tạo dữ liệu VaiTroQuyen (Phân quyền động mẫu)...');
   
@@ -27,6 +28,8 @@ async function main() {
         duyet: true,
         thuChi: true,
         quy: true,
+        keHoach: true,
+        doanhThu: true,
         baoCao: true,
         nhanSu: true,
         quyen: true,
@@ -45,6 +48,8 @@ async function main() {
         duyet: true,
         thuChi: true,
         quy: true,
+        keHoach: true,
+        doanhThu: true,
         baoCao: true,
         nhanSu: false,
         quyen: false,
@@ -54,19 +59,31 @@ async function main() {
   });
 
   // Staff (Nhân viên)
+  const staffPermissions = {
+    tongQuan: true,
+    deXuat: true,
+    duyet: false,
+    thuChi: false,
+    quy: false,
+    keHoach: false,
+    doanhThu: true,
+    nhanSu: false,
+    quyen: false,
+    cauHinh: false
+  };
   await prisma.vaiTroQuyen.create({
     data: {
       role: 'STAFF',
-      permissions: JSON.stringify({
-        tongQuan: true,
-        deXuat: true,
-        duyet: false,
-        thuChi: false,
-        quy: false,
-        nhanSu: false,
-        quyen: false,
-        cauHinh: false
-      })
+      permissions: JSON.stringify(staffPermissions)
+    }
+  });
+
+  // Leader (Trưởng nhóm) — sao chép y hệt quyền STAFF để chuẩn bị sẵn,
+  // sau này có thể chỉnh khác STAFF ở trang Quản lý Quyền.
+  await prisma.vaiTroQuyen.create({
+    data: {
+      role: 'LEADER',
+      permissions: JSON.stringify(staffPermissions)
     }
   });
 
@@ -329,6 +346,25 @@ async function main() {
       ghiChu: 'Không duyệt chi liên hoan cá nhân.',
     }
   });
+
+  console.log('Tạo dữ liệu Kênh Bán...');
+  // Idempotent: chỉ seed kênh mặc định nếu bảng đang trống (giữ kênh do chủ shop tự thêm)
+  const soKenhHienCo = await prisma.kenhBan.count();
+  if (soKenhHienCo === 0) {
+    const kenhBanDefaults = [
+      { tenKenh: 'POS',        thuTu: 1, mauSac: '#6366f1' },
+      { tenKenh: 'Shopee',     thuTu: 2, mauSac: '#f97316' },
+      { tenKenh: 'Harasocial', thuTu: 3, mauSac: '#ec4899' },
+      { tenKenh: 'Web',        thuTu: 4, mauSac: '#0ea5e9' },
+      { tenKenh: 'Zalo',       thuTu: 5, mauSac: '#3b82f6' },
+      { tenKenh: 'Instagram',  thuTu: 6, mauSac: '#a855f7' },
+    ];
+    for (const k of kenhBanDefaults) {
+      await prisma.kenhBan.create({ data: { ...k, trangThai: 'ACTIVE' } });
+    }
+  } else {
+    console.log(`  (Bỏ qua — đã có ${soKenhHienCo} kênh bán)`);
+  }
 
   console.log('Seed dữ liệu thành công!');
 }

@@ -20,7 +20,7 @@ export async function PUT(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const { hoTen, tenNgan, phone, phongBan, viTri, matKhau, role, trangThai } = body;
+    const { hoTen, tenNgan, email, phone, phongBan, viTri, matKhau, role, trangThai } = body;
 
     const existingNhanVien = await prisma.nhanVien.findUnique({
       where: { id },
@@ -33,6 +33,7 @@ export async function PUT(request, { params }) {
     const updateData = {};
     if (hoTen) updateData.hoTen = hoTen;
     if (tenNgan !== undefined) updateData.tenNgan = tenNgan || null;
+    if (email !== undefined && email !== null) updateData.email = email.trim();
     if (phone !== undefined) updateData.phone = phone;
     if (phongBan !== undefined) updateData.phongBan = phongBan;
     if (viTri !== undefined) updateData.viTri = viTri;

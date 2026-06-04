@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { canViewCategory } from '@/lib/roles';
 
 export async function GET() {
   try {
@@ -45,7 +46,7 @@ export async function GET() {
         if (user.role === 'OWNER' || user.role === 'MANAGER') return true;
         try {
           const allowedRoles = JSON.parse(cat.chucVuDuocXem);
-          return allowedRoles.includes(user.role);
+          return canViewCategory(user.role, allowedRoles);
         } catch {
           return false;
         }
