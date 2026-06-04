@@ -258,7 +258,7 @@ async function main() {
   // Đề xuất 1: Chờ thanh toán, TienShop (TH1)
   await prisma.deXuatChiPhi.create({
     data: {
-      maPhieu: 'CP-260527-0001',
+      maPhieu: 'CP2605-0001',
       ngayPhatSinh: new Date('2026-05-26'),
       danhMucId: 'C1.01',
       noiDung: 'Đề xuất mua vải may đầm hoa mùa hè',
@@ -273,7 +273,7 @@ async function main() {
   // Đề xuất 2: Đã thanh toán sẵn, TienShop (TH2)
   await prisma.deXuatChiPhi.create({
     data: {
-      maPhieu: 'CP-260527-0002',
+      maPhieu: 'CP2605-0002',
       ngayPhatSinh: new Date('2026-05-26'),
       danhMucId: 'C4.02',
       noiDung: 'Thanh toán tiền điện tháng 5 shop (Chờ gán quỹ)',
@@ -289,7 +289,7 @@ async function main() {
   // Đề xuất 3 & 4: Chờ hoàn ứng, TienCaNhan (dùng để test GỘP TH3)
   await prisma.deXuatChiPhi.create({
     data: {
-      maPhieu: 'CP-260527-0003',
+      maPhieu: 'CP2605-0003',
       ngayPhatSinh: new Date('2026-05-27'),
       danhMucId: 'C1.01',
       noiDung: 'Nhân viên ứng tiền mua nút áo phụ',
@@ -303,7 +303,7 @@ async function main() {
 
   await prisma.deXuatChiPhi.create({
     data: {
-      maPhieu: 'CP-260527-0004',
+      maPhieu: 'CP2605-0004',
       ngayPhatSinh: new Date('2026-05-27'),
       danhMucId: 'C1.01',
       noiDung: 'Nhân viên ứng tiền mua khóa kéo khẩn cấp',
@@ -318,7 +318,7 @@ async function main() {
   // Đề xuất 5: Đã hủy (4.Huy)
   await prisma.deXuatChiPhi.create({
     data: {
-      maPhieu: 'CP-260527-0005',
+      maPhieu: 'CP2605-0005',
       ngayPhatSinh: new Date('2026-05-25'),
       danhMucId: 'C4.02',
       noiDung: 'Đề xuất mua trà sữa liên hoan (bị từ chối)',

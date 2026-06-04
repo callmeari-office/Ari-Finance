@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { createSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function POST(request) {
   try {
@@ -45,7 +46,7 @@ export async function POST(request) {
       role: user.role,
     });
   } catch (error) {
-    console.error('Login API error:', error);
+    logger.error('POST /api/auth/login', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

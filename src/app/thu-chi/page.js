@@ -34,7 +34,7 @@ export default function ThuChiPage() {
   // Filter states
   const [filterLoai, setFilterLoai] = useState('');
   const [filterQuy, setFilterQuy] = useState('');
-  const [filterThang, setFilterThang] = useState('');
+  const [filterThang, setFilterThang] = useState(String(new Date().getMonth() + 1));
   const [filterDanhMuc, setFilterDanhMuc] = useState('');
 
   // Modal: TẠO PHIẾU THU TRỰC TIẾP (TH4)
@@ -50,6 +50,17 @@ export default function ThuChiPage() {
   const [soTien, setSoTien] = useState('');
   const [noiDung, setNoiDung] = useState('');
   const [ghiChu, setGhiChu] = useState('');
+
+  const handleSoTienChange = (e) => {
+    const raw = e.target.value.replace(/\D/g, '');
+    setSoTien(raw);
+  };
+
+  const formatSoTienDisplay = (raw) => {
+    if (!raw) return '';
+    const num = parseInt(raw, 10);
+    return isNaN(num) ? '' : num.toLocaleString('vi-VN');
+  };
 
   // Modal: XEM CHI TIẾT PHIẾU CHI (HIỂN THỊ CÁC ĐỀ XUẤT CON)
   const [selectedTx, setSelectedTx] = useState(null);
@@ -86,10 +97,10 @@ export default function ThuChiPage() {
     setDataLoading(true);
     try {
       // 1. Fetch transactions
-      const txRes = await fetch('/api/thu-chi');
+      const txRes = await fetch('/api/thu-chi?limit=1000');
       if (txRes.ok) {
         const txData = await txRes.json();
-        setTransactions(txData);
+        setTransactions(txData.data || []);
       }
 
       // 2. Fetch funds
@@ -453,14 +464,20 @@ export default function ThuChiPage() {
                     <label className="form-label" htmlFor="soTien">Số tiền thu (VND) *</label>
                     <input
                       id="soTien"
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       placeholder="Nhập số tiền thu vào quỹ..."
                       className="form-control"
-                      value={soTien}
-                      onChange={(e) => setSoTien(e.target.value)}
+                      value={formatSoTienDisplay(soTien)}
+                      onChange={handleSoTienChange}
                       required
                       disabled={formLoading}
                     />
+                    {soTien && (
+                      <small style={{ color: 'var(--text-muted)', marginTop: '0.3rem', display: 'block' }}>
+                        = {Number(soTien).toLocaleString('vi-VN')} ₫
+                      </small>
+                    )}
                   </div>
                 </div>
 

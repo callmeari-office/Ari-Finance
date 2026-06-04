@@ -40,6 +40,10 @@ export default function DuyetPage() {
   const [selectedProposalIds, setSelectedProposalIds] = useState([]); // Các đề xuất hoàn ứng được tích chọn
   const [gopQuyId, setGopQuyId] = useState(''); // Quỹ dùng để chi trả hoàn ứng gộp
 
+  // Cancel modal state
+  const [cancelModal, setCancelModal] = useState({ open: false, id: '', maPhieu: '' });
+  const [cancelReason, setCancelReason] = useState('');
+
   // Quick Preview state
   const [selectedPreviewProp, setSelectedPreviewProp] = useState(null);
   const [copiedField, setCopiedField] = useState('');
@@ -52,24 +56,20 @@ export default function DuyetPage() {
 
   const generateVietQRUrl = (vendor, amount, memo) => {
     if (!vendor) return '';
-    let bankCode = '';
     const nameUpper = vendor.tenNganHang.toUpperCase();
-    if (nameUpper.includes('-')) {
-      bankCode = nameUpper.split('-')[0].trim();
-    } else {
-      bankCode = nameUpper.trim();
-    }
-    
-    let qrBank = bankCode.toLowerCase();
-    if (qrBank === 'vcb') qrBank = 'vietcombank';
-    else if (qrBank === 'tcb') qrBank = 'techcombank';
-    else if (qrBank === 'ctg') qrBank = 'vietinbank';
-    else if (qrBank === 'mb' || qrBank === 'mbbank') qrBank = 'mbb';
-    else if (qrBank === 'vpb') qrBank = 'vpbank';
-    else if (qrBank === 'hdb') qrBank = 'hdbank';
-    else if (qrBank === 'stb') qrBank = 'sacombank';
-    
-    return `https://img.vietqr.io/image/${qrBank}-${vendor.soTaiKhoan}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(memo)}&accountName=${encodeURIComponent(vendor.tenNCC)}`;
+    let bankCode = nameUpper.includes('-') ? nameUpper.split('-')[0].trim() : nameUpper.trim();
+
+    const bankMap = {
+      'vcb': 'vietcombank', 'tcb': 'techcombank', 'ctg': 'vietinbank',
+      'mb': 'mbb', 'mbbank': 'mbb', 'vpb': 'vpbank', 'hdb': 'hdbank',
+      'stb': 'sacombank', 'tpb': 'tpbank', 'msb': 'msb', 'shb': 'shb',
+      'eib': 'eximbank', 'ocb': 'ocb', 'lpb': 'lpbank', 'abb': 'abbank',
+      'nab': 'namabank', 'cake': 'cake'
+    };
+    let qrBank = bankMap[bankCode.toLowerCase()] || bankCode.toLowerCase();
+    const accountName = vendor.tenTaiKhoan || vendor.tenNCC;
+
+    return `https://img.vietqr.io/image/${qrBank}-${vendor.soTaiKhoan}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(memo)}&accountName=${encodeURIComponent(accountName)}`;
   };
 
   useEffect(() => {
@@ -104,14 +104,15 @@ export default function DuyetPage() {
     setDataLoading(true);
     try {
       // Tải các đề xuất ở trạng thái chờ duyệt (CHO_THANH_TOAN hoặc CHO_HOAN_UNG)
-      const propRes = await fetch('/api/de-xuat');
+      const propRes = await fetch('/api/de-xuat?limit=1000');
       if (propRes.ok) {
         const propData = await propRes.json();
         // Lấy các phiếu chờ thanh toán, chờ hoàn ứng, hoặc đã thanh toán sẵn nhưng chưa gán quỹ
-        const pendingProps = propData.filter(
-          (p) => p.trangThai === 'CHO_THANH_TOAN' || 
+        const pendingProps = (propData.data || []).filter(
+          (p) => !p.laLichSu && (
+                 p.trangThai === 'CHO_THANH_TOAN' ||
                  p.trangThai === 'CHO_HOAN_UNG' ||
-                 (p.trangThai === 'DA_THANH_TOAN' && (p.quyThanhToanId === null || p.thuChiId === null))
+                 (p.trangThai === 'DA_THANH_TOAN' && (p.quyThanhToanId === null || p.thuChiId === null)))
         );
         setProposals(pendingProps);
       }
@@ -162,27 +163,31 @@ export default function DuyetPage() {
     }
   };
 
-  // TH1: Hủy đề xuất đơn
-  const handleCancelSingle = async (proposalId, maPhieu) => {
-    if (confirm(`Bạn có chắc chắn muốn TỪ CHỐI / HỦY đề xuất ${maPhieu}?`)) {
-      setActionLoading(true);
-      try {
-        const res = await fetch(`/api/de-xuat/${proposalId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'HUY' }),
-        });
+  // TH1: Hủy đề xuất đơn — mở modal nhập lý do
+  const handleCancelSingle = (proposalId, maPhieu) => {
+    setCancelReason('');
+    setCancelModal({ open: true, id: proposalId, maPhieu });
+  };
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Hủy thất bại.');
+  const handleConfirmCancel = async () => {
+    const { id, maPhieu } = cancelModal;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/de-xuat/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'HUY', ghiChu: cancelReason.trim() || null }),
+      });
 
-        alert(`Đã từ chối đề xuất ${maPhieu}.`);
-        fetchData();
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        setActionLoading(false);
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Hủy thất bại.');
+
+      setCancelModal({ open: false, id: '', maPhieu: '' });
+      fetchData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -857,7 +862,7 @@ export default function DuyetPage() {
 
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Người lập:</span>
-                  <span className={styles.detailValue}>{selectedPreviewProp.nguoiTao.hoTen} ({selectedPreviewProp.nguoiTao.role})</span>
+                  <span className={styles.detailValue}>{selectedPreviewProp.nguoiTao.tenNgan || selectedPreviewProp.nguoiTao.hoTen} ({selectedPreviewProp.nguoiTao.role})</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Nguồn tiền:</span>
@@ -892,18 +897,25 @@ export default function DuyetPage() {
                   </span>
                 </div>
 
-                <div className={styles.detailItem} style={{ gridColumn: 'span 2' }}>
-                  <span className={styles.detailLabel}>Ghi chú:</span>
-                  <span className={styles.detailValue}>{selectedPreviewProp.ghiChu || 'Không có ghi chú thêm.'}</span>
-                </div>
-
-                {selectedPreviewProp.anhHoaDon && (
+                {selectedPreviewProp.trangThai === 'HUY' && selectedPreviewProp.ghiChu ? (
                   <div className={styles.detailItem} style={{ gridColumn: 'span 2' }}>
-                    <span className={styles.detailLabel}>Hóa đơn đính kèm:</span>
-                    <div className={styles.invoiceImgWrapper}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={selectedPreviewProp.anhHoaDon} alt="Hóa đơn chứng từ" className={styles.invoiceImg} />
-                    </div>
+                    <span className={styles.detailLabel}>Lý do từ chối:</span>
+                    <span className={styles.detailValue} style={{
+                      color: '#ef4444',
+                      background: 'rgba(239,68,68,0.08)',
+                      border: '1px solid rgba(239,68,68,0.2)',
+                      borderRadius: '6px',
+                      padding: '0.5rem 0.75rem',
+                      display: 'block',
+                      fontWeight: '600'
+                    }}>
+                      {selectedPreviewProp.ghiChu}
+                    </span>
+                  </div>
+                ) : (
+                  <div className={styles.detailItem} style={{ gridColumn: 'span 2' }}>
+                    <span className={styles.detailLabel}>Nội dung CK:</span>
+                    <span className={styles.detailValue}>{selectedPreviewProp.ghiChu || 'Không có ghi chú thêm.'}</span>
                   </div>
                 )}
 
@@ -924,8 +936,8 @@ export default function DuyetPage() {
                     }}>
                       <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Chủ tài khoản / NCC</div>
-                          <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '0.95rem' }}>{selectedPreviewProp.nhaCungCap.tenNCC}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Chủ tài khoản</div>
+                          <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '0.95rem' }}>{selectedPreviewProp.nhaCungCap.tenTaiKhoan || selectedPreviewProp.nhaCungCap.tenNCC}</div>
                         </div>
 
                         <div>
@@ -971,11 +983,11 @@ export default function DuyetPage() {
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Nội dung chuyển khoản (Memo)</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
                             <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.1)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
-                              {selectedPreviewProp.maPhieu}
+                              {selectedPreviewProp.ghiChu || selectedPreviewProp.maPhieu}
                             </span>
                             <button
                               type="button"
-                              onClick={() => handleCopyText(selectedPreviewProp.maPhieu, 'memo')}
+                              onClick={() => handleCopyText(selectedPreviewProp.ghiChu || selectedPreviewProp.maPhieu, 'memo')}
                               className="btn btn-secondary btn-sm"
                               style={{ padding: '0.1rem 0.4rem', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                             >
@@ -999,7 +1011,7 @@ export default function DuyetPage() {
                       }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={generateVietQRUrl(selectedPreviewProp.nhaCungCap, selectedPreviewProp.soTien, selectedPreviewProp.maPhieu)}
+                          src={generateVietQRUrl(selectedPreviewProp.nhaCungCap, selectedPreviewProp.soTien, selectedPreviewProp.ghiChu || selectedPreviewProp.maPhieu)}
                           alt="Mã VietQR động chuyển khoản"
                           style={{ width: '130px', height: '130px', objectFit: 'contain' }}
                         />
@@ -1061,6 +1073,46 @@ export default function DuyetPage() {
         )}
 
       </main>
+
+      {/* CANCEL MODAL — Nhập lý do từ chối */}
+      {cancelModal.open && (
+        <div className={styles.modalOverlay} onClick={() => setCancelModal({ open: false, id: '', maPhieu: '' })}>
+          <div
+            className={`${styles.modalContent} glass-card`}
+            style={{ maxWidth: '480px', padding: '2rem' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginBottom: '0.5rem', color: '#ef4444' }}>Từ chối / Hủy đề xuất {cancelModal.maPhieu}</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+              Nhập lý do từ chối để người tạo phiếu biết lý do cụ thể. Bỏ trống nếu không muốn ghi lý do.
+            </p>
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label">Lý do từ chối</label>
+              <textarea
+                className="form-control"
+                rows={3}
+                placeholder="Ví dụ: Chi phí vượt hạn mức, thiếu chứng từ..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                style={{ resize: 'vertical' }}
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setCancelModal({ open: false, id: '', maPhieu: '' })}
+                disabled={actionLoading}
+              >
+                Quay lại
+              </button>
+              <button className="btn btn-danger" onClick={handleConfirmCancel} disabled={actionLoading}>
+                {actionLoading ? 'Đang xử lý...' : 'Xác nhận từ chối'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

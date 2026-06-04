@@ -1,35 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+import { generateMaThuChi } from '@/lib/generateId';
 
-// Hàm sinh mã phiếu Thu-Chi: TC-YYMMDD-xxxx
-async function generateMaThuChi() {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const prefix = `TC-${yy}${mm}${dd}-`;
+const DEFAULT_LIMIT = 50;
 
-  const count = await prisma.thuChi.count({
-    where: {
-      maPhieu: {
-        startsWith: prefix,
-      },
-    },
-  });
-
-  const xxxx = String(count + 1).padStart(4, '0');
-  return `${prefix}${xxxx}`;
-}
-
-export async function GET() {
+export async function GET(request) {
   try {
     const user = await getSession();
     if (!user) {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
-    // Chỉ Owner/Manager được xem lịch sử ThuChi
     if (!checkRole(user, ['OWNER', 'MANAGER'])) {
       return NextResponse.json(
         { error: 'Bạn không có quyền truy cập dữ liệu Thu-Chi.' },
@@ -37,50 +20,47 @@ export async function GET() {
       );
     }
 
-    const thuChis = await prisma.thuChi.findMany({
-      include: {
-        quy: true,
-        danhMuc: {
-          include: {
-            nhomChiPhi: true,
-          },
-        },
-        nhaCungCap: true,
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(500, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10)));
+    const skip = (page - 1) * limit;
 
-        nguoiTao: {
-          select: { id: true, hoTen: true, email: true },
-        },
-        deXuatChiPhi: {
-          select: {
-            id: true,
-            maPhieu: true,
-            noiDung: true,
-            soTien: true,
-            trangThai: true,
-            nguoiTao: {
-              select: { hoTen: true },
-            },
-          },
+    const include = {
+      quy: true,
+      danhMuc: { include: { nhomChiPhi: true } },
+      nhaCungCap: true,
+      nguoiTao: { select: { id: true, hoTen: true, tenNgan: true, email: true } },
+      deXuatChiPhi: {
+        select: {
+          id: true,
+          maPhieu: true,
+          noiDung: true,
+          soTien: true,
+          trangThai: true,
+          nguoiTao: { select: { hoTen: true, tenNgan: true } },
         },
       },
-      orderBy: { ngayGiaoDich: 'desc' },
-    });
+    };
 
-    // Tính toán thêm các thuộc tính tính toán tongTienDeXuat và soPhieuDeXuat
-    const data = thuChis.map((tc) => {
-      const soPhieuDeXuat = tc.deXuatChiPhi.length;
-      const tongTienDeXuat = tc.deXuatChiPhi.reduce((sum, dx) => sum + dx.soTien, 0);
+    const [total, thuChis] = await Promise.all([
+      prisma.thuChi.count(),
+      prisma.thuChi.findMany({
+        include,
+        orderBy: { ngayGiaoDich: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
 
-      return {
-        ...tc,
-        soPhieuDeXuat,
-        tongTienDeXuat,
-      };
-    });
+    const data = thuChis.map((tc) => ({
+      ...tc,
+      soPhieuDeXuat: tc.deXuatChiPhi.length,
+      tongTienDeXuat: tc.deXuatChiPhi.reduce((sum, dx) => sum + dx.soTien, 0),
+    }));
 
-    return NextResponse.json(data);
+    return NextResponse.json({ data, pagination: { page, limit, total } });
   } catch (error) {
-    console.error('Get ThuChi error:', error);
+    logger.error('GET /api/thu-chi', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -95,7 +75,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
-    // Chỉ Owner/Manager được tạo phiếu ThuChi trực tiếp
     if (!checkRole(user, ['OWNER', 'MANAGER'])) {
       return NextResponse.json(
         { error: 'Chỉ Chủ shop (Owner) hoặc Quản lý (Manager) mới có quyền tạo giao dịch Thu-Chi trực tiếp.' },
@@ -104,21 +83,18 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const {
-      ngayGiaoDich,
-      loaiGiaoDich, // CHI, THU
-      soTien,
-      quyId,
-      danhMucId,
-      nhaCungCapId,
-      noiDung,
-      ghiChu,
-    } = body;
+    const { ngayGiaoDich, loaiGiaoDich, soTien, quyId, danhMucId, nhaCungCapId, noiDung, ghiChu } = body;
 
-    // Validate dữ liệu
     if (!ngayGiaoDich || !loaiGiaoDich || !soTien || !quyId || !danhMucId || !noiDung) {
       return NextResponse.json(
         { error: 'Vui lòng cung cấp đầy đủ thông tin bắt buộc.' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof noiDung !== 'string' || noiDung.trim().length === 0 || noiDung.length > 500) {
+      return NextResponse.json(
+        { error: 'Nội dung giao dịch không hợp lệ (1–500 ký tự).' },
         { status: 400 }
       );
     }
@@ -130,19 +106,21 @@ export async function POST(request) {
       );
     }
 
-    // Kiểm tra Quỹ nhận/chi
-    const quy = await prisma.quy.findUnique({ where: { id: quyId } });
+    if (!['CHI', 'THU'].includes(loaiGiaoDich)) {
+      return NextResponse.json({ error: 'Loại giao dịch không hợp lệ.' }, { status: 400 });
+    }
+
+    const [quy, danhMuc] = await Promise.all([
+      prisma.quy.findUnique({ where: { id: quyId } }),
+      prisma.danhMuc.findUnique({ where: { id: danhMucId } }),
+    ]);
+
     if (!quy) {
       return NextResponse.json({ error: 'Quỹ được chọn không hợp lệ.' }, { status: 400 });
     }
-
-    // Kiểm tra Danh mục
-    const danhMuc = await prisma.danhMuc.findUnique({ where: { id: danhMucId } });
     if (!danhMuc) {
       return NextResponse.json({ error: 'Danh mục giao dịch không hợp lệ.' }, { status: 400 });
     }
-
-    // Kiểm tra xem loaiGiaoDich có khớp với loại danh mục không
     if (danhMuc.loaiGiaoDich !== loaiGiaoDich) {
       return NextResponse.json(
         { error: `Danh mục "${danhMuc.tenDanhMuc}" là loại ${danhMuc.loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'}, không khớp với loại giao dịch đã chọn.` },
@@ -161,7 +139,7 @@ export async function POST(request) {
         quyId,
         danhMucId,
         nhaCungCapId: nhaCungCapId || null,
-        noiDung,
+        noiDung: noiDung.trim(),
         nguoiTaoId: user.id,
         ghiChu: ghiChu || '',
       },
@@ -173,7 +151,7 @@ export async function POST(request) {
       message: `Đã ghi nhận phiếu ${loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'} ${maPhieu} thành công.`,
     });
   } catch (error) {
-    console.error('Create ThuChi error:', error);
+    logger.error('POST /api/thu-chi', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

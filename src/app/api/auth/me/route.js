@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -34,7 +35,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('Me API error:', error);
+    logger.error('GET /api/auth/me', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

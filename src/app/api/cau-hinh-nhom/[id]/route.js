@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function PUT(request, { params }) {
   try {
@@ -53,7 +54,7 @@ export async function PUT(request, { params }) {
       group: updated,
     });
   } catch (error) {
-    console.error('Update group error:', error);
+    logger.error('PUT /api/cau-hinh-nhom/[id]', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -106,7 +107,7 @@ export async function DELETE(request, { params }) {
       message: `Đã xóa nhóm danh mục "${existing.tenNhom}" thành công.`,
     });
   } catch (error) {
-    console.error('Delete group error:', error);
+    logger.error('DELETE /api/cau-hinh-nhom/[id]', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống khi xóa nhóm.' },
       { status: 500 }

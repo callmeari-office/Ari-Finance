@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
+import {
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
   Calendar,
   Layers,
   PieChart,
   SlidersHorizontal,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './bao-cao.module.css';
@@ -67,10 +68,10 @@ export default function BaoCaoThuChiPage() {
     setDataLoading(true);
     try {
       // 1. Fetch transactions
-      const txRes = await fetch('/api/thu-chi');
+      const txRes = await fetch('/api/thu-chi?limit=1000');
       if (txRes.ok) {
         const txData = await txRes.json();
-        setTransactions(txData);
+        setTransactions(txData.data || []);
       }
 
       // 2. Fetch categories & groups
@@ -197,6 +198,54 @@ export default function BaoCaoThuChiPage() {
     return num.toLocaleString('vi-VN') + ' ₫';
   };
 
+  const handleExportCSV = () => {
+    if (filteredTx.length === 0) {
+      alert('Không có dữ liệu để xuất.');
+      return;
+    }
+
+    const periodLabel = filterThang
+      ? `Tháng ${filterThang}-${filterNam || 'TatCa'}`
+      : filterNam
+      ? `Nam ${filterNam}`
+      : 'TatCa';
+
+    const headers = ['Mã Giao Dịch', 'Ngày Giao Dịch', 'Loại', 'Quỹ', 'Nhóm Danh Mục', 'Danh Mục', 'Nội Dung', 'Số Tiền (VND)'];
+
+    const rows = filteredTx.map((tx) => [
+      tx.maPhieu,
+      new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN'),
+      tx.loaiGiaoDich === 'THU' ? 'Thu' : 'Chi',
+      tx.quy?.tenQuy || '',
+      tx.danhMuc?.nhomChiPhi?.tenNhom || '',
+      tx.danhMuc?.tenDanhMuc || '',
+      `"${(tx.noiDung || '').replace(/"/g, '""')}"`,
+      tx.loaiGiaoDich === 'THU' ? tx.soTien : -tx.soTien,
+    ]);
+
+    const summaryRows = [
+      [],
+      ['TỔNG KẾT', '', '', '', '', '', '', ''],
+      ['Tổng Thu', '', '', '', '', '', '', tongThu],
+      ['Tổng Chi', '', '', '', '', '', '', -tongChi],
+      ['Net Cashflow', '', '', '', '', '', '', netCashflow],
+    ];
+
+    const csvContent =
+      '﻿' +
+      [headers, ...rows, ...summaryRows]
+        .map((r) => r.join(','))
+        .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `BaoCaoThuChi_${periodLabel}_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Lọc động dropdown danh mục theo Nhóm đã chọn
   const filteredCategoriesForDropdown = filterNhom 
     ? categories.filter(c => c.nhomChiPhiId === filterNhom)
@@ -212,6 +261,15 @@ export default function BaoCaoThuChiPage() {
             <h1>Báo cáo Thu - Chi</h1>
             <p className={styles.pageDesc}>Tổng hợp phân tích cơ cấu chi tiêu, doanh thu và net cashflow tích lũy của shop</p>
           </div>
+          <button
+            onClick={handleExportCSV}
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+            disabled={dataLoading}
+          >
+            <Download size={16} />
+            Xuất Excel / CSV
+          </button>
         </div>
 
         {/* SECTION 1: SMART FILTER GRID */}

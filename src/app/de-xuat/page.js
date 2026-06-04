@@ -13,8 +13,10 @@ import {
   Info,
   Calendar,
   AlertCircle,
-  FileImage,
-  Edit3
+  Edit3,
+  Upload,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './de-xuat.module.css';
@@ -33,8 +35,11 @@ export default function DeXuatPage() {
   // Filter states
   const [filterTrangThai, setFilterTrangThai] = useState('');
   const [filterNguonTien, setFilterNguonTien] = useState('');
-  const [filterThang, setFilterThang] = useState('');
+  const [filterThang, setFilterThang] = useState(String(new Date().getMonth() + 1));
+  const [filterNam, setFilterNam] = useState(String(new Date().getFullYear()));
   const [filterDanhMuc, setFilterDanhMuc] = useState('');
+  const [filterNguoiTao, setFilterNguoiTao] = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
 
   // Modal / Form state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -51,7 +56,6 @@ export default function DeXuatPage() {
   const [nguonTien, setNguonTien] = useState('TIEN_SHOP');
   const [trangThai, setTrangThai] = useState('CHO_THANH_TOAN');
   const [ghiChu, setGhiChu] = useState('');
-  const [anhHoaDon, setAnhHoaDon] = useState(''); // base64 giả lập hoặc URL ảnh
   const [ngayCanThanhToan, setNgayCanThanhToan] = useState('');
   const [formType, setFormType] = useState('ADD'); // 'ADD' hoặc 'EDIT'
   const [editingId, setEditingId] = useState(null);
@@ -59,15 +63,39 @@ export default function DeXuatPage() {
   // Quick NCC popup states
   const [isQuickNccOpen, setIsQuickNccOpen] = useState(false);
   const [quickTenNcc, setQuickTenNcc] = useState('');
+  const [quickTenTaiKhoan, setQuickTenTaiKhoan] = useState('');
   const [quickSoTaiKhoan, setQuickSoTaiKhoan] = useState('');
   const [quickTenNganHang, setQuickTenNganHang] = useState('');
-  const [quickMaQr, setQuickMaQr] = useState('');
   const [quickError, setQuickError] = useState('');
   const [quickLoading, setQuickLoading] = useState(false);
+  const [banks, setBanks] = useState([]);
+
+  // Cancel modal state
+  const [cancelModal, setCancelModal] = useState({ open: false, id: '', maPhieu: '' });
+  const [cancelReason, setCancelReason] = useState('');
 
   // Detail Modal state
   const [selectedProp, setSelectedProp] = useState(null);
   const [copiedField, setCopiedField] = useState('');
+
+  // Import Excel state (chỉ OWNER)
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState([]);   // dữ liệu đã đọc từ file
+  const [importFileName, setImportFileName] = useState('');
+  const [importParseError, setImportParseError] = useState('');
+  const [importResult, setImportResult] = useState(null); // kết quả từ server
+  const [importLoading, setImportLoading] = useState(false);
+
+  const handleSoTienChange = (e) => {
+    const raw = e.target.value.replace(/\D/g, '');
+    setSoTien(raw);
+  };
+
+  const formatSoTienDisplay = (raw) => {
+    if (!raw) return '';
+    const num = parseInt(raw, 10);
+    return isNaN(num) ? '' : num.toLocaleString('vi-VN');
+  };
 
   const handleCopyText = (text, fieldName) => {
     navigator.clipboard.writeText(text);
@@ -77,29 +105,46 @@ export default function DeXuatPage() {
 
   const generateVietQRUrl = (vendor, amount, memo) => {
     if (!vendor) return '';
-    let bankCode = '';
     const nameUpper = vendor.tenNganHang.toUpperCase();
-    if (nameUpper.includes('-')) {
-      bankCode = nameUpper.split('-')[0].trim();
-    } else {
-      bankCode = nameUpper.trim();
-    }
-    
-    let qrBank = bankCode.toLowerCase();
-    if (qrBank === 'vcb') qrBank = 'vietcombank';
-    else if (qrBank === 'tcb') qrBank = 'techcombank';
-    else if (qrBank === 'ctg') qrBank = 'vietinbank';
-    else if (qrBank === 'mb' || qrBank === 'mbbank') qrBank = 'mbb';
-    else if (qrBank === 'vpb') qrBank = 'vpbank';
-    else if (qrBank === 'hdb') qrBank = 'hdbank';
-    else if (qrBank === 'stb') qrBank = 'sacombank';
-    
-    return `https://img.vietqr.io/image/${qrBank}-${vendor.soTaiKhoan}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(memo)}&accountName=${encodeURIComponent(vendor.tenNCC)}`;
+    let bankCode = nameUpper.includes('-') ? nameUpper.split('-')[0].trim() : nameUpper.trim();
+
+    const bankMap = {
+      'vcb': 'vietcombank', 'tcb': 'techcombank', 'ctg': 'vietinbank',
+      'mb': 'mbb', 'mbbank': 'mbb', 'vpb': 'vpbank', 'hdb': 'hdbank',
+      'stb': 'sacombank', 'tpb': 'tpbank', 'msb': 'msb', 'shb': 'shb',
+      'eib': 'eximbank', 'ocb': 'ocb', 'lpb': 'lpbank', 'abb': 'abbank',
+      'nab': 'namabank', 'cake': 'cake'
+    };
+    let qrBank = bankMap[bankCode.toLowerCase()] || bankCode.toLowerCase();
+    const accountName = vendor.tenTaiKhoan || vendor.tenNCC;
+
+    return `https://img.vietqr.io/image/${qrBank}-${vendor.soTaiKhoan}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(memo)}&accountName=${encodeURIComponent(accountName)}`;
   };
 
 
-  // Lấy thông tin danh mục đang chọn để check xem có yêu cầu chọn NCC không
+  // Lấy thông tin danh mục đang chọn
   const currentCategory = categories.find(c => c.id === danhMucId);
+
+  // Tính tổng chi tháng hiện tại cho danh mục đang chọn
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const monthlySpentForCategory = danhMucId
+    ? proposals
+        .filter((p) => {
+          if (p.danhMucId !== danhMucId) return false;
+          if (p.trangThai === 'HUY') return false;
+          const d = new Date(p.ngayPhatSinh);
+          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        })
+        .reduce((sum, p) => sum + p.soTien, 0)
+    : 0;
+
+  const hanMucWarning = currentCategory?.hanMucThang
+    ? monthlySpentForCategory >= currentCategory.hanMucThang * 0.8
+    : false;
+  const hanMucExceeded = currentCategory?.hanMucThang
+    ? monthlySpentForCategory >= currentCategory.hanMucThang
+    : false;
 
   useEffect(() => {
     // 1. Check auth
@@ -137,10 +182,10 @@ export default function DeXuatPage() {
     setDataLoading(true);
     try {
       // Fetch Proposals
-      const propRes = await fetch('/api/de-xuat');
+      const propRes = await fetch('/api/de-xuat?limit=1000');
       if (propRes.ok) {
         const propData = await propRes.json();
-        setProposals(propData);
+        setProposals(propData.data || []);
       }
 
       // Fetch Categories
@@ -173,6 +218,13 @@ export default function DeXuatPage() {
         const venData = await venRes.json();
         setVendors(venData);
       }
+
+      // Fetch Banks for quick NCC dropdown
+      const bankRes = await fetch('/api/ngan-hang');
+      if (bankRes.ok) {
+        const bankData = await bankRes.json();
+        setBanks(bankData);
+      }
     } catch (e) {
       console.error('Error fetching data:', e);
     } finally {
@@ -180,25 +232,29 @@ export default function DeXuatPage() {
     }
   };
 
-  const handleCancelProp = async (id, maPhieu) => {
-    if (confirm(`Bạn có chắc chắn muốn HỦY đề xuất ${maPhieu}? Đề xuất đã thanh toán sẽ không thể hủy.`)) {
-      try {
-        const res = await fetch(`/api/de-xuat/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'HUY' }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Hủy thất bại');
-        
-        alert(`Đã hủy phiếu đề xuất ${maPhieu} thành công!`);
-        fetchData(); // Tải lại danh sách
-        if (selectedProp && selectedProp.id === id) {
-          setSelectedProp(null);
-        }
-      } catch (err) {
-        alert(err.message);
+  const handleCancelProp = (id, maPhieu) => {
+    setCancelReason('');
+    setCancelModal({ open: true, id, maPhieu });
+  };
+
+  const handleConfirmCancel = async () => {
+    const { id, maPhieu } = cancelModal;
+    try {
+      const res = await fetch(`/api/de-xuat/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'HUY', ghiChu: cancelReason.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Hủy thất bại');
+
+      setCancelModal({ open: false, id: '', maPhieu: '' });
+      fetchData();
+      if (selectedProp && selectedProp.id === id) {
+        setSelectedProp(null);
       }
+    } catch (err) {
+      alert(err.message);
     }
   };
 
@@ -223,8 +279,7 @@ export default function DeXuatPage() {
     setNhaCungCapId('');
     setGhiChu('');
     setNoiDung('');
-    setAnhHoaDon('');
-    
+
     setFormError('');
     setFormSuccess('');
     setIsModalOpen(true);
@@ -242,11 +297,155 @@ export default function DeXuatPage() {
     setNhaCungCapId(prop.nhaCungCapId || '');
     setGhiChu(prop.ghiChu || '');
     setNoiDung(prop.noiDung);
-    setAnhHoaDon(prop.anhHoaDon || '');
-    
     setFormError('');
     setFormSuccess('');
     setIsModalOpen(true);
+  };
+
+  // ===== IMPORT EXCEL (dữ liệu cũ) =====
+
+  // Tải file Excel mẫu: 1 sheet dữ liệu + 1 sheet danh mục hợp lệ để tra cứu
+  const handleDownloadTemplate = async () => {
+    const XLSX = await import('xlsx');
+    const headers = ['Ngày chi (dd/mm/yyyy)', 'Danh mục', 'Nội dung', 'Số tiền', 'Nhà cung cấp (nếu có)', 'Ghi chú (nếu có)'];
+    const exampleRow = ['01/01/2025', categories[0]?.tenDanhMuc || 'Tên danh mục chi', 'Ví dụ: Mua văn phòng phẩm', 500000, '', ''];
+    const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
+    ws['!cols'] = [{ wch: 18 }, { wch: 24 }, { wch: 32 }, { wch: 14 }, { wch: 22 }, { wch: 22 }];
+
+    // Sheet phụ: danh sách danh mục CHI hợp lệ để copy cho đúng tên
+    const dmSheet = XLSX.utils.aoa_to_sheet([
+      ['DANH MỤC CHI HỢP LỆ (copy đúng tên vào cột "Danh mục")'],
+      ...categories.map((c) => [c.tenDanhMuc]),
+    ]);
+    dmSheet['!cols'] = [{ wch: 40 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Phiếu chi');
+    XLSX.utils.book_append_sheet(wb, dmSheet, 'DanhMuc hợp lệ');
+    XLSX.writeFile(wb, 'mau-nhap-phieu-chi-cu.xlsx');
+  };
+
+  // Chuyển 1 ô ngày (Date của Excel hoặc chuỗi dd/mm/yyyy) -> 'yyyy-mm-dd'
+  const parseDateCell = (v) => {
+    if (!v && v !== 0) return null;
+    if (v instanceof Date && !isNaN(v.getTime())) {
+      const y = v.getFullYear();
+      const m = String(v.getMonth() + 1).padStart(2, '0');
+      const d = String(v.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    const s = String(v).trim();
+    // dd/mm/yyyy hoặc dd-mm-yyyy
+    const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+    if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    // yyyy-mm-dd
+    const m2 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m2) return `${m2[1]}-${m2[2].padStart(2, '0')}-${m2[3].padStart(2, '0')}`;
+    return null;
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // cho phép chọn lại cùng file
+    if (!file) return;
+
+    setImportParseError('');
+    setImportResult(null);
+    setImportRows([]);
+    setImportFileName(file.name);
+
+    try {
+      const XLSX = await import('xlsx');
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
+
+      if (aoa.length < 2) {
+        setImportParseError('File không có dòng dữ liệu nào (chỉ có tiêu đề).');
+        return;
+      }
+
+      // Dò vị trí cột theo tiêu đề (linh hoạt thứ tự cột)
+      const norm = (s) => String(s || '').trim().toLowerCase();
+      const headers = (aoa[0] || []).map(norm);
+      const findCol = (...keys) => headers.findIndex((h) => keys.some((k) => h.includes(k)));
+      const ci = {
+        ngay: findCol('ngày', 'ngay'),
+        danhMuc: findCol('danh m'),
+        noiDung: findCol('nội dung', 'noi dung'),
+        soTien: findCol('số tiền', 'so tien', 'tiền'),
+        ncc: findCol('cung cấp', 'cung cap', 'ncc'),
+        ghiChu: findCol('ghi chú', 'ghi chu'),
+      };
+
+      if (ci.ngay < 0 || ci.danhMuc < 0 || ci.noiDung < 0 || ci.soTien < 0) {
+        setImportParseError('File thiếu cột bắt buộc (Ngày chi / Danh mục / Nội dung / Số tiền). Hãy dùng đúng file mẫu.');
+        return;
+      }
+
+      const rows = [];
+      for (let i = 1; i < aoa.length; i++) {
+        const r = aoa[i];
+        const get = (idx) => (idx >= 0 ? r[idx] : '');
+        const rawTien = get(ci.soTien);
+        const soTien = typeof rawTien === 'number'
+          ? rawTien
+          : parseInt(String(rawTien).replace(/[^\d]/g, ''), 10);
+
+        // Bỏ dòng hoàn toàn trống
+        if (!get(ci.ngay) && !get(ci.danhMuc) && !get(ci.noiDung) && !rawTien) continue;
+
+        rows.push({
+          ngayPhatSinh: parseDateCell(get(ci.ngay)),
+          ngayGoc: String(get(ci.ngay)),
+          danhMuc: String(get(ci.danhMuc) || '').trim(),
+          noiDung: String(get(ci.noiDung) || '').trim(),
+          soTien: Number.isFinite(soTien) ? soTien : 0,
+          nhaCungCap: ci.ncc >= 0 ? String(get(ci.ncc) || '').trim() : '',
+          ghiChu: ci.ghiChu >= 0 ? String(get(ci.ghiChu) || '').trim() : '',
+        });
+      }
+
+      if (rows.length === 0) {
+        setImportParseError('Không đọc được dòng dữ liệu hợp lệ nào.');
+        return;
+      }
+      setImportRows(rows);
+    } catch (err) {
+      console.error(err);
+      setImportParseError('Không đọc được file. Hãy chắc chắn đây là file Excel (.xlsx) đúng mẫu.');
+    }
+  };
+
+  const handleSubmitImport = async () => {
+    if (importRows.length === 0) return;
+    setImportLoading(true);
+    setImportResult(null);
+    try {
+      const res = await fetch('/api/de-xuat/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: importRows }),
+      });
+      const data = await res.json();
+      setImportResult(data);
+      if (res.ok && data.successCount > 0) {
+        fetchData(); // tải lại danh sách
+      }
+    } catch (err) {
+      setImportResult({ error: 'Lỗi kết nối khi gửi dữ liệu.' });
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const closeImportModal = () => {
+    setIsImportOpen(false);
+    setImportRows([]);
+    setImportFileName('');
+    setImportParseError('');
+    setImportResult(null);
   };
 
   const handleCreateProposal = async (e) => {
@@ -270,6 +469,11 @@ export default function DeXuatPage() {
       return;
     }
 
+    if (nhaCungCapId && !ghiChu.trim()) {
+      setFormError('Vui lòng nhập Nội dung CK khi chọn Nhà cung cấp (dùng làm nội dung chuyển khoản).');
+      return;
+    }
+
     setFormLoading(true);
 
     try {
@@ -285,7 +489,6 @@ export default function DeXuatPage() {
           noiDung,
           soTien: Number(soTien),
           nhaCungCapId: nhaCungCapId || null,
-          anhHoaDon: anhHoaDon || null,
           nguonTien,
           trangThai,
           ghiChu,
@@ -304,7 +507,6 @@ export default function DeXuatPage() {
       setSoTien('');
       setNhaCungCapId('');
       setGhiChu('');
-      setAnhHoaDon('');
       setNgayCanThanhToan('');
 
       setTimeout(() => {
@@ -319,22 +521,35 @@ export default function DeXuatPage() {
     }
   };
 
+  // Tập hợp danh sách năm và người tạo từ data
+  const availableYears = [...new Set(proposals.map(p => new Date(p.ngayPhatSinh).getFullYear()))].sort((a, b) => b - a);
+  const availableCreators = [...new Map(proposals.map(p => [p.nguoiTao.id, p.nguoiTao])).values()];
+
   // Lọc dữ liệu hiển thị trên Client
   const filteredProposals = proposals.filter((p) => {
     if (filterTrangThai && p.trangThai !== filterTrangThai) return false;
     if (filterNguonTien && p.nguonTien !== filterNguonTien) return false;
-    
-    // Lọc theo Tháng
-    if (filterThang) {
-      const propMonth = new Date(p.ngayPhatSinh).getMonth() + 1;
-      if (propMonth !== Number(filterThang)) return false;
-    }
 
-    // Lọc theo Danh mục
+    const propDate = new Date(p.ngayPhatSinh);
+    if (filterThang && propDate.getMonth() + 1 !== Number(filterThang)) return false;
+    if (filterNam && propDate.getFullYear() !== Number(filterNam)) return false;
     if (filterDanhMuc && p.danhMucId !== filterDanhMuc) return false;
+    if (filterNguoiTao && p.nguoiTao.id !== filterNguoiTao) return false;
+
+    // Tìm kiếm theo mã phiếu, nội dung, NCC
+    if (filterSearch) {
+      const q = filterSearch.toLowerCase();
+      const matchMa = p.maPhieu.toLowerCase().includes(q);
+      const matchNoi = p.noiDung.toLowerCase().includes(q);
+      const matchNcc = p.nhaCungCap?.tenNCC?.toLowerCase().includes(q);
+      if (!matchMa && !matchNoi && !matchNcc) return false;
+    }
 
     return true;
   });
+
+  // Tổng kết phiếu đang hiển thị
+  const tongTienHienThi = filteredProposals.reduce((sum, p) => sum + p.soTien, 0);
 
   if (loading) {
     return (
@@ -422,72 +637,101 @@ export default function DeXuatPage() {
                 : 'Xem danh sách và quản lý các đề xuất chi tiêu nội bộ của shop'}
             </p>
           </div>
-          <button onClick={handleOpenAdd} className="btn btn-primary">
-            <PlusCircle size={20} />
-            <span>Tạo đề xuất chi</span>
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {user.role === 'OWNER' && (
+              <button onClick={() => setIsImportOpen(true)} className="btn btn-secondary" title="Nhập phiếu chi cũ từ file Excel">
+                <Upload size={18} />
+                <span>Nhập từ Excel</span>
+              </button>
+            )}
+            <button onClick={handleOpenAdd} className="btn btn-primary">
+              <PlusCircle size={20} />
+              <span>Tạo đề xuất chi</span>
+            </button>
+          </div>
         </div>
 
         {/* Filter Section */}
         <div className={`${styles.filterCard} glass-card`}>
-          <div className={styles.filterGroup} style={{ flexWrap: 'wrap', gap: '1rem' }}>
-            <div className={styles.filterItem} style={{ minWidth: '200px', flex: 1 }}>
-              <label className="form-label">Lọc theo trạng thái</label>
-              <select 
+          {/* Hàng 1: Tìm kiếm nhanh */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label className="form-label">Tìm kiếm nhanh</label>
+            <div style={{ position: 'relative' }}>
+              <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+              <input
+                type="text"
                 className="form-control"
-                value={filterTrangThai}
-                onChange={(e) => setFilterTrangThai(e.target.value)}
-              >
-                <option value="">-- Tất cả trạng thái --</option>
-                <option value="CHO_THANH_TOAN">Chờ thanh toán (Tiền Shop)</option>
-                <option value="CHO_HOAN_UNG">Chờ hoàn ứng (Cá nhân ứng)</option>
-                <option value="DA_THANH_TOAN">Đã thanh toán (Hoàn tất)</option>
+                placeholder="Tìm theo mã phiếu, nội dung, tên NCC..."
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+                style={{ paddingLeft: '2.25rem' }}
+              />
+            </div>
+          </div>
+
+          {/* Hàng 2: Các filter dropdown */}
+          <div className={styles.filterGroup} style={{ flexWrap: 'wrap', gap: '1rem' }}>
+            <div className={styles.filterItem} style={{ minWidth: '180px', flex: 1 }}>
+              <label className="form-label">Trạng thái</label>
+              <select className="form-control" value={filterTrangThai} onChange={(e) => setFilterTrangThai(e.target.value)}>
+                <option value="">-- Tất cả --</option>
+                <option value="CHO_THANH_TOAN">Chờ thanh toán</option>
+                <option value="CHO_HOAN_UNG">Chờ hoàn ứng</option>
+                <option value="DA_THANH_TOAN">Đã thanh toán</option>
                 <option value="HUY">Đã hủy</option>
               </select>
             </div>
-            
-            <div className={styles.filterItem} style={{ minWidth: '200px', flex: 1 }}>
-              <label className="form-label">Lọc theo nguồn tiền</label>
-              <select 
-                className="form-control"
-                value={filterNguonTien}
-                onChange={(e) => setFilterNguonTien(e.target.value)}
-              >
-                <option value="">-- Tất cả nguồn tiền --</option>
-                <option value="TIEN_SHOP">🏦 Tiền Shop (Shop chi)</option>
-                <option value="TIEN_CA_NHAN">👤 Tiền cá nhân (Nhân viên ứng trước)</option>
+
+            <div className={styles.filterItem} style={{ minWidth: '160px', flex: 1 }}>
+              <label className="form-label">Nguồn tiền</label>
+              <select className="form-control" value={filterNguonTien} onChange={(e) => setFilterNguonTien(e.target.value)}>
+                <option value="">-- Tất cả --</option>
+                <option value="TIEN_SHOP">🏦 Tiền Shop</option>
+                <option value="TIEN_CA_NHAN">👤 Cá nhân ứng</option>
               </select>
             </div>
 
-            <div className={styles.filterItem} style={{ minWidth: '150px', flex: 1 }}>
-              <label className="form-label">Lọc theo Tháng</label>
-              <select 
-                className="form-control"
-                value={filterThang}
-                onChange={(e) => setFilterThang(e.target.value)}
-              >
-                <option value="">-- Tất cả tháng --</option>
+            <div className={styles.filterItem} style={{ minWidth: '100px', flex: '0 1 120px' }}>
+              <label className="form-label">Năm</label>
+              <select className="form-control" value={filterNam} onChange={(e) => setFilterNam(e.target.value)}>
+                <option value="">Tất cả</option>
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.filterItem} style={{ minWidth: '100px', flex: '0 1 110px' }}>
+              <label className="form-label">Tháng</label>
+              <select className="form-control" value={filterThang} onChange={(e) => setFilterThang(e.target.value)}>
+                <option value="">Tất cả</option>
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                   <option key={m} value={m}>Tháng {m}</option>
                 ))}
               </select>
             </div>
 
-            <div className={styles.filterItem} style={{ minWidth: '220px', flex: 1 }}>
-              <label className="form-label">Lọc theo Danh mục</label>
-              <select 
-                className="form-control"
-                value={filterDanhMuc}
-                onChange={(e) => setFilterDanhMuc(e.target.value)}
-              >
-                <option value="">-- Tất cả danh mục --</option>
+            <div className={styles.filterItem} style={{ minWidth: '180px', flex: 1 }}>
+              <label className="form-label">Danh mục</label>
+              <select className="form-control" value={filterDanhMuc} onChange={(e) => setFilterDanhMuc(e.target.value)}>
+                <option value="">-- Tất cả --</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.tenDanhMuc}
-                  </option>
+                  <option key={cat.id} value={cat.id}>{cat.tenDanhMuc}</option>
                 ))}
               </select>
             </div>
+
+            {(user.role === 'OWNER' || user.role === 'MANAGER') && (
+              <div className={styles.filterItem} style={{ minWidth: '180px', flex: 1 }}>
+                <label className="form-label">Người đề xuất</label>
+                <select className="form-control" value={filterNguoiTao} onChange={(e) => setFilterNguoiTao(e.target.value)}>
+                  <option value="">-- Tất cả --</option>
+                  {availableCreators.map((nv) => (
+                    <option key={nv.id} value={nv.id}>{nv.tenNgan || nv.hoTen}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -495,8 +739,6 @@ export default function DeXuatPage() {
         <div className="glass-card" style={{ marginTop: '1.5rem' }}>
           {dataLoading ? (
             <div className={styles.loaderSmall}>Đang tải dữ liệu đề xuất...</div>
-          ) : filteredProposals.length === 0 ? (
-            <div className={styles.emptyState}>Không tìm thấy đề xuất chi phí nào phù hợp với bộ lọc.</div>
           ) : (
             <div className="table-responsive">
               <table className="custom-table">
@@ -513,6 +755,13 @@ export default function DeXuatPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {filteredProposals.length === 0 && (
+                    <tr>
+                      <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontStyle: 'italic' }}>
+                        Không tìm thấy đề xuất phù hợp với bộ lọc.
+                      </td>
+                    </tr>
+                  )}
                   {filteredProposals.map((prop) => (
                     <tr key={prop.id}>
                       <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{prop.maPhieu}</td>
@@ -539,8 +788,9 @@ export default function DeXuatPage() {
                       <td style={{ fontWeight: '800', color: '#1e293b' }}>{formatVND(prop.soTien)}</td>
 
                       <td>
-                        {prop.trangThai === 'DA_THANH_TOAN' && prop.thuChiId !== null && <span className="badge badge-paid">Đã thanh toán</span>}
-                        {prop.trangThai === 'DA_THANH_TOAN' && prop.thuChiId === null && <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)' }}>Thanh toán sẵn (Chờ duyệt)</span>}
+                        {prop.trangThai === 'DA_THANH_TOAN' && prop.laLichSu && <span className="badge badge-paid" style={{ opacity: 0.85 }} title="Phiếu nhập từ dữ liệu cũ">Đã thanh toán (Lịch sử)</span>}
+                        {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId !== null && <span className="badge badge-paid">Đã thanh toán</span>}
+                        {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId === null && <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)' }}>Thanh toán sẵn (Chờ duyệt)</span>}
                         {prop.trangThai === 'CHO_THANH_TOAN' && <span className="badge badge-pending">Chờ thanh toán</span>}
                         {prop.trangThai === 'CHO_HOAN_UNG' && <span className="badge badge-reimburse">Chờ hoàn ứng</span>}
                         {prop.trangThai === 'HUY' && <span className="badge badge-cancelled">Đã hủy</span>}
@@ -580,6 +830,19 @@ export default function DeXuatPage() {
                     </tr>
                   ))}
                 </tbody>
+                {filteredProposals.length > 0 && (
+                  <tfoot>
+                    <tr style={{ background: 'rgba(96,165,250,0.08)', borderTop: '2px solid rgba(96,165,250,0.3)' }}>
+                      <td colSpan={5} style={{ fontWeight: '700', color: '#60a5fa', padding: '0.75rem 1rem', fontSize: '0.9rem' }}>
+                        TỔNG: {filteredProposals.length} phiếu
+                      </td>
+                      <td style={{ fontWeight: '800', color: '#34d399', fontSize: '1rem', padding: '0.75rem 1rem' }}>
+                        {formatVND(tongTienHienThi)}
+                      </td>
+                      <td colSpan={2}></td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}
@@ -694,20 +957,36 @@ export default function DeXuatPage() {
                         </option>
                       ))}
                     </select>
+                    {currentCategory?.hanMucThang && (
+                      <small style={{
+                        marginTop: '0.3rem', display: 'block',
+                        color: hanMucExceeded ? '#ef4444' : hanMucWarning ? '#f59e0b' : 'var(--text-muted)',
+                        fontWeight: hanMucWarning ? '600' : '400'
+                      }}>
+                        {hanMucExceeded ? '⚠️ Đã vượt hạn mức' : hanMucWarning ? '⚠️ Gần đạt hạn mức' : '✓ Trong hạn mức'} —
+                        Đã dùng: {monthlySpentForCategory.toLocaleString('vi-VN')}₫ / {Number(currentCategory.hanMucThang).toLocaleString('vi-VN')}₫ tháng này
+                      </small>
+                    )}
                   </div>
 
                   <div className="form-group" style={{ flex: 1 }}>
                     <label className="form-label" htmlFor="soTien">Số tiền (VND) *</label>
                     <input
                       id="soTien"
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       placeholder="Nhập số tiền chi..."
                       className="form-control"
-                      value={soTien}
-                      onChange={(e) => setSoTien(e.target.value)}
+                      value={formatSoTienDisplay(soTien)}
+                      onChange={handleSoTienChange}
                       required
                       disabled={formLoading}
                     />
+                    {soTien && Number(soTien) > 0 && (
+                      <div style={{ marginTop: '0.3rem', fontSize: '0.78rem', color: '#10b981', fontWeight: '600' }}>
+                        = {Number(soTien).toLocaleString('vi-VN')} ₫
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -755,16 +1034,24 @@ export default function DeXuatPage() {
                   </div>
 
                   <div className="form-group" style={{ flex: 1 }}>
-                    <label className="form-label" htmlFor="ghiChu">Ghi chú</label>
+                    <label className="form-label" htmlFor="ghiChu">
+                      Nội dung CK {nhaCungCapId && <span style={{ color: '#ef4444' }}>*</span>}
+                    </label>
                     <input
                       id="ghiChu"
                       type="text"
-                      placeholder="Nhập ghi chú thêm nếu cần..."
+                      placeholder={nhaCungCapId ? "Nhập nội dung chuyển khoản..." : "Nhập nội dung CK nếu cần..."}
                       className="form-control"
                       value={ghiChu}
                       onChange={(e) => setGhiChu(e.target.value)}
                       disabled={formLoading}
+                      required={!!nhaCungCapId}
                     />
+                    {nhaCungCapId && !ghiChu && (
+                      <small style={{ color: '#f59e0b', marginTop: '0.25rem', display: 'block' }}>
+                        Nội dung này sẽ hiển thị khi quét QR chuyển khoản
+                      </small>
+                    )}
                   </div>
                 </div>
 
@@ -783,22 +1070,6 @@ export default function DeXuatPage() {
                 </div>
 
 
-                <div className="form-group">
-                  <label className="form-label">Ảnh hóa đơn chứng từ (Simulate)</label>
-                  <div className={styles.uploadBox}>
-                    <FileImage size={24} />
-                    <span>Hóa đơn đính kèm tự động lưu (Base64)</span>
-                    <input 
-                      type="button" 
-                      value="Gắn hóa đơn demo" 
-                      onClick={() => setAnhHoaDon('https://via.placeholder.com/600x400.png?text=Hoa+Don+Chung+Tu')} 
-                      className="btn btn-secondary" 
-                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
-                    />
-                    {anhHoaDon && <span className={styles.uploadedBadge}>Đã gắn 1 ảnh</span>}
-                  </div>
-                </div>
-
                 <div className={styles.formActions}>
                   <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary" disabled={formLoading}>
                     Hủy bỏ
@@ -808,6 +1079,146 @@ export default function DeXuatPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: NHẬP PHIẾU CHI CŨ TỪ EXCEL (chỉ OWNER) */}
+        {isImportOpen && (
+          <div className={styles.modalOverlay}>
+            <div className={`${styles.modalContent} glass-card`}>
+              <div className={styles.modalHeader}>
+                <h2>Nhập phiếu chi cũ từ Excel</h2>
+                <button onClick={closeImportModal} className={styles.closeBtn}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Hướng dẫn + tải mẫu */}
+              <div style={{ background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.18)', borderRadius: '8px', padding: '0.85rem 1rem', marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                <strong style={{ color: '#60a5fa' }}>Cách dùng:</strong> Tải file mẫu → điền dữ liệu → tải file lên.
+                Phiếu nhập sẽ ở trạng thái <strong style={{ color: '#34d399' }}>Đã thanh toán (Lịch sử)</strong>,
+                <strong> không cần duyệt</strong> và <strong>không trừ số dư quỹ</strong>.
+                Cột <em>Danh mục</em> phải khớp đúng tên danh mục CHI (xem sheet "DanhMuc hợp lệ" trong file mẫu).
+              </div>
+
+              <button type="button" onClick={handleDownloadTemplate} className="btn btn-secondary" style={{ marginBottom: '1.25rem' }}>
+                <Download size={18} />
+                <span>Tải file Excel mẫu</span>
+              </button>
+
+              {/* Chọn file */}
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Chọn file Excel (.xlsx) đã điền</label>
+                <label className={styles.uploadBox} style={{ cursor: 'pointer' }}>
+                  <FileSpreadsheet size={28} style={{ color: '#34d399' }} />
+                  <span>{importFileName ? `📄 ${importFileName}` : 'Bấm để chọn file .xlsx / .xls'}</span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleImportFile}
+                    style={{ display: 'none' }}
+                    disabled={importLoading}
+                  />
+                </label>
+              </div>
+
+              {importParseError && (
+                <div className={styles.errorAlert}>
+                  <AlertCircle size={18} />
+                  <span>{importParseError}</span>
+                </div>
+              )}
+
+              {/* Xem trước dữ liệu */}
+              {importRows.length > 0 && !importResult && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+                    Xem trước: {importRows.length} dòng
+                  </div>
+                  <div className="table-responsive" style={{ maxHeight: '260px', overflow: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                    <table className="custom-table" style={{ fontSize: '0.8rem' }}>
+                      <thead>
+                        <tr>
+                          <th>Ngày</th>
+                          <th>Danh mục</th>
+                          <th>Nội dung</th>
+                          <th>Số tiền</th>
+                          <th>NCC</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importRows.slice(0, 50).map((r, i) => {
+                          const badDate = !r.ngayPhatSinh;
+                          const badTien = !(r.soTien > 0);
+                          return (
+                            <tr key={i}>
+                              <td style={{ color: badDate ? '#ef4444' : 'inherit' }}>{badDate ? `⚠️ ${r.ngayGoc || 'trống'}` : new Date(r.ngayPhatSinh).toLocaleDateString('vi-VN')}</td>
+                              <td>{r.danhMuc || <span style={{ color: '#ef4444' }}>⚠️ trống</span>}</td>
+                              <td style={{ maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.noiDung}>{r.noiDung || <span style={{ color: '#ef4444' }}>⚠️ trống</span>}</td>
+                              <td style={{ color: badTien ? '#ef4444' : '#34d399', fontWeight: '600' }}>{badTien ? '⚠️ 0' : r.soTien.toLocaleString('vi-VN')}</td>
+                              <td>{r.nhaCungCap || '—'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {importRows.length > 50 && (
+                    <small style={{ color: 'var(--text-muted)' }}>...và {importRows.length - 50} dòng nữa. Hệ thống sẽ kiểm tra toàn bộ khi nhập.</small>
+                  )}
+                </div>
+              )}
+
+              {/* Kết quả nhập */}
+              {importResult && (
+                <div style={{ marginBottom: '1rem' }}>
+                  {importResult.successCount > 0 && (
+                    <div className={styles.successAlert}>
+                      <Check size={18} />
+                      <span>{importResult.message || `Đã nhập ${importResult.successCount} phiếu.`}</span>
+                    </div>
+                  )}
+                  {importResult.error && importResult.successCount === undefined && (
+                    <div className={styles.errorAlert} style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <AlertCircle size={18} />
+                        <span>{importResult.error}</span>
+                      </div>
+                      {importResult.detail && (
+                        <small style={{ marginTop: '0.35rem', opacity: 0.85, wordBreak: 'break-word' }}>
+                          Chi tiết: {importResult.detail}
+                        </small>
+                      )}
+                    </div>
+                  )}
+                  {importResult.errors && importResult.errors.length > 0 && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <div style={{ fontWeight: '700', color: '#f59e0b', marginBottom: '0.35rem' }}>
+                        {importResult.errors.length} dòng bị bỏ qua do lỗi:
+                      </div>
+                      <div style={{ maxHeight: '180px', overflow: 'auto', fontSize: '0.82rem', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px', padding: '0.5rem 0.75rem' }}>
+                        {importResult.errors.map((er, i) => (
+                          <div key={i} style={{ color: '#fca5a5', padding: '0.15rem 0' }}>
+                            • Dòng {er.dong}: {er.message}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className={styles.formActions}>
+                <button type="button" onClick={closeImportModal} className="btn btn-secondary" disabled={importLoading}>
+                  {importResult?.successCount > 0 ? 'Đóng' : 'Hủy bỏ'}
+                </button>
+                {importRows.length > 0 && !importResult && (
+                  <button type="button" onClick={handleSubmitImport} className="btn btn-primary" disabled={importLoading}>
+                    {importLoading ? 'Đang nhập...' : `Nhập ${importRows.length} dòng`}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -843,7 +1254,7 @@ export default function DeXuatPage() {
 
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Người lập:</span>
-                  <span className={styles.detailValue}>{selectedProp.nguoiTao.hoTen} ({selectedProp.nguoiTao.role})</span>
+                  <span className={styles.detailValue}>{selectedProp.nguoiTao.tenNgan || selectedProp.nguoiTao.hoTen} ({selectedProp.nguoiTao.role})</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Nguồn tiền:</span>
@@ -870,19 +1281,29 @@ export default function DeXuatPage() {
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Trạng thái:</span>
                   <span className={styles.detailValue}>
-                    {selectedProp.trangThai === 'DA_THANH_TOAN' && selectedProp.thuChiId !== null && <span className="badge badge-paid">Đã thanh toán</span>}
-                    {selectedProp.trangThai === 'DA_THANH_TOAN' && selectedProp.thuChiId === null && <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)' }}>Thanh toán sẵn (Chờ duyệt)</span>}
+                    {selectedProp.trangThai === 'DA_THANH_TOAN' && selectedProp.laLichSu && <span className="badge badge-paid" style={{ opacity: 0.85 }}>Đã thanh toán (Lịch sử)</span>}
+                    {selectedProp.trangThai === 'DA_THANH_TOAN' && !selectedProp.laLichSu && selectedProp.thuChiId !== null && <span className="badge badge-paid">Đã thanh toán</span>}
+                    {selectedProp.trangThai === 'DA_THANH_TOAN' && !selectedProp.laLichSu && selectedProp.thuChiId === null && <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)' }}>Thanh toán sẵn (Chờ duyệt)</span>}
                     {selectedProp.trangThai === 'CHO_THANH_TOAN' && <span className="badge badge-pending">Chờ thanh toán</span>}
                     {selectedProp.trangThai === 'CHO_HOAN_UNG' && <span className="badge badge-reimburse">Chờ hoàn ứng</span>}
                     {selectedProp.trangThai === 'HUY' && <span className="badge badge-cancelled">Đã hủy</span>}
                   </span>
                 </div>
 
-                {selectedProp.trangThai === 'DA_THANH_TOAN' && (
+                {selectedProp.trangThai === 'DA_THANH_TOAN' && selectedProp.laLichSu && (
+                  <div className={styles.detailItem} style={{ gridColumn: 'span 2' }}>
+                    <span className={styles.detailLabel}>Ghi chú hệ thống:</span>
+                    <span className={styles.detailValue} style={{ color: '#a78bfa', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '6px', padding: '0.5rem 0.75rem', display: 'block' }}>
+                      📜 Phiếu nhập từ dữ liệu cũ (lịch sử). Không tạo phiếu Thu-Chi và không ảnh hưởng số dư quỹ.
+                    </span>
+                  </div>
+                )}
+
+                {selectedProp.trangThai === 'DA_THANH_TOAN' && !selectedProp.laLichSu && (
                   <>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Người duyệt thanh toán:</span>
-                      <span className={styles.detailValue}>{selectedProp.nguoiDuyet?.hoTen || 'Chủ shop'}</span>
+                      <span className={styles.detailValue}>{selectedProp.nguoiDuyet ? (selectedProp.nguoiDuyet.tenNgan || selectedProp.nguoiDuyet.hoTen) : 'Chủ shop'}</span>
                     </div>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Ngày duyệt chi:</span>
@@ -900,18 +1321,25 @@ export default function DeXuatPage() {
                   </>
                 )}
 
-                <div className={styles.detailItem} style={{ gridColumn: 'span 2' }}>
-                  <span className={styles.detailLabel}>Ghi chú:</span>
-                  <span className={styles.detailValue}>{selectedProp.ghiChu || 'Không có ghi chú thêm.'}</span>
-                </div>
-
-                {selectedProp.anhHoaDon && (
+                {selectedProp.trangThai === 'HUY' && selectedProp.ghiChu ? (
                   <div className={styles.detailItem} style={{ gridColumn: 'span 2' }}>
-                    <span className={styles.detailLabel}>Hóa đơn đính kèm:</span>
-                    <div className={styles.invoiceImgWrapper}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={selectedProp.anhHoaDon} alt="Hóa đơn chứng từ" className={styles.invoiceImg} />
-                    </div>
+                    <span className={styles.detailLabel}>Lý do hủy:</span>
+                    <span className={styles.detailValue} style={{
+                      color: '#ef4444',
+                      background: 'rgba(239,68,68,0.08)',
+                      border: '1px solid rgba(239,68,68,0.2)',
+                      borderRadius: '6px',
+                      padding: '0.5rem 0.75rem',
+                      display: 'block',
+                      fontWeight: '600'
+                    }}>
+                      {selectedProp.ghiChu}
+                    </span>
+                  </div>
+                ) : (
+                  <div className={styles.detailItem} style={{ gridColumn: 'span 2' }}>
+                    <span className={styles.detailLabel}>Nội dung CK:</span>
+                    <span className={styles.detailValue}>{selectedProp.ghiChu || 'Không có ghi chú thêm.'}</span>
                   </div>
                 )}
 
@@ -932,8 +1360,8 @@ export default function DeXuatPage() {
                     }}>
                       <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Chủ tài khoản / NCC</div>
-                          <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '0.95rem' }}>{selectedProp.nhaCungCap.tenNCC}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Chủ tài khoản</div>
+                          <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '0.95rem' }}>{selectedProp.nhaCungCap.tenTaiKhoan || selectedProp.nhaCungCap.tenNCC}</div>
                         </div>
 
                         <div>
@@ -979,11 +1407,11 @@ export default function DeXuatPage() {
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Nội dung chuyển khoản (Memo)</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
                             <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.1)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
-                              {selectedProp.maPhieu}
+                              {selectedProp.ghiChu || selectedProp.maPhieu}
                             </span>
                             <button
                               type="button"
-                              onClick={() => handleCopyText(selectedProp.maPhieu, 'memo')}
+                              onClick={() => handleCopyText(selectedProp.ghiChu || selectedProp.maPhieu, 'memo')}
                               className="btn btn-secondary btn-sm"
                               style={{ padding: '0.1rem 0.4rem', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                             >
@@ -1007,7 +1435,7 @@ export default function DeXuatPage() {
                       }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={generateVietQRUrl(selectedProp.nhaCungCap, selectedProp.soTien, selectedProp.maPhieu)}
+                          src={generateVietQRUrl(selectedProp.nhaCungCap, selectedProp.soTien, selectedProp.ghiChu || selectedProp.maPhieu)}
                           alt="Mã VietQR động chuyển khoản"
                           style={{ width: '130px', height: '130px', objectFit: 'contain' }}
                         />
@@ -1071,9 +1499,9 @@ export default function DeXuatPage() {
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label className="form-label">Tên nhà cung cấp *</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
+                <input
+                  type="text"
+                  className="form-control"
                   placeholder="Nhập tên đối tác..."
                   value={quickTenNcc}
                   onChange={(e) => setQuickTenNcc(e.target.value)}
@@ -1082,10 +1510,22 @@ export default function DeXuatPage() {
               </div>
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Tên chủ tài khoản ngân hàng</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Nhập tên chủ TK (in hoa không dấu)..."
+                  value={quickTenTaiKhoan}
+                  onChange={(e) => setQuickTenTaiKhoan(e.target.value)}
+                  disabled={quickLoading}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label className="form-label">Số tài khoản chuyển khoản *</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
+                <input
+                  type="text"
+                  className="form-control"
                   placeholder="Nhập số tài khoản..."
                   value={quickSoTaiKhoan}
                   onChange={(e) => setQuickSoTaiKhoan(e.target.value)}
@@ -1095,43 +1535,27 @@ export default function DeXuatPage() {
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label className="form-label">Ngân hàng chuyển khoản *</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  placeholder="Ví dụ: Vietcombank, Techcombank..."
+                <select
+                  className="form-control"
                   value={quickTenNganHang}
                   onChange={(e) => setQuickTenNganHang(e.target.value)}
                   disabled={quickLoading}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label className="form-label">Mã QR ngân hàng (Nếu có)</label>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary btn-sm" 
-                    onClick={() => {
-                      if (!quickSoTaiKhoan || !quickTenNganHang) {
-                        alert('Vui lòng điền Số tài khoản và Ngân hàng trước!');
-                        return;
-                      }
-                      setQuickMaQr(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=AriFinance-QuickTransfer-${quickSoTaiKhoan.trim()}-${quickTenNganHang.trim()}`);
-                    }}
-                    disabled={!quickSoTaiKhoan || !quickTenNganHang}
-                  >
-                    Tạo mã QR Demo
-                  </button>
-                  {quickMaQr && <span style={{ fontSize: '0.8rem', color: '#34d399', fontWeight: 'bold' }}>✓ Đã tạo mã QR</span>}
-                </div>
+                >
+                  <option value="">-- Chọn ngân hàng --</option>
+                  {banks.map((b) => (
+                    <option key={b.tenVietTat} value={`${b.tenVietTat} - ${b.tenDayDu}`}>
+                      {b.tenDayDu} - {b.tenVietTat}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className={styles.formActions} style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: '1.5rem' }}>
                 <button type="button" onClick={() => setIsQuickNccOpen(false)} className="btn btn-secondary" disabled={quickLoading}>
                   Hủy bỏ
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={async () => {
                     setQuickError('');
                     if (!quickTenNcc || !quickSoTaiKhoan || !quickTenNganHang) {
@@ -1145,9 +1569,9 @@ export default function DeXuatPage() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                           tenNCC: quickTenNcc,
+                          tenTaiKhoan: quickTenTaiKhoan || null,
                           soTaiKhoan: quickSoTaiKhoan,
                           tenNganHang: quickTenNganHang,
-                          maQR: quickMaQr || null
                         })
                       });
                       const data = await res.json();
@@ -1165,9 +1589,9 @@ export default function DeXuatPage() {
 
                       // Reset quick form
                       setQuickTenNcc('');
+                      setQuickTenTaiKhoan('');
                       setQuickSoTaiKhoan('');
                       setQuickTenNganHang('');
-                      setQuickMaQr('');
 
                       // Close nested popup
                       setIsQuickNccOpen(false);
@@ -1187,6 +1611,45 @@ export default function DeXuatPage() {
           </div>
         )}
       </main>
+
+      {/* CANCEL MODAL — Nhập lý do hủy */}
+      {cancelModal.open && (
+        <div className={styles.modalOverlay} onClick={() => setCancelModal({ open: false, id: '', maPhieu: '' })}>
+          <div
+            className={`${styles.modalContent} glass-card`}
+            style={{ maxWidth: '480px', padding: '2rem' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginBottom: '0.5rem', color: '#ef4444' }}>Hủy đề xuất {cancelModal.maPhieu}</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+              Nhập lý do hủy để người tạo phiếu biết lý do cụ thể. Bỏ trống nếu không muốn ghi lý do.
+            </p>
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label">Lý do hủy</label>
+              <textarea
+                className="form-control"
+                rows={3}
+                placeholder="Ví dụ: Chi phí vượt hạn mức, chưa đủ chứng từ..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                style={{ resize: 'vertical' }}
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setCancelModal({ open: false, id: '', maPhieu: '' })}
+              >
+                Quay lại
+              </button>
+              <button className="btn btn-danger" onClick={handleConfirmCancel}>
+                Xác nhận hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

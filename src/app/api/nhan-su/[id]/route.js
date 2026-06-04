@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function PUT(request, { params }) {
   try {
@@ -56,7 +57,7 @@ export async function PUT(request, { params }) {
       nhanVien: updated,
     });
   } catch (error) {
-    console.error('Update user error:', error);
+    logger.error('PUT /api/nhan-su/[id]', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -105,7 +106,7 @@ export async function DELETE(request, { params }) {
       message: `Đã xóa nhân viên ${existingNhanVien.hoTen} thành công.`,
     });
   } catch (error) {
-    console.error('Delete user error:', error);
+    logger.error('DELETE /api/nhan-su/[id]', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống. Nhân viên này có thể có liên kết với phiếu đề xuất chi cũ.' },
       { status: 500 }

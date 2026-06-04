@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -20,7 +21,7 @@ export async function GET() {
 
     return NextResponse.json(quyens);
   } catch (error) {
-    console.error('Get permissions error:', error);
+    logger.error('GET /api/quyen', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -69,7 +70,7 @@ export async function POST(request) {
       quyen: result,
     });
   } catch (error) {
-    console.error('Update permissions error:', error);
+    logger.error('POST /api/quyen', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

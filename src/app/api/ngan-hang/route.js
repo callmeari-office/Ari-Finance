@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 const POPULAR_BANKS = [
   { tenVietTat: 'VCB', tenDayDu: 'Vietcombank' },
@@ -12,7 +13,17 @@ const POPULAR_BANKS = [
   { tenVietTat: 'VPB', tenDayDu: 'VPBank' },
   { tenVietTat: 'HDB', tenDayDu: 'HDBank' },
   { tenVietTat: 'VIB', tenDayDu: 'VIB' },
-  { tenVietTat: 'STB', tenDayDu: 'Sacombank' }
+  { tenVietTat: 'STB', tenDayDu: 'Sacombank' },
+  { tenVietTat: 'TPB', tenDayDu: 'TPBank' },
+  { tenVietTat: 'MSB', tenDayDu: 'MSB' },
+  { tenVietTat: 'SHB', tenDayDu: 'SHBank' },
+  { tenVietTat: 'EIB', tenDayDu: 'Eximbank' },
+  { tenVietTat: 'OCB', tenDayDu: 'OCB' },
+  { tenVietTat: 'LPB', tenDayDu: 'LPBank' },
+  { tenVietTat: 'SCB', tenDayDu: 'SCB' },
+  { tenVietTat: 'ABB', tenDayDu: 'ABBank' },
+  { tenVietTat: 'NAB', tenDayDu: 'NamABank' },
+  { tenVietTat: 'CAKE', tenDayDu: 'CAKE by VPBank' }
 ];
 
 export async function GET() {
@@ -22,21 +33,22 @@ export async function GET() {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
-    // Lazy seeding: if database has 0 banks, seed the 10 popular banks automatically!
+    // Lazy seeding: seed missing popular banks automatically
     const count = await prisma.nganHang.count();
-    if (count === 0) {
+    if (count < POPULAR_BANKS.length) {
       await prisma.nganHang.createMany({
-        data: POPULAR_BANKS
+        data: POPULAR_BANKS,
+        skipDuplicates: true
       });
     }
 
     const banks = await prisma.nganHang.findMany({
-      orderBy: { tenVietTat: 'asc' }
+      orderBy: { tenDayDu: 'asc' }
     });
 
     return NextResponse.json(banks);
   } catch (error) {
-    console.error('NganHang GET error:', error);
+    logger.error('GET /api/ngan-hang', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -89,7 +101,7 @@ export async function POST(request) {
       message: `Đã thêm ngân hàng ${vT} - ${dD} vào danh mục thành công.`
     });
   } catch (error) {
-    console.error('NganHang POST error:', error);
+    logger.error('POST /api/ngan-hang', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

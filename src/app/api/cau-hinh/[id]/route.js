@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function PUT(request, { params }) {
   try {
@@ -18,7 +19,7 @@ export async function PUT(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const { tenDanhMuc, nhomChiPhiId, loaiGiaoDich, chucVuDuocXem, yeuCauNCC, trangThai } = body;
+    const { tenDanhMuc, nhomChiPhiId, loaiGiaoDich, chucVuDuocXem, yeuCauNCC, hanMucThang, trangThai } = body;
 
     const existing = await prisma.danhMuc.findUnique({
       where: { id },
@@ -59,6 +60,7 @@ export async function PUT(request, { params }) {
       updateData.chucVuDuocXem = typeof chucVuDuocXem === 'string' ? chucVuDuocXem : JSON.stringify(chucVuDuocXem);
     }
     if (yeuCauNCC !== undefined) updateData.yeuCauNCC = !!yeuCauNCC;
+    if (hanMucThang !== undefined) updateData.hanMucThang = hanMucThang ? Number(hanMucThang) : null;
     if (trangThai) updateData.trangThai = trangThai;
 
     const updated = await prisma.danhMuc.update({
@@ -72,7 +74,7 @@ export async function PUT(request, { params }) {
       danhMuc: updated,
     });
   } catch (error) {
-    console.error('Update category error:', error);
+    logger.error('PUT /api/cau-hinh/[id]', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -113,7 +115,7 @@ export async function DELETE(request, { params }) {
       message: `Đã xóa danh mục ${existing.tenDanhMuc} thành công.`,
     });
   } catch (error) {
-    console.error('Delete category error:', error);
+    logger.error('DELETE /api/cau-hinh/[id]', error);
     return NextResponse.json(
       { error: 'Lỗi hệ thống. Danh mục này đang được liên kết với một số phiếu đề xuất hoặc giao dịch cũ.' },
       { status: 500 }

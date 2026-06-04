@@ -67,18 +67,35 @@ model DanhMuc {
   chucVuDuocXem   String         // JSON string array, e.g. '["OWNER", "MANAGER", "STAFF"]'
   yeuCauNCC       Boolean
   trangThai       String         // ACTIVE, INACTIVE
+  hanMucThang     Float?         // Hạn mức chi tháng (nếu có)
 
   nhomChiPhi      NhomChiPhi     @relation(fields: [nhomChiPhiId], references: [id])
   deXuatChiPhi    DeXuatChiPhi[]
   thuChi          ThuChi[]
+  keHoach         KeHoach[]
+}
+
+model KeHoach {
+  id        String   @id @default(uuid())
+  nam       Int
+  thang     Int      // 1-12
+  danhMucId String
+  soTien    Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  danhMuc   DanhMuc  @relation(fields: [danhMucId], references: [id])
+
+  @@unique([nam, thang, danhMucId])
 }
 
 model NhaCungCap {
-  id          String         @id
-  tenNCC      String
-  soTaiKhoan  String
-  tenNganHang String
-  maQR        String?        // Hình ảnh mã QR ngân hàng (chấp nhận base64 hoặc URL)
+  id           String         @id
+  tenNCC       String
+  tenTaiKhoan  String?        // Tên chủ tài khoản ngân hàng (tách biệt với tên đối tác)
+  soTaiKhoan   String
+  tenNganHang  String
+  maQR         String?
 
   deXuatChiPhi DeXuatChiPhi[]
   thuChi       ThuChi[]
@@ -103,6 +120,7 @@ model DeXuatChiPhi {
   ghiChu           String?
   ngayTao          DateTime    @default(now())
   ngayCanThanhToan DateTime?   // Ngày cần thanh toán mong muốn
+  laLichSu         Boolean     @default(false) // Phiếu nhập từ dữ liệu cũ (đã thanh toán, không trừ quỹ, không cần duyệt)
 
 
   danhMuc         DanhMuc     @relation(fields: [danhMucId], references: [id])

@@ -2,18 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Settings, 
-  Plus, 
-  Trash2, 
-  Edit3, 
-  X, 
-  Check, 
+import {
+  Settings,
+  Plus,
+  Trash2,
+  Edit3,
+  X,
+  Check,
   AlertCircle,
   TrendingUp,
   TrendingDown,
   Layers,
-  Info
+  Info,
+  Wallet
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './cau-hinh.module.css';
@@ -26,7 +27,20 @@ export default function CauHinhPage() {
   // Configuration data states
   const [categories, setCategories] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [funds, setFunds] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Fund modal states
+  const [isFundModalOpen, setIsFundModalOpen] = useState(false);
+  const [fundFormType, setFundFormType] = useState('ADD');
+  const [fundFormLoading, setFundFormLoading] = useState(false);
+  const [fundFormError, setFundFormError] = useState('');
+  const [fundFormSuccess, setFundFormSuccess] = useState('');
+  const [fundId, setFundId] = useState('');
+  const [fundTen, setFundTen] = useState('');
+  const [fundLoai, setFundLoai] = useState('TIEN_MAT');
+  const [fundSoDu, setFundSoDu] = useState('');
+  const [fundTrangThai, setFundTrangThai] = useState('ACTIVE');
 
   // Form Modal States (Danh Mục)
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,6 +60,7 @@ export default function CauHinhPage() {
     STAFF: true
   });
   const [yeuCauNCC, setYeuCauNCC] = useState(false);
+  const [hanMucThang, setHanMucThang] = useState('');
   const [trangThai, setTrangThai] = useState('ACTIVE');
 
   // Form Modal States (Nhóm)
@@ -91,14 +106,21 @@ export default function CauHinhPage() {
   const fetchData = async () => {
     setDataLoading(true);
     try {
-      const res = await fetch('/api/cau-hinh');
-      if (res.ok) {
-        const data = await res.json();
+      const [cfRes, quyRes] = await Promise.all([
+        fetch('/api/cau-hinh'),
+        fetch('/api/quy'),
+      ]);
+      if (cfRes.ok) {
+        const data = await cfRes.json();
         setCategories(data.categories || []);
         setGroups(data.groups || []);
         if (data.groups && data.groups.length > 0) {
           setNhomChiPhiId(data.groups[0].id);
         }
+      }
+      if (quyRes.ok) {
+        const quyData = await quyRes.json();
+        setFunds(quyData);
       }
     } catch (e) {
       console.error('Error fetching configuration:', e);
@@ -137,6 +159,7 @@ export default function CauHinhPage() {
     setLoaiGiaoDich('CHI');
     setViewRoles({ OWNER: true, MANAGER: true, STAFF: true });
     setYeuCauNCC(false);
+    setHanMucThang('');
     setTrangThai('ACTIVE');
     setFormError('');
     setFormSuccess('');
@@ -150,6 +173,7 @@ export default function CauHinhPage() {
     setNhomChiPhiId(cat.nhomChiPhiId);
     setLoaiGiaoDich(cat.loaiGiaoDich);
     setYeuCauNCC(cat.yeuCauNCC);
+    setHanMucThang(cat.hanMucThang ? cat.hanMucThang.toString() : '');
     setTrangThai(cat.trangThai);
     
     // Parse roles
@@ -211,6 +235,7 @@ export default function CauHinhPage() {
       loaiGiaoDich,
       chucVuDuocXem: selectedRoles,
       yeuCauNCC,
+      hanMucThang: hanMucThang ? Number(hanMucThang) : null,
       trangThai
     };
 
@@ -356,6 +381,74 @@ export default function CauHinhPage() {
     }
   };
 
+  // --- CÁC HÀM XỬ LÝ QUỸ ---
+  const handleOpenAddFund = () => {
+    setFundFormType('ADD');
+    setFundId('');
+    setFundTen('');
+    setFundLoai('TIEN_MAT');
+    setFundSoDu('0');
+    setFundTrangThai('ACTIVE');
+    setFundFormError('');
+    setFundFormSuccess('');
+    setIsFundModalOpen(true);
+  };
+
+  const handleOpenEditFund = (fund) => {
+    setFundFormType('EDIT');
+    setFundId(fund.id);
+    setFundTen(fund.tenQuy);
+    setFundLoai(fund.loaiQuy);
+    setFundSoDu(fund.soDuDauKy.toString());
+    setFundTrangThai(fund.trangThai);
+    setFundFormError('');
+    setFundFormSuccess('');
+    setIsFundModalOpen(true);
+  };
+
+  const handleFundSubmit = async (e) => {
+    e.preventDefault();
+    setFundFormError('');
+    setFundFormSuccess('');
+    if (!fundId || !fundTen || !fundLoai) {
+      setFundFormError('Vui lòng nhập đầy đủ thông tin bắt buộc.');
+      return;
+    }
+    setFundFormLoading(true);
+    try {
+      const url = fundFormType === 'ADD' ? '/api/quy' : `/api/quy/${fundId}`;
+      const method = fundFormType === 'ADD' ? 'POST' : 'PUT';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: fundId, tenQuy: fundTen, loaiQuy: fundLoai, soDuDauKy: Number(fundSoDu) || 0, trangThai: fundTrangThai }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Lưu thất bại.');
+      setFundFormSuccess(data.message || 'Lưu quỹ thành công!');
+      fetchData();
+      setTimeout(() => setIsFundModalOpen(false), 1000);
+    } catch (err) {
+      setFundFormError(err.message);
+    } finally {
+      setFundFormLoading(false);
+    }
+  };
+
+  const handleDeleteFund = async (fId, fName) => {
+    if (confirm(`Bạn có chắc muốn XÓA quỹ "${fName}" [${fId}]?\nChỉ xóa được nếu quỹ chưa có phiếu thu-chi nào.`)) {
+      try {
+        const res = await fetch(`/api/quy/${fId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
+        alert(`Đã xóa quỹ "${fName}" thành công.`);
+        fetchData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className={styles.loaderContainer}>
@@ -406,9 +499,9 @@ export default function CauHinhPage() {
             <p className={styles.pageDesc}>Thiết lập danh mục Thu-Chi, nhóm chi phí và phân quyền chọn danh mục</p>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button onClick={handleOpenAddGroup} className="btn btn-secondary">
-              <Plus size={20} />
-              <span>Thêm nhóm mới</span>
+            <button onClick={handleOpenAddFund} className="btn btn-secondary">
+              <Wallet size={18} />
+              <span>Thêm quỹ</span>
             </button>
             <button onClick={handleOpenAdd} className="btn btn-primary">
               <Plus size={20} />
@@ -526,6 +619,11 @@ export default function CauHinhPage() {
                                     ))}
                                     {cat.yeuCauNCC && (
                                       <span className={styles.badgeNcc}>Yêu Cầu NCC</span>
+                                    )}
+                                    {cat.hanMucThang && (
+                                      <span style={{ fontSize: '0.7rem', background: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '4px', padding: '2px 6px' }}>
+                                        HM: {Number(cat.hanMucThang).toLocaleString('vi-VN')}₫
+                                      </span>
                                     )}
                                     {cat.trangThai === 'INACTIVE' && (
                                       <span className={styles.badgeRole} style={{ background: '#cf8d8d', color: '#fff' }}>Khóa</span>
@@ -654,6 +752,68 @@ export default function CauHinhPage() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+            {/* PHẦN QUẢN LÝ QUỸ */}
+            <div className={styles.panel} style={{ marginTop: '2rem' }}>
+              <div className={styles.panelHeader} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+                <div className={styles.panelTitle}>
+                  <Wallet className={styles.panelIcon} size={20} style={{ color: 'var(--brand-brown)' }} />
+                  <h2 style={{ fontSize: '1.1rem', margin: 0 }}>Quản Lý Quỹ Tiền</h2>
+                </div>
+                <button onClick={handleOpenAddFund} className="btn btn-primary btn-sm" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>
+                  <Plus size={14} />
+                  <span>Thêm quỹ mới</span>
+                </button>
+              </div>
+              <div className="table-responsive">
+                <table className="custom-table" style={{ fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr>
+                      <th>Mã Quỹ</th>
+                      <th>Tên Quỹ</th>
+                      <th>Loại Quỹ</th>
+                      <th>Số dư đầu kỳ</th>
+                      <th>Trạng thái</th>
+                      <th style={{ textAlign: 'center' }}>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {funds.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>Chưa có quỹ nào.</td>
+                      </tr>
+                    ) : (
+                      funds.map((fund) => (
+                        <tr key={fund.id}>
+                          <td style={{ fontWeight: 'bold', color: 'var(--brand-brown)' }}>{fund.id}</td>
+                          <td style={{ fontWeight: '600' }}>{fund.tenQuy}</td>
+                          <td>
+                            {fund.loaiQuy === 'TIEN_MAT' && '💵 Tiền mặt'}
+                            {fund.loaiQuy === 'NGAN_HANG' && '🏦 Ngân hàng'}
+                            {fund.loaiQuy === 'CA_NHAN' && '👤 Cá nhân ứng'}
+                          </td>
+                          <td>{fund.soDuDauKy.toLocaleString('vi-VN')} ₫</td>
+                          <td>
+                            <span className={fund.trangThai === 'ACTIVE' ? 'badge badge-paid' : 'badge badge-cancelled'}>
+                              {fund.trangThai === 'ACTIVE' ? 'Hoạt động' : 'Khóa'}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div className={styles.actionButtons} style={{ justifyContent: 'center' }}>
+                              <button onClick={() => handleOpenEditFund(fund)} className={`${styles.actionBtn} ${styles.editBtn}`} title="Sửa quỹ">
+                                <Edit3 size={14} />
+                              </button>
+                              <button onClick={() => handleDeleteFund(fund.id, fund.tenQuy)} className={`${styles.actionBtn} ${styles.deleteBtn}`} title="Xóa quỹ">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </>
@@ -800,6 +960,26 @@ export default function CauHinhPage() {
                   </label>
                 </div>
 
+                {loaiGiaoDich === 'CHI' && (
+                  <div className={styles.formGroup}>
+                    <label className="form-label">Hạn mức chi tháng (VND) — Tùy chọn</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      className="form-control"
+                      placeholder="Để trống nếu không giới hạn. Ví dụ: 10000000"
+                      value={hanMucThang ? Number(hanMucThang).toLocaleString('vi-VN') : ''}
+                      onChange={(e) => setHanMucThang(e.target.value.replace(/\D/g, ''))}
+                      disabled={formLoading}
+                    />
+                    {hanMucThang && (
+                      <small style={{ color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>
+                        Cảnh báo khi đề xuất tháng này vượt {Number(hanMucThang).toLocaleString('vi-VN')} ₫
+                      </small>
+                    )}
+                  </div>
+                )}
+
                 <div className={styles.formGroup}>
                   <label className="form-label">Trạng Thái Hoạt Động</label>
                   <select
@@ -905,6 +1085,113 @@ export default function CauHinhPage() {
                   </button>
                   <button type="submit" className="btn btn-primary" disabled={groupFormLoading}>
                     {groupFormLoading ? 'Đang lưu...' : 'Lưu Nhóm'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        {/* MODAL FORM: THÊM / SỬA QUỸ */}
+        {isFundModalOpen && (
+          <div className={styles.modalOverlay}>
+            <div className={`${styles.modalContent} glass-card`}>
+              <div className={styles.modalHeader}>
+                <h2>{fundFormType === 'ADD' ? 'Thêm Quỹ Mới' : 'Cập Nhật Quỹ'}</h2>
+                <button onClick={() => setIsFundModalOpen(false)} className={styles.closeBtn}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              {fundFormError && (
+                <div className={`${styles.alert} ${styles.errorAlert}`}>
+                  <AlertCircle size={18} />
+                  <span>{fundFormError}</span>
+                </div>
+              )}
+              {fundFormSuccess && (
+                <div className={`${styles.alert} ${styles.successAlert}`}>
+                  <Check size={18} />
+                  <span>{fundFormSuccess}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleFundSubmit}>
+                <div className={styles.formGroup}>
+                  <label className="form-label">Mã Quỹ *</label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: QUY01, CASH, MB-BANK"
+                    className="form-control"
+                    value={fundId}
+                    onChange={(e) => setFundId(e.target.value.toUpperCase())}
+                    disabled={fundFormLoading || fundFormType === 'EDIT'}
+                    required
+                  />
+                  {fundFormType === 'ADD' && (
+                    <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>Mã viết liền không dấu, viết hoa. Ví dụ: QUY01</small>
+                  )}
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className="form-label">Tên Quỹ *</label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: Quỹ tiền mặt shop"
+                    className="form-control"
+                    value={fundTen}
+                    onChange={(e) => setFundTen(e.target.value)}
+                    disabled={fundFormLoading}
+                    required
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className="form-label">Loại Quỹ *</label>
+                  <select
+                    className="form-control"
+                    value={fundLoai}
+                    onChange={(e) => setFundLoai(e.target.value)}
+                    disabled={fundFormLoading}
+                  >
+                    <option value="TIEN_MAT">💵 Tiền mặt</option>
+                    <option value="NGAN_HANG">🏦 Ngân hàng</option>
+                    <option value="CA_NHAN">👤 Cá nhân ứng</option>
+                  </select>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className="form-label">Số dư đầu kỳ (VND)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    className="form-control"
+                    value={fundSoDu}
+                    onChange={(e) => setFundSoDu(e.target.value)}
+                    disabled={fundFormLoading}
+                    min={0}
+                  />
+                  <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>Số tiền có trong quỹ trước khi bắt đầu sử dụng phần mềm.</small>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className="form-label">Trạng Thái</label>
+                  <select
+                    className="form-control"
+                    value={fundTrangThai}
+                    onChange={(e) => setFundTrangThai(e.target.value)}
+                    disabled={fundFormLoading}
+                  >
+                    <option value="ACTIVE">Hoạt động (Active)</option>
+                    <option value="INACTIVE">Khóa tạm thời (Inactive)</option>
+                  </select>
+                </div>
+
+                <div className={styles.formActions}>
+                  <button type="button" onClick={() => setIsFundModalOpen(false)} className="btn btn-secondary" disabled={fundFormLoading}>
+                    Đóng
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={fundFormLoading}>
+                    {fundFormLoading ? 'Đang lưu...' : 'Lưu Quỹ'}
                   </button>
                 </div>
               </form>

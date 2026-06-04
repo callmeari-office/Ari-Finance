@@ -1,26 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
-
-// Hàm sinh mã phiếu Thu-Chi: TC-YYMMDD-xxxx
-async function generateMaThuChi() {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const prefix = `TC-${yy}${mm}${dd}-`;
-
-  const count = await prisma.thuChi.count({
-    where: {
-      maPhieu: {
-        startsWith: prefix,
-      },
-    },
-  });
-
-  const xxxx = String(count + 1).padStart(4, '0');
-  return `${prefix}${xxxx}`;
-}
+import { logger } from '@/lib/logger';
+import { generateMaThuChi } from '@/lib/generateId';
 
 export async function GET(request, { params }) {
   try {
@@ -38,10 +20,10 @@ export async function GET(request, { params }) {
         nhaCungCap: true,
         quyThanhToan: true,
         nguoiTao: {
-          select: { id: true, hoTen: true, email: true, role: true },
+          select: { id: true, hoTen: true, tenNgan: true, email: true, role: true },
         },
         nguoiDuyet: {
-          select: { id: true, hoTen: true, email: true },
+          select: { id: true, hoTen: true, tenNgan: true, email: true },
         },
       },
     });
@@ -57,7 +39,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(proposal);
   } catch (error) {
-    console.error('Get single proposal error:', error);
+    logger.error('GET /api/de-xuat/[id]', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -75,7 +57,7 @@ export async function PUT(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const { action, quyThanhToanId, noiDung, soTien, danhMucId, nhaCungCapId, ghiChu, ngayCanThanhToan, ngayPhatSinh, nguonTien, trangThai, anhHoaDon } = body;
+    const { action, quyThanhToanId, noiDung, soTien, danhMucId, nhaCungCapId, ghiChu, ngayCanThanhToan, ngayPhatSinh, nguonTien, trangThai } = body;
 
     const existingProposal = await prisma.deXuatChiPhi.findUnique({
       where: { id },
@@ -212,7 +194,6 @@ export async function PUT(request, { params }) {
     if (ngayPhatSinh) updateData.ngayPhatSinh = new Date(ngayPhatSinh);
     if (nguonTien) updateData.nguonTien = nguonTien;
     if (trangThai) updateData.trangThai = trangThai;
-    if (anhHoaDon !== undefined) updateData.anhHoaDon = anhHoaDon;
     if (ngayCanThanhToan !== undefined) {
       updateData.ngayCanThanhToan = (ngayCanThanhToan && String(ngayCanThanhToan).trim() !== '') ? new Date(ngayCanThanhToan) : null;
     }
@@ -228,7 +209,7 @@ export async function PUT(request, { params }) {
       message: 'Đã cập nhật đề xuất thành công.',
     });
   } catch (error) {
-    console.error('Update proposal error:', error);
+    logger.error('PUT /api/de-xuat/[id]', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

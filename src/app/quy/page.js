@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Wallet, 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign
+import {
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './quy.module.css';
@@ -20,6 +23,7 @@ export default function QuyReportPage() {
   const [funds, setFunds] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [expandedFund, setExpandedFund] = useState(null);
 
   useEffect(() => {
     // 1. Kiểm tra session & vai trò (Chỉ OWNER/MANAGER được vào dựa trên permissions)
@@ -60,10 +64,10 @@ export default function QuyReportPage() {
       }
 
       // Fetch all transactions
-      const txRes = await fetch('/api/thu-chi');
+      const txRes = await fetch('/api/thu-chi?limit=1000');
       if (txRes.ok) {
         const txData = await txRes.json();
-        setTransactions(txData);
+        setTransactions(txData.data || []);
       }
     } catch (e) {
       console.error('Error fetching fund data:', e);
@@ -174,30 +178,99 @@ export default function QuyReportPage() {
                     <th>Tổng Thu (+)</th>
                     <th>Tổng Chi (-)</th>
                     <th>Số dư Hiện Tại</th>
-                    <th>Trạng thái</th>
+                    <th>Phiếu TC</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {funds.map((fund) => (
-                    <tr key={fund.id}>
-                      <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{fund.id}</td>
-                      <td style={{ fontWeight: '600' }}>{fund.tenQuy}</td>
-                      <td>
-                        {fund.loaiQuy === 'TIEN_MAT' && '💵 Tiền mặt'}
-                        {fund.loaiQuy === 'NGAN_HANG' && '🏦 Ngân hàng'}
-                        {fund.loaiQuy === 'CA_NHAN' && '👤 Cá nhân ứng'}
-                      </td>
-                      <td>{formatVND(fund.soDuDauKy)}</td>
-                      <td style={{ color: '#34d399', fontWeight: '500' }}>+{formatVND(fund.tongThu)}</td>
-                      <td style={{ color: '#f87171', fontWeight: '500' }}>-{formatVND(fund.tongChi)}</td>
-                      <td style={{ fontWeight: '800', color: fund.soDuHienTai >= 0 ? '#34d399' : '#f87171', fontSize: '1rem' }}>
-                        {formatVND(fund.soDuHienTai)}
-                      </td>
-                      <td>
-                        <span className="badge badge-paid">Hoạt động</span>
-                      </td>
-                    </tr>
-                  ))}
+                  {funds.map((fund) => {
+                    const fundTxs = transactions.filter(t => t.quyId === fund.id);
+                    const isExpanded = expandedFund === fund.id;
+                    return (
+                      <React.Fragment key={fund.id}>
+                        <tr style={{ cursor: 'pointer' }} onClick={() => setExpandedFund(isExpanded ? null : fund.id)}>
+                          <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              {fund.id}
+                            </span>
+                          </td>
+                          <td style={{ fontWeight: '600' }}>{fund.tenQuy}</td>
+                          <td>
+                            {fund.loaiQuy === 'TIEN_MAT' && '💵 Tiền mặt'}
+                            {fund.loaiQuy === 'NGAN_HANG' && '🏦 Ngân hàng'}
+                            {fund.loaiQuy === 'CA_NHAN' && '👤 Cá nhân ứng'}
+                          </td>
+                          <td>{formatVND(fund.soDuDauKy)}</td>
+                          <td style={{ color: '#34d399', fontWeight: '500' }}>+{formatVND(fund.tongThu)}</td>
+                          <td style={{ color: '#f87171', fontWeight: '500' }}>-{formatVND(fund.tongChi)}</td>
+                          <td style={{ fontWeight: '800', color: fund.soDuHienTai >= 0 ? '#34d399' : '#f87171', fontSize: '1rem' }}>
+                            {formatVND(fund.soDuHienTai)}
+                          </td>
+                          <td>
+                            <span className="badge badge-paid">{fundTxs.length} phiếu</span>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan={8} style={{ padding: 0 }}>
+                              <div style={{ background: 'rgba(15,23,42,0.6)', padding: '1rem 1.5rem', borderTop: '1px solid rgba(96,165,250,0.15)', borderBottom: '1px solid rgba(96,165,250,0.15)' }}>
+                                <div style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: '700', marginBottom: '0.75rem' }}>
+                                  PHIẾU THU-CHI LIÊN KẾT VỚI QUỸ: {fund.tenQuy}
+                                </div>
+                                {fundTxs.length === 0 ? (
+                                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>Chưa có phiếu thu-chi nào từ quỹ này.</p>
+                                ) : (
+                                  <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: '600' }}>Mã phiếu</th>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: '600' }}>Ngày</th>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: '600' }}>Loại</th>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: '600' }}>Nội dung</th>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'right', color: 'var(--text-muted)', fontWeight: '600' }}>Số tiền</th>
+                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: '600' }}>Đề xuất</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {fundTxs.map(tx => (
+                                        <tr key={tx.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                          <td style={{ padding: '0.4rem 0.6rem', fontWeight: 'bold', color: '#60a5fa' }}>{tx.maPhieu}</td>
+                                          <td style={{ padding: '0.4rem 0.6rem' }} suppressHydrationWarning>{new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}</td>
+                                          <td style={{ padding: '0.4rem 0.6rem' }}>
+                                            {tx.loaiGiaoDich === 'THU'
+                                              ? <span style={{ color: '#34d399', fontWeight: '600' }}>THU +</span>
+                                              : <span style={{ color: '#f87171', fontWeight: '600' }}>CHI -</span>}
+                                          </td>
+                                          <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-main)' }}>{tx.noiDung}</td>
+                                          <td style={{ padding: '0.4rem 0.6rem', textAlign: 'right', fontWeight: '700', color: tx.loaiGiaoDich === 'THU' ? '#34d399' : '#f87171' }}>
+                                            {tx.loaiGiaoDich === 'THU' ? '+' : '-'}{formatVND(tx.soTien)}
+                                          </td>
+                                          <td style={{ padding: '0.4rem 0.6rem', textAlign: 'center' }}>
+                                            {tx.deXuatChiPhi && tx.deXuatChiPhi.length > 0 ? (
+                                              <a
+                                                href="/de-xuat"
+                                                style={{ color: '#60a5fa', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '3px', textDecoration: 'none' }}
+                                                title={`Liên kết ${tx.deXuatChiPhi.length} đề xuất`}
+                                              >
+                                                <ExternalLink size={12} />
+                                                {tx.deXuatChiPhi.length} phiếu
+                                              </a>
+                                            ) : (
+                                              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>—</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -1,17 +1,13 @@
 import { cookies } from 'next/headers';
 import { prisma } from './prisma';
+import { logger } from './logger';
 
-/**
- * Lấy thông tin session hiện tại từ cookie
- */
 export async function getSession() {
   try {
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get('session_token')?.value;
 
-    if (!sessionToken) {
-      return null;
-    }
+    if (!sessionToken) return null;
 
     const session = await prisma.session.findUnique({
       where: { id: sessionToken },
@@ -20,6 +16,7 @@ export async function getSession() {
           select: {
             id: true,
             hoTen: true,
+            tenNgan: true,
             email: true,
             username: true,
             phone: true,
@@ -32,37 +29,25 @@ export async function getSession() {
       },
     });
 
-    if (!session) {
-      return null;
-    }
+    if (!session) return null;
 
-    // Kiểm tra hết hạn
     if (new Date() > session.expiresAt) {
-      // Xóa session đã hết hạn
       await prisma.session.delete({ where: { id: session.id } });
-      const responseCookies = await cookies();
-      responseCookies.delete('session_token');
       return null;
     }
 
     return session.nhanVien;
   } catch (error) {
-    console.error('Error getting session:', error);
+    logger.error('getSession', error);
     return null;
   }
 }
 
-/**
- * Tạo một session mới cho user
- */
 export async function createSession(userId) {
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 giờ
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   const session = await prisma.session.create({
-    data: {
-      userId,
-      expiresAt,
-    },
+    data: { userId, expiresAt },
   });
 
   const cookieStore = await cookies();
@@ -77,9 +62,6 @@ export async function createSession(userId) {
   return session;
 }
 
-/**
- * Xóa session hiện tại (đăng xuất)
- */
 export async function destroySession() {
   try {
     const cookieStore = await cookies();
@@ -92,17 +74,12 @@ export async function destroySession() {
     cookieStore.delete('session_token');
     return true;
   } catch (error) {
-    console.error('Error destroying session:', error);
+    logger.error('destroySession', error);
     return false;
   }
 }
 
-/**
- * Kiểm tra xem user có một trong các role hợp lệ không
- */
 export function checkRole(user, allowedRoles) {
-  if (!user || user.trangThai !== 'ACTIVE') {
-    return false;
-  }
+  if (!user || user.trangThai !== 'ACTIVE') return false;
   return allowedRoles.includes(user.role);
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+import { generateMaNCC } from '@/lib/generateId';
 
 export async function GET() {
   try {
@@ -24,6 +26,7 @@ export async function GET() {
       return {
         id: v.id,
         tenNCC: v.tenNCC,
+        tenTaiKhoan: v.tenTaiKhoan,
         soTaiKhoan: v.soTaiKhoan,
         tenNganHang: v.tenNganHang,
         maQR: v.maQR,
@@ -34,7 +37,7 @@ export async function GET() {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('NhaCungCap API error:', error);
+    logger.error('GET /api/ncc', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -50,7 +53,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { id, tenNCC, soTaiKhoan, tenNganHang, maQR } = body;
+    const { id, tenNCC, tenTaiKhoan, soTaiKhoan, tenNganHang, maQR } = body;
 
     if (!tenNCC || !soTaiKhoan || !tenNganHang) {
       return NextResponse.json({ error: 'Thiếu thông tin bắt buộc (Tên NCC, STK, Ngân hàng).' }, { status: 400 });
@@ -59,8 +62,7 @@ export async function POST(request) {
     // Auto generate ID if not provided
     let finalId = id ? id.trim().toUpperCase() : null;
     if (!finalId) {
-      const count = await prisma.nhaCungCap.count();
-      finalId = `NCC-${String(count + 1).padStart(4, '0')}`;
+      finalId = await generateMaNCC();
     }
 
     // Check duplicate ID
@@ -75,6 +77,7 @@ export async function POST(request) {
       data: {
         id: finalId,
         tenNCC: tenNCC.trim(),
+        tenTaiKhoan: tenTaiKhoan ? tenTaiKhoan.trim() : null,
         soTaiKhoan: soTaiKhoan.trim(),
         tenNganHang: tenNganHang.trim(),
         maQR: maQR || null
@@ -87,7 +90,7 @@ export async function POST(request) {
       message: `Đã tạo nhà cung cấp [${finalId}] thành công.`
     });
   } catch (error) {
-    console.error('NhaCungCap POST error:', error);
+    logger.error('POST /api/ncc', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

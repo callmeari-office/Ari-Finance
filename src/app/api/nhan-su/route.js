@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -10,7 +11,6 @@ export async function GET() {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
-    // Chỉ Owner mới được xem danh sách nhân sự
     if (!checkRole(user, ['OWNER'])) {
       return NextResponse.json(
         { error: 'Bạn không có quyền thực hiện hành động này.' },
@@ -29,16 +29,15 @@ export async function GET() {
         phone: true,
         phongBan: true,
         viTri: true,
-
         role: true,
         trangThai: true,
         createdAt: true,
-      }
+      },
     });
 
     return NextResponse.json(nhanViens);
   } catch (error) {
-    console.error('Get users error:', error);
+    logger.error('GET /api/nhan-su', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -61,19 +60,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const {
-      hoTen,
-      tenNgan,
-      username,
-      email,
-      phone,
-      phongBan,
-      viTri,
-      matKhau,
-      role,
-      trangThai,
-    } = body;
-
+    const { hoTen, tenNgan, username, email, phone, phongBan, viTri, matKhau, role, trangThai } = body;
 
     if (!hoTen || !username || !matKhau || !role) {
       return NextResponse.json(
@@ -82,14 +69,31 @@ export async function POST(request) {
       );
     }
 
-    // Kiểm tra trùng username
+    if (!['OWNER', 'MANAGER', 'STAFF'].includes(role)) {
+      return NextResponse.json({ error: 'Vai trò không hợp lệ.' }, { status: 400 });
+    }
+
+    if (typeof username !== 'string' || username.trim().length < 3 || username.length > 50) {
+      return NextResponse.json(
+        { error: 'Username phải từ 3–50 ký tự.' },
+        { status: 400 }
+      );
+    }
+
+    if (matKhau.length < 6) {
+      return NextResponse.json(
+        { error: 'Mật khẩu phải ít nhất 6 ký tự.' },
+        { status: 400 }
+      );
+    }
+
     const existingUser = await prisma.nhanVien.findFirst({
       where: {
         OR: [
-          { username },
-          { email: email || 'nevermatch' }
-        ]
-      }
+          { username: username.trim() },
+          ...(email ? [{ email }] : []),
+        ],
+      },
     });
 
     if (existingUser) {
@@ -99,20 +103,24 @@ export async function POST(request) {
       );
     }
 
-    // Tạo mã NV tự tăng NV00x
-    const count = await prisma.nhanVien.count();
-    const nextId = 'NV' + String(count + 1).padStart(3, '0');
+    // Dùng max ID thay vì count để tránh race condition khi có nhân viên bị xóa
+    const lastUser = await prisma.nhanVien.findFirst({
+      where: { id: { startsWith: 'NV' } },
+      orderBy: { id: 'desc' },
+      select: { id: true },
+    });
+    const lastNum = lastUser ? parseInt(lastUser.id.replace('NV', ''), 10) : 0;
+    const nextId = 'NV' + String(lastNum + 1).padStart(3, '0');
 
-    const salt = await bcrypt.genSalt(10);
-    const hashPassword = await bcrypt.hash(matKhau, salt);
+    const hashPassword = await bcrypt.hash(matKhau, 10);
 
     const newNhanVien = await prisma.nhanVien.create({
       data: {
         id: nextId,
         hoTen,
         tenNgan: tenNgan || null,
-        username,
-        email: email || `${username}@demo.vn`, // Default email nếu trống
+        username: username.trim(),
+        email: email || `${username.trim()}@demo.vn`,
         phone: phone || '',
         phongBan: phongBan || '',
         viTri: viTri || '',
@@ -122,7 +130,6 @@ export async function POST(request) {
       },
     });
 
-
     return NextResponse.json({
       success: true,
       message: `Đã thêm nhân viên ${hoTen} (Mã: ${nextId}) thành công.`,
@@ -131,10 +138,10 @@ export async function POST(request) {
         hoTen: newNhanVien.hoTen,
         username: newNhanVien.username,
         role: newNhanVien.role,
-      }
+      },
     });
   } catch (error) {
-    console.error('Create user error:', error);
+    logger.error('POST /api/nhan-su', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

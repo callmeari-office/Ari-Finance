@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -18,27 +19,45 @@ export async function GET() {
       orderBy: { thuTu: 'asc' },
     });
 
-    // Lọc danh mục theo vai trò của người dùng
-    const filteredCategories = categories.filter((cat) => {
-      // Nếu là OWNER hoặc MANAGER thì xem được toàn bộ danh mục không bị giới hạn
-      if (user.role === 'OWNER' || user.role === 'MANAGER') return true;
-      try {
-        const allowedRoles = JSON.parse(cat.chucVuDuocXem);
-        return allowedRoles.includes(user.role);
-      } catch (e) {
-        return false;
-      }
+    // Tính tổng chi tháng hiện tại per danh mục (1 query GROUP BY)
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    const chiThangRaw = await prisma.thuChi.groupBy({
+      by: ['danhMucId'],
+      where: {
+        loaiGiaoDich: 'CHI',
+        ngayGiaoDich: { gte: startOfMonth, lt: endOfMonth },
+      },
+      _sum: { soTien: true },
     });
 
-    return NextResponse.json({
-      categories: filteredCategories,
-      groups,
+    // Map danhMucId → soTienDaThuong
+    const chiThangMap = {};
+    chiThangRaw.forEach((r) => {
+      chiThangMap[r.danhMucId] = r._sum.soTien || 0;
     });
+
+    // Lọc danh mục theo vai trò
+    const filteredCategories = categories
+      .filter((cat) => {
+        if (user.role === 'OWNER' || user.role === 'MANAGER') return true;
+        try {
+          const allowedRoles = JSON.parse(cat.chucVuDuocXem);
+          return allowedRoles.includes(user.role);
+        } catch {
+          return false;
+        }
+      })
+      .map((cat) => ({
+        ...cat,
+        soTienDaThuong: chiThangMap[cat.id] || 0,
+      }));
+
+    return NextResponse.json({ categories: filteredCategories, groups });
   } catch (error) {
-    console.error('DanhMuc API error:', error);
-    return NextResponse.json(
-      { error: 'Đã xảy ra lỗi trên hệ thống.' },
-      { status: 500 }
-    );
+    logger.error('GET /api/danh-muc', error);
+    return NextResponse.json({ error: 'Đã xảy ra lỗi trên hệ thống.' }, { status: 500 });
   }
 }

@@ -8,7 +8,7 @@ const outfit = Outfit({
 });
 
 export const metadata = {
-  title: "Q-Finance — Quản lý Thu Chi Shop Thời Trang",
+  title: "Ari-Finance — Quản lý Thu Chi Shop Thời Trang",
   description: "Hệ thống quản lý đề xuất chi phí và dòng tiền thu chi nội bộ chuyên nghiệp dành cho shop thời trang SME.",
   keywords: "quản lý thu chi, tài chính shop thời trang, quản lý đề xuất chi phí, hoàn ứng, dòng tiền",
 };

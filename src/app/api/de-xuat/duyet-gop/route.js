@@ -1,26 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
-
-// Hàm sinh mã phiếu Thu-Chi: TC-YYMMDD-xxxx
-async function generateMaThuChi() {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const prefix = `TC-${yy}${mm}${dd}-`;
-
-  const count = await prisma.thuChi.count({
-    where: {
-      maPhieu: {
-        startsWith: prefix,
-      },
-    },
-  });
-
-  const xxxx = String(count + 1).padStart(4, '0');
-  return `${prefix}${xxxx}`;
-}
+import { logger } from '@/lib/logger';
+import { generateMaThuChi } from '@/lib/generateId';
 
 export async function POST(request) {
   try {
@@ -149,7 +131,7 @@ export async function POST(request) {
       thuChi: result,
     });
   } catch (error) {
-    console.error('Merge reimbursement error:', error);
+    logger.error('POST /api/de-xuat/duyet-gop', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

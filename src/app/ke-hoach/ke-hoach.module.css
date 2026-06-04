@@ -1,0 +1,356 @@
+.loaderContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 1rem;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255,255,255,0.1);
+  border-top-color: var(--brand-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.mainContent {
+  flex: 1;
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pageHeader h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+  color: var(--text-main);
+}
+
+.pageDesc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.viewToggle {
+  display: flex;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.toggleBtn,
+.toggleActive {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+.toggleBtn {
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.toggleBtn:hover { background: rgba(255,255,255,0.06); color: var(--text-main); }
+
+.toggleActive {
+  background: var(--brand-accent);
+  color: #fff;
+}
+
+/* ── TOOLBAR ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 1rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.toolbarInfo { color: var(--text-muted); }
+
+/* ── SPREADSHEET TABLE ── */
+.tableWrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.spreadsheet {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  min-width: 1100px;
+}
+
+.spreadsheet thead th {
+  background: rgba(255,255,255,0.06);
+  padding: 0.6rem 0.5rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  white-space: nowrap;
+}
+
+.colDanhMuc { text-align: left !important; min-width: 160px; padding-left: 1rem !important; }
+.colThang { width: 80px; }
+.colTotal { width: 100px; background: rgba(255,255,255,0.04) !important; }
+
+/* Hàng nhóm */
+.groupRow td {
+  background: rgba(99,102,241,0.08);
+  border-top: 2px solid rgba(99,102,241,0.2);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.groupLabel {
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: #a5b4fc;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.groupCell {
+  padding: 0.4rem 0.5rem;
+  text-align: center;
+  color: #a5b4fc;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Hàng danh mục */
+.catRow:hover td { background: rgba(255,255,255,0.03); }
+
+.catLabel {
+  padding: 0.4rem 0.5rem 0.4rem 1.5rem;
+  color: var(--text-main);
+  font-size: 0.8rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.inputCell {
+  padding: 2px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-left: 1px solid rgba(255,255,255,0.04);
+}
+
+.inputCell.dirty { background: rgba(245,158,11,0.07); }
+
+.cellInput {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  text-align: right;
+  padding: 0.3rem 0.4rem;
+  color: var(--text-main);
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: text;
+}
+
+.cellInput:focus {
+  background: rgba(99,102,241,0.15);
+  border-radius: 4px;
+}
+
+.cellInput::placeholder { color: rgba(255,255,255,0.2); text-align: center; }
+
+.rowTotalCell {
+  text-align: right;
+  padding: 0.4rem 0.6rem;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.03);
+  border-left: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Hàng tổng */
+.totalRow td {
+  background: rgba(99,102,241,0.12);
+  border-top: 2px solid rgba(99,102,241,0.3);
+}
+
+.totalLabel {
+  padding: 0.6rem 0.5rem 0.6rem 1rem;
+  font-weight: 800;
+  font-size: 0.78rem;
+  color: #c7d2fe;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.totalCell {
+  text-align: center;
+  padding: 0.6rem 0.5rem;
+  font-weight: 800;
+  font-size: 0.78rem;
+  color: #c7d2fe;
+}
+
+/* ── DASHBOARD ── */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.kpiCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1.25rem !important;
+}
+
+.kpiLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpiValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.kpiSub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.cardHeader h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-main);
+}
+
+/* Nhóm expand */
+.groupSection {
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 0.25rem 0;
+}
+
+.groupSection:last-child { border-bottom: none; }
+
+.groupToggleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.5rem;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s;
+  color: var(--text-main);
+}
+
+.groupToggleRow:hover { background: rgba(255,255,255,0.04); }
+
+.groupToggleName {
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+/* Status badges */
+.badgeGreen {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(52,211,153,0.15);
+  color: #34d399;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badgeYellow {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(245,158,11,0.15);
+  color: #f59e0b;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badgeRed {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.loaderSmall {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .mainContent { padding: 1rem; }
+  .pageHeader { flex-direction: column; }
+  .headerActions { flex-direction: column; align-items: flex-start; }
+}

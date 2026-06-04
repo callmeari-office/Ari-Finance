@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  CheckSquare, 
-  DollarSign, 
-  Wallet, 
+import {
+  LayoutDashboard,
+  FileText,
+  CheckSquare,
+  DollarSign,
+  Wallet,
   LogOut,
   User,
   Menu,
@@ -16,15 +16,36 @@ import {
   Lock,
   Users,
   BarChart3,
-  Store
+  Store,
+  Bell,
+  CalendarRange
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './Sidebar.module.css';
 
 export default function Sidebar({ user }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (!user || (user.role !== 'OWNER' && user.role !== 'MANAGER')) return;
+    const fetchPending = async () => {
+      try {
+        const res = await fetch('/api/de-xuat?limit=1000');
+        if (!res.ok) return;
+        const data = await res.json();
+        const count = (data.data || []).filter(
+          (p) => p.trangThai === 'CHO_THANH_TOAN' || p.trangThai === 'CHO_HOAN_UNG'
+        ).length;
+        setPendingCount(count);
+      } catch {}
+    };
+    fetchPending();
+    const interval = setInterval(fetchPending, 60000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const handleLogout = async () => {
     if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
@@ -77,6 +98,13 @@ export default function Sidebar({ user }) {
       path: '/quy',
       icon: Wallet,
       roles: ['OWNER'],
+    },
+    {
+      key: 'keHoach',
+      name: 'Kế hoạch chi phí',
+      path: '/ke-hoach',
+      icon: CalendarRange,
+      roles: ['OWNER', 'MANAGER'],
     },
     {
       key: 'baoCao',
@@ -162,11 +190,22 @@ export default function Sidebar({ user }) {
             <User size={18} />
           </div>
           <div className={styles.userInfo}>
-            <p className={styles.userName}>{user.hoTen}</p>
+            <p className={styles.userName}>{user.tenNgan || user.hoTen}</p>
             <p className={styles.userRole}>
               {user.role === 'OWNER' ? 'Chủ shop (Owner)' : user.role === 'MANAGER' ? 'Quản lý (Manager)' : 'Nhân viên (Staff)'}
             </p>
           </div>
+          {(user.role === 'OWNER' || user.role === 'MANAGER') && pendingCount > 0 && (
+            <Link href="/de-xuat/duyet" style={{ position: 'relative', marginLeft: 'auto', color: 'var(--text-muted)' }} title={`${pendingCount} đề xuất chờ duyệt`}>
+              <Bell size={18} />
+              <span style={{
+                position: 'absolute', top: '-6px', right: '-6px',
+                background: '#ef4444', color: '#fff', borderRadius: '999px',
+                fontSize: '0.65rem', fontWeight: '700', lineHeight: 1,
+                padding: '2px 5px', minWidth: '16px', textAlign: 'center'
+              }}>{pendingCount}</span>
+            </Link>
+          )}
         </div>
 
         {/* Navigation Items */}

@@ -1,26 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+import { generateMaDeXuat } from '@/lib/generateId';
 
-// Hàm sinh mã đề xuất: CP-YYMMDD-xxxx
-async function generateMaDeXuat() {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  const prefix = `CP-${yy}${mm}${dd}-`;
-
-  const count = await prisma.deXuatChiPhi.count({
-    where: {
-      maPhieu: {
-        startsWith: prefix,
-      },
-    },
-  });
-
-  const xxxx = String(count + 1).padStart(4, '0');
-  return `${prefix}${xxxx}`;
-}
+const DEFAULT_LIMIT = 20;
 
 export async function GET(request) {
   try {
@@ -32,52 +16,56 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const trangThai = searchParams.get('trangThai');
     const nguonTien = searchParams.get('nguonTien');
+    const nhaCungCapId = searchParams.get('nhaCungCapId');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10)));
+    const skip = (page - 1) * limit;
 
-    // Xây dựng điều kiện query
     const where = {};
     if (trangThai) where.trangThai = trangThai;
     if (nguonTien) where.nguonTien = nguonTien;
+    if (nhaCungCapId) where.nhaCungCapId = nhaCungCapId;
 
-    // Phân quyền xem danh sách
+    // Staff chỉ thấy đề xuất của mình
     if (user.role === 'STAFF') {
-      // Staff chỉ thấy đề xuất của mình
       where.nguoiTaoId = user.id;
     }
 
-    const proposals = await prisma.deXuatChiPhi.findMany({
-      where,
-      include: {
-        danhMuc: {
-          include: { nhomChiPhi: true },
-        },
-        nhaCungCap: true,
-        quyThanhToan: true,
-        nguoiTao: {
-          select: { id: true, hoTen: true, email: true, role: true },
-        },
-        nguoiDuyet: {
-          select: { id: true, hoTen: true, email: true },
-        },
-      },
-      orderBy: { ngayTao: 'desc' },
-    });
+    const include = {
+      danhMuc: { include: { nhomChiPhi: true } },
+      nhaCungCap: true,
+      quyThanhToan: true,
+      nguoiTao: { select: { id: true, hoTen: true, tenNgan: true, email: true, role: true } },
+      nguoiDuyet: { select: { id: true, hoTen: true, tenNgan: true, email: true } },
+    };
 
-    // Đối với Manager: Xem tất cả đề xuất, nhưng KHÔNG thấy các đề xuất thuộc danh mục nhạy cảm
-    // (nhạy cảm = chucVuDuocXem không chứa role MANAGER)
+    const [total, proposals] = await Promise.all([
+      prisma.deXuatChiPhi.count({ where }),
+      prisma.deXuatChiPhi.findMany({
+        where,
+        include,
+        orderBy: { ngayTao: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
     const filteredProposals = proposals.filter((prop) => {
       if (user.role === 'OWNER' || user.role === 'MANAGER') return true;
-      
       try {
         const allowedRoles = JSON.parse(prop.danhMuc.chucVuDuocXem);
         return allowedRoles.includes(user.role);
-      } catch (e) {
+      } catch {
         return false;
       }
     });
 
-    return NextResponse.json(filteredProposals);
+    return NextResponse.json({
+      data: filteredProposals,
+      pagination: { page, limit, total },
+    });
   } catch (error) {
-    console.error('Get proposals error:', error);
+    logger.error('GET /api/de-xuat', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -99,17 +87,22 @@ export async function POST(request) {
       noiDung,
       soTien,
       nhaCungCapId,
-      anhHoaDon,
       nguonTien,
       trangThai,
       ghiChu,
       ngayCanThanhToan,
     } = body;
 
-    // Validate dữ liệu
     if (!ngayPhatSinh || !danhMucId || !noiDung || !soTien || !nguonTien || !trangThai) {
       return NextResponse.json(
         { error: 'Vui lòng cung cấp đầy đủ thông tin bắt buộc.' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof noiDung !== 'string' || noiDung.trim().length === 0 || noiDung.length > 500) {
+      return NextResponse.json(
+        { error: 'Nội dung đề xuất không hợp lệ (1–500 ký tự).' },
         { status: 400 }
       );
     }
@@ -121,19 +114,20 @@ export async function POST(request) {
       );
     }
 
-    // Kiểm tra danh mục có tồn tại và hợp lệ
-    const danhMuc = await prisma.danhMuc.findUnique({
-      where: { id: danhMucId },
-    });
-
-    if (!danhMuc) {
-      return NextResponse.json(
-        { error: 'Danh mục chi phí không hợp lệ.' },
-        { status: 400 }
-      );
+    const VALID_NGUON_TIEN = ['TIEN_SHOP', 'TIEN_CA_NHAN'];
+    const VALID_TRANG_THAI = ['CHO_THANH_TOAN', 'CHO_HOAN_UNG', 'DA_THANH_TOAN'];
+    if (!VALID_NGUON_TIEN.includes(nguonTien)) {
+      return NextResponse.json({ error: 'Nguồn tiền không hợp lệ.' }, { status: 400 });
+    }
+    if (!VALID_TRANG_THAI.includes(trangThai)) {
+      return NextResponse.json({ error: 'Trạng thái đề xuất không hợp lệ.' }, { status: 400 });
     }
 
-    // Kiểm tra xem danh mục này user có quyền truy cập/chọn không
+    const danhMuc = await prisma.danhMuc.findUnique({ where: { id: danhMucId } });
+    if (!danhMuc) {
+      return NextResponse.json({ error: 'Danh mục chi phí không hợp lệ.' }, { status: 400 });
+    }
+
     try {
       const allowedRoles = JSON.parse(danhMuc.chucVuDuocXem);
       if (!allowedRoles.includes(user.role)) {
@@ -142,14 +136,10 @@ export async function POST(request) {
           { status: 403 }
         );
       }
-    } catch (e) {
-      return NextResponse.json(
-        { error: 'Lỗi kiểm tra quyền danh mục.' },
-        { status: 500 }
-      );
+    } catch {
+      return NextResponse.json({ error: 'Lỗi kiểm tra quyền danh mục.' }, { status: 500 });
     }
 
-    // Kiểm tra nhà cung cấp nếu danh mục yêu cầu NCC
     if (danhMuc.yeuCauNCC && !nhaCungCapId) {
       return NextResponse.json(
         { error: `Danh mục "${danhMuc.tenDanhMuc}" yêu cầu phải chọn Nhà cung cấp.` },
@@ -164,17 +154,19 @@ export async function POST(request) {
         maPhieu,
         ngayPhatSinh: new Date(ngayPhatSinh),
         danhMucId,
-        noiDung,
+        noiDung: noiDung.trim(),
         soTien: Number(soTien),
         nhaCungCapId: nhaCungCapId || null,
-        anhHoaDon: anhHoaDon || null,
         nguonTien,
-        trangThai, // CHO_THANH_TOAN, CHO_HOAN_UNG, DA_THANH_TOAN, HUY
+        trangThai,
+        ghiChu: ghiChu || null,
         nguoiTaoId: user.id,
-        ngayCanThanhToan: (ngayCanThanhToan && String(ngayCanThanhToan).trim() !== '') ? new Date(ngayCanThanhToan) : null,
+        ngayCanThanhToan:
+          ngayCanThanhToan && String(ngayCanThanhToan).trim() !== ''
+            ? new Date(ngayCanThanhToan)
+            : null,
       },
     });
-
 
     return NextResponse.json({
       success: true,
@@ -182,7 +174,7 @@ export async function POST(request) {
       message: `Đã tạo đề xuất ${maPhieu} thành công.`,
     });
   } catch (error) {
-    console.error('Create proposal error:', error);
+    logger.error('POST /api/de-xuat', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

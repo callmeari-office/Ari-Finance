@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -22,7 +23,7 @@ export async function GET() {
 
     return NextResponse.json(groups);
   } catch (error) {
-    console.error('Get groups error:', error);
+    logger.error('GET /api/cau-hinh-nhom', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -97,7 +98,7 @@ export async function POST(request) {
       group: newGroup,
     });
   } catch (error) {
-    console.error('Create group error:', error);
+    logger.error('POST /api/cau-hinh-nhom', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

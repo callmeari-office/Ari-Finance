@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -27,7 +28,7 @@ export async function GET() {
 
     return NextResponse.json({ categories, groups });
   } catch (error) {
-    console.error('Get config categories error:', error);
+    logger.error('GET /api/cau-hinh', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
@@ -117,7 +118,7 @@ export async function POST(request) {
       danhMuc: newDanhMuc,
     });
   } catch (error) {
-    console.error('Create category error:', error);
+    logger.error('POST /api/cau-hinh', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }

@@ -80,7 +80,7 @@ export default function LoginPage() {
           <div className={styles.logo}>
             <Wallet size={36} className={styles.logoIcon} />
           </div>
-          <h1>Q-Finance</h1>
+          <h1>Ari-Finance</h1>
           <p className={styles.subtitle}>Hệ thống Quản lý Thu - Chi Nội bộ</p>
         </div>
 

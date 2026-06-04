@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Plus, 
-  Trash2, 
-  Edit3, 
-  X, 
-  Check, 
+import {
+  Plus,
+  Trash2,
+  Edit3,
+  X,
+  Check,
   AlertCircle,
   Eye,
   Search,
   Building,
   DollarSign,
   QrCode,
-  ArrowLeft
+  History,
+  Copy
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './ncc.module.css';
@@ -47,12 +48,18 @@ export default function VendorsPage() {
   // Form Inputs
   const [id, setId] = useState('');
   const [tenNCC, setTenNCC] = useState('');
+  const [tenTaiKhoan, setTenTaiKhoan] = useState('');
   const [soTaiKhoan, setSoTaiKhoan] = useState('');
   const [tenNganHang, setTenNganHang] = useState('');
-  const [maQR, setMaQR] = useState(''); // base64 hoặc URL
 
   // Detail Modal State
   const [selectedVendor, setSelectedVendor] = useState(null);
+  const [copiedField, setCopiedField] = useState('');
+
+  // History Modal State
+  const [historyVendor, setHistoryVendor] = useState(null);
+  const [vendorHistory, setVendorHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     // 1. Check Auth
@@ -105,38 +112,52 @@ export default function VendorsPage() {
     }
   };
 
-  // Convert uploaded image to base64
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('Kích thước ảnh phải nhỏ hơn 2MB!');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setMaQR(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+  const generateVietQRUrl = (vendor) => {
+    if (!vendor || !vendor.soTaiKhoan || !vendor.tenNganHang) return '';
+    const nameUpper = vendor.tenNganHang.toUpperCase();
+    let bankCode = nameUpper.includes('-') ? nameUpper.split('-')[0].trim() : nameUpper.trim();
+    const bankMap = {
+      'vcb': 'vietcombank', 'tcb': 'techcombank', 'ctg': 'vietinbank',
+      'mb': 'mbb', 'mbbank': 'mbb', 'vpb': 'vpbank', 'hdb': 'hdbank',
+      'stb': 'sacombank', 'tpb': 'tpbank', 'msb': 'msb', 'shb': 'shb',
+      'eib': 'eximbank', 'ocb': 'ocb', 'lpb': 'lpbank', 'abb': 'abbank',
+      'nab': 'namabank', 'cake': 'cake'
+    };
+    let qrBank = bankMap[bankCode.toLowerCase()] || bankCode.toLowerCase();
+    const accountName = vendor.tenTaiKhoan || vendor.tenNCC;
+    return `https://img.vietqr.io/image/${qrBank}-${vendor.soTaiKhoan}-compact.png?accountName=${encodeURIComponent(accountName)}`;
   };
 
-  const handleDemoQR = () => {
-    if (!soTaiKhoan || !tenNganHang) {
-      alert('Vui lòng điền Số tài khoản và Tên ngân hàng trước khi sinh QR demo!');
-      return;
+  const handleCopyText = (text, fieldName) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(''), 2000);
+  };
+
+  const handleOpenHistory = async (vendor) => {
+    setHistoryVendor(vendor);
+    setVendorHistory([]);
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/de-xuat?nhaCungCapId=${vendor.id}&limit=1000`);
+      if (res.ok) {
+        const data = await res.json();
+        setVendorHistory(data.data || []);
+      }
+    } catch (e) {
+      console.error('Error fetching vendor history:', e);
+    } finally {
+      setHistoryLoading(false);
     }
-    const mockQRUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=AriFinance-Transfer-To-${soTaiKhoan.trim()}-${tenNganHang.trim()}`;
-    setMaQR(mockQRUrl);
   };
 
   const handleOpenAdd = () => {
     setFormType('ADD');
     setId('');
     setTenNCC('');
+    setTenTaiKhoan('');
     setSoTaiKhoan('');
     setTenNganHang('');
-    setMaQR('');
     setFormError('');
     setFormSuccess('');
     setIsModalOpen(true);
@@ -146,9 +167,9 @@ export default function VendorsPage() {
     setFormType('EDIT');
     setId(v.id);
     setTenNCC(v.tenNCC);
+    setTenTaiKhoan(v.tenTaiKhoan || '');
     setSoTaiKhoan(v.soTaiKhoan);
     setTenNganHang(v.tenNganHang);
-    setMaQR(v.maQR || '');
     setFormError('');
     setFormSuccess('');
     setIsModalOpen(true);
@@ -169,9 +190,9 @@ export default function VendorsPage() {
     const payload = {
       id: id.trim(),
       tenNCC: tenNCC.trim(),
+      tenTaiKhoan: tenTaiKhoan.trim() || null,
       soTaiKhoan: soTaiKhoan.trim(),
       tenNganHang: tenNganHang.trim(),
-      maQR: maQR || null
     };
 
     try {
@@ -236,6 +257,7 @@ export default function VendorsPage() {
     return (
       v.id.toLowerCase().includes(q) ||
       v.tenNCC.toLowerCase().includes(q) ||
+      (v.tenTaiKhoan && v.tenTaiKhoan.toLowerCase().includes(q)) ||
       v.soTaiKhoan.toLowerCase().includes(q) ||
       v.tenNganHang.toLowerCase().includes(q)
     );
@@ -253,12 +275,10 @@ export default function VendorsPage() {
             <h1>Quản Lý Nhà Cung Cấp</h1>
             <p className={styles.pageDesc}>Danh mục thông tin đối tác, số tài khoản, mã QR và thống kê chi phí</p>
           </div>
-          {user.role !== 'STAFF' && (
-            <button onClick={handleOpenAdd} className="btn btn-primary">
-              <Plus size={20} />
-              <span>Thêm nhà cung cấp</span>
-            </button>
-          )}
+          <button onClick={handleOpenAdd} className="btn btn-primary">
+            <Plus size={20} />
+            <span>Thêm nhà cung cấp</span>
+          </button>
         </div>
 
         {/* KPI Summaries */}
@@ -312,10 +332,11 @@ export default function VendorsPage() {
                   <tr>
                     <th style={{ width: '120px' }}>Mã NCC</th>
                     <th>Tên đối tác</th>
+                    <th>Tên TK ngân hàng</th>
                     <th>Số tài khoản</th>
                     <th>Ngân hàng</th>
-                    <th style={{ textAlign: 'center', width: '120px' }}>Giao dịch</th>
-                    <th style={{ textAlign: 'right', width: '180px' }}>Tổng đã chi</th>
+                    <th style={{ textAlign: 'center', width: '100px' }}>Giao dịch</th>
+                    <th style={{ textAlign: 'right', width: '160px' }}>Tổng đã chi</th>
                     <th style={{ textAlign: 'center', width: '140px' }}>Thao tác</th>
                   </tr>
                 </thead>
@@ -324,6 +345,9 @@ export default function VendorsPage() {
                     <tr key={v.id}>
                       <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{v.id}</td>
                       <td style={{ fontWeight: '600' }}>{v.tenNCC}</td>
+                      <td style={{ fontWeight: '500', color: v.tenTaiKhoan ? '#f8fafc' : 'var(--text-muted)', fontStyle: v.tenTaiKhoan ? 'normal' : 'italic' }}>
+                        {v.tenTaiKhoan || 'Chưa có'}
+                      </td>
                       <td style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}>{v.soTaiKhoan}</td>
                       <td style={{ fontWeight: '500' }}>{v.tenNganHang}</td>
                       <td style={{ textAlign: 'center' }}>
@@ -336,28 +360,35 @@ export default function VendorsPage() {
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <div className={styles.actionButtons}>
-                          <button 
-                            onClick={() => setSelectedVendor(v)} 
-                            className={`${styles.actionBtn} ${styles.viewBtn}`} 
-                            title="Quét mã QR / Chi tiết"
+                          <button
+                            onClick={() => setSelectedVendor(v)}
+                            className={`${styles.actionBtn} ${styles.viewBtn}`}
+                            title="Xem QR & Chi tiết"
                           >
                             <Eye size={16} />
                           </button>
-                          
-                          {user.role !== 'STAFF' && (
-                            <button 
-                              onClick={() => handleOpenEdit(v)} 
-                              className={`${styles.actionBtn} ${styles.editBtn}`} 
-                              title="Sửa thông tin"
-                            >
-                              <Edit3 size={16} />
-                            </button>
-                          )}
+
+                          <button
+                            onClick={() => handleOpenHistory(v)}
+                            className={`${styles.actionBtn} ${styles.editBtn}`}
+                            title="Lịch sử giao dịch"
+                            style={{ color: '#a78bfa' }}
+                          >
+                            <History size={16} />
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenEdit(v)}
+                            className={`${styles.actionBtn} ${styles.editBtn}`}
+                            title="Sửa thông tin"
+                          >
+                            <Edit3 size={16} />
+                          </button>
 
                           {user.role === 'OWNER' && (
-                            <button 
-                              onClick={() => handleDelete(v.id, v.tenNCC)} 
-                              className={`${styles.actionBtn} ${styles.deleteBtn}`} 
+                            <button
+                              onClick={() => handleDelete(v.id, v.tenNCC)}
+                              className={`${styles.actionBtn} ${styles.deleteBtn}`}
                               disabled={v.tongDaChi > 0 || v.soPhieuChi > 0}
                               title={v.tongDaChi > 0 ? "Không thể xóa đối tác đã phát sinh giao dịch chi" : "Xóa nhà cung cấp"}
                               style={v.tongDaChi > 0 ? { opacity: 0.3, cursor: 'not-allowed' } : {}}
@@ -402,26 +433,9 @@ export default function VendorsPage() {
 
               <form onSubmit={handleSubmit} className={styles.form}>
                 <div className={styles.formGroup}>
-                  <label className="form-label">Mã Đối Tác (Bỏ trống để tự sinh)</label>
-                  <input 
-                    type="text" 
-                    placeholder="Ví dụ: IN-ARI hoặc NCC-001"
-                    className="form-control"
-                    value={id}
-                    onChange={(e) => setId(e.target.value)}
-                    disabled={formLoading || formType === 'EDIT'}
-                  />
-                  {formType === 'ADD' && (
-                    <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
-                      Nên viết in hoa liền không dấu. Nếu bỏ trống hệ thống tự đặt mã NCC-XXXX.
-                    </small>
-                  )}
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className="form-label">Tên Nhà Cung Cấp *</label>
-                  <input 
-                    type="text" 
+                  <label className="form-label">Tên Nhà Cung Cấp / Đối Tác *</label>
+                  <input
+                    type="text"
                     placeholder="Nhập tên đối tác/nhà cung cấp..."
                     className="form-control"
                     value={tenNCC}
@@ -431,11 +445,26 @@ export default function VendorsPage() {
                   />
                 </div>
 
+                <div className={styles.formGroup}>
+                  <label className="form-label">Tên Chủ Tài Khoản Ngân Hàng</label>
+                  <input
+                    type="text"
+                    placeholder="Nhập tên chủ tài khoản (in hoa không dấu)..."
+                    className="form-control"
+                    value={tenTaiKhoan}
+                    onChange={(e) => setTenTaiKhoan(e.target.value)}
+                    disabled={formLoading}
+                  />
+                  <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                    Tên hiển thị khi quét QR chuyển khoản. Để trống sẽ dùng tên đối tác.
+                  </small>
+                </div>
+
                 <div className={styles.formRow}>
                   <div className={styles.formGroup} style={{ flex: 1 }}>
                     <label className="form-label">Số Tài Khoản Chuyển Khoản *</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder="Nhập STK ngân hàng..."
                       className="form-control"
                       value={soTaiKhoan}
@@ -448,7 +477,7 @@ export default function VendorsPage() {
                   <div className={styles.formGroup} style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
                       <label className="form-label" style={{ margin: 0 }}>Ngân Hàng *</label>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => setIsQuickBankOpen(true)}
                         style={{ color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', padding: 0 }}
@@ -466,48 +495,10 @@ export default function VendorsPage() {
                       <option value="">-- Chọn ngân hàng --</option>
                       {banks.map(b => (
                         <option key={b.id} value={`${b.tenVietTat} - ${b.tenDayDu}`}>
-                          {b.tenVietTat} - {b.tenDayDu}
+                          {b.tenDayDu} - {b.tenVietTat}
                         </option>
                       ))}
                     </select>
-                  </div>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className="form-label">Mã QR Thanh Toán (Đính kèm hoặc Sinh tự động)</label>
-                  <div className={styles.uploadBox}>
-                    <QrCode size={24} />
-                    <span>Tải lên hình ảnh mã QR chuyển khoản của đối tác</span>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleFileChange}
-                        style={{ display: 'none' }}
-                        id="qr-file-upload"
-                      />
-                      <label htmlFor="qr-file-upload" className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
-                        Tải ảnh lên
-                      </label>
-                      <button 
-                        type="button" 
-                        onClick={handleDemoQR}
-                        className="btn btn-secondary btn-sm"
-                        disabled={!soTaiKhoan || !tenNganHang}
-                      >
-                        Sinh QR Demo
-                      </button>
-                    </div>
-                    {maQR && (
-                      <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <span className={styles.uploadedBadge}>Đã đính kèm ảnh QR</span>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={maQR} alt="QR Preview" style={{ width: '120px', height: '120px', objectFit: 'contain', marginTop: '0.5rem', border: '1px solid var(--border)', borderRadius: '8px' }} />
-                        <button type="button" onClick={() => setMaQR('')} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-                          Xóa ảnh
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -524,12 +515,12 @@ export default function VendorsPage() {
           </div>
         )}
 
-        {/* MODAL: XEM CHI TIẾT & MÃ QR */}
+        {/* MODAL: XEM CHI TIẾT & MÃ QR ĐỘNG */}
         {selectedVendor && (
           <div className={styles.modalOverlay}>
             <div className={`${styles.modalContent} ${styles.detailContent} glass-card`}>
               <div className={styles.modalHeader}>
-                <h2>Quét Mã Thanh Toán - {selectedVendor.tenNCC}</h2>
+                <h2>Thông tin NCC - {selectedVendor.tenNCC}</h2>
                 <button onClick={() => setSelectedVendor(null)} className={styles.closeBtn}>
                   <X size={20} />
                 </button>
@@ -537,17 +528,15 @@ export default function VendorsPage() {
 
               <div className={styles.detailCard}>
                 <div className={styles.qrContainer}>
-                  {selectedVendor.maQR ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={selectedVendor.maQR} alt="QR Code Chuyển Khoản" className={styles.qrImg} />
-                  ) : (
-                    <div className={styles.noQrText}>
-                      <QrCode size={40} style={{ color: '#94a3b8', marginBottom: '0.5rem' }} />
-                      Chưa có mã QR.
-                      <br />
-                      <small style={{ fontWeight: 'normal', color: '#94a3b8' }}>Chủ shop có thể sửa đối tác để tải lên mã QR ngân hàng.</small>
-                    </div>
-                  )}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={generateVietQRUrl(selectedVendor)}
+                    alt="Mã VietQR động"
+                    className={styles.qrImg}
+                  />
+                  <div style={{ fontSize: '0.7rem', color: '#64748b', textAlign: 'center', marginTop: '0.25rem' }}>
+                    Quét QR để tự điền STK & ngân hàng
+                  </div>
                 </div>
 
                 <div className={styles.bankDetails}>
@@ -556,12 +545,28 @@ export default function VendorsPage() {
                     <span className={styles.value}>{selectedVendor.tenNCC}</span>
                   </div>
                   <div className={styles.detailRow}>
+                    <span className={styles.label}>Tên chủ TK:</span>
+                    <span className={styles.value} style={{ fontWeight: selectedVendor.tenTaiKhoan ? '600' : '400', color: selectedVendor.tenTaiKhoan ? '#f8fafc' : 'var(--text-muted)', fontStyle: selectedVendor.tenTaiKhoan ? 'normal' : 'italic' }}>
+                      {selectedVendor.tenTaiKhoan || 'Chưa có (dùng tên đối tác)'}
+                    </span>
+                  </div>
+                  <div className={styles.detailRow}>
                     <span className={styles.label}>Mã đối tác:</span>
                     <span className={styles.value} style={{ color: '#60a5fa' }}>{selectedVendor.id}</span>
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.label}>Số tài khoản:</span>
-                    <span className={styles.value} style={{ fontFamily: 'monospace', fontSize: '1rem', color: '#fbbf24' }}>{selectedVendor.soTaiKhoan}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span className={styles.value} style={{ fontFamily: 'monospace', fontSize: '1rem', color: '#fbbf24' }}>{selectedVendor.soTaiKhoan}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(selectedVendor.soTaiKhoan, 'stk')}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '0.1rem 0.4rem', fontSize: '0.7rem' }}
+                      >
+                        {copiedField === 'stk' ? '✓' : <Copy size={12} />}
+                      </button>
+                    </div>
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.label}>Ngân hàng:</span>
@@ -680,6 +685,79 @@ export default function VendorsPage() {
           </div>
         )}
       </main>
+
+      {/* MODAL: LỊCH SỬ GIAO DỊCH NCC */}
+      {historyVendor && (
+        <div className={styles.modalOverlay} onClick={() => setHistoryVendor(null)}>
+          <div
+            className={`${styles.modalContent} glass-card`}
+            style={{ maxWidth: '780px', padding: '2rem', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader} style={{ marginBottom: '1.25rem' }}>
+              <div>
+                <h2 style={{ marginBottom: '0.25rem' }}>Lịch sử giao dịch — {historyVendor.tenNCC}</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  {historyVendor.soTaiKhoan} · {historyVendor.tenNganHang}
+                </p>
+              </div>
+              <button onClick={() => setHistoryVendor(null)} className={styles.closeBtn}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {historyLoading ? (
+              <div className={styles.loaderSmall}>Đang tải lịch sử...</div>
+            ) : vendorHistory.length === 0 ? (
+              <div className={styles.emptyState}>Chưa có giao dịch nào với nhà cung cấp này.</div>
+            ) : (
+              <div style={{ overflowY: 'auto', flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{vendorHistory.length} phiếu</span>
+                  <span style={{ fontWeight: '700', color: '#34d399' }}>
+                    Tổng: {formatVND(vendorHistory.reduce((s, p) => s + p.soTien, 0))}
+                  </span>
+                </div>
+                <div className="table-responsive">
+                  <table className="custom-table" style={{ fontSize: '0.88rem' }}>
+                    <thead>
+                      <tr>
+                        <th>Mã phiếu</th>
+                        <th>Ngày phát sinh</th>
+                        <th>Nội dung</th>
+                        <th>Người tạo</th>
+                        <th style={{ textAlign: 'right' }}>Số tiền</th>
+                        <th>Trạng thái</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {vendorHistory.map((p) => (
+                        <tr key={p.id}>
+                          <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{p.maPhieu}</td>
+                          <td suppressHydrationWarning>{new Date(p.ngayPhatSinh).toLocaleDateString('vi-VN')}</td>
+                          <td>{p.noiDung}</td>
+                          <td>{p.nguoiTao?.hoTen || '—'}</td>
+                          <td style={{ fontWeight: '700', textAlign: 'right', color: '#fbbf24' }}>{formatVND(p.soTien)}</td>
+                          <td>
+                            {p.trangThai === 'DA_THANH_TOAN' && <span className="badge badge-paid">Đã thanh toán</span>}
+                            {p.trangThai === 'CHO_THANH_TOAN' && <span className="badge badge-pending">Chờ thanh toán</span>}
+                            {p.trangThai === 'CHO_HOAN_UNG' && <span className="badge badge-reimburse">Chờ hoàn ứng</span>}
+                            {p.trangThai === 'HUY' && <span className="badge badge-cancelled">Đã hủy</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div style={{ marginTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '1rem', textAlign: 'right' }}>
+              <button onClick={() => setHistoryVendor(null)} className="btn btn-secondary">Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
