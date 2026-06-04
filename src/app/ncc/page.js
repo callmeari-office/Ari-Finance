@@ -346,7 +346,7 @@ export default function VendorsPage() {
                     <tr key={v.id}>
                       <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{v.id}</td>
                       <td style={{ fontWeight: '600' }}>{v.tenNCC}</td>
-                      <td style={{ fontWeight: '500', color: v.tenTaiKhoan ? '#f8fafc' : 'var(--text-muted)', fontStyle: v.tenTaiKhoan ? 'normal' : 'italic' }}>
+                      <td style={{ fontWeight: '500', color: v.tenTaiKhoan ? 'var(--text-main)' : 'var(--text-muted)', fontStyle: v.tenTaiKhoan ? 'normal' : 'italic' }}>
                         {v.tenTaiKhoan || 'Chưa có'}
                       </td>
                       <td style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}>{v.soTaiKhoan}</td>
@@ -547,7 +547,7 @@ export default function VendorsPage() {
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.label}>Tên chủ TK:</span>
-                    <span className={styles.value} style={{ fontWeight: selectedVendor.tenTaiKhoan ? '600' : '400', color: selectedVendor.tenTaiKhoan ? '#f8fafc' : 'var(--text-muted)', fontStyle: selectedVendor.tenTaiKhoan ? 'normal' : 'italic' }}>
+                    <span className={styles.value} style={{ fontWeight: selectedVendor.tenTaiKhoan ? '600' : '400', color: selectedVendor.tenTaiKhoan ? 'var(--text-main)' : 'var(--text-muted)', fontStyle: selectedVendor.tenTaiKhoan ? 'normal' : 'italic' }}>
                       {selectedVendor.tenTaiKhoan || 'Chưa có (dùng tên đối tác)'}
                     </span>
                   </div>

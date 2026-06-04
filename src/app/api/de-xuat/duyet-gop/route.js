@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
+import { ghiNhatKy } from '@/lib/audit';
 
 export async function POST(request) {
   try {
@@ -123,6 +124,14 @@ export async function POST(request) {
       });
 
       return phieuChi;
+    });
+
+    await ghiNhatKy({
+      user,
+      hanhDong: 'DUYET',
+      doiTuong: 'DE_XUAT',
+      maDoiTuong: maThuChi,
+      moTa: `Duyệt gộp hoàn ứng ${proposals.length} phiếu (${proposals.map(p => p.maPhieu).join(', ')}) cho NV ${staffUser?.hoTen || ''} — tổng ${tongTien.toLocaleString('vi-VN')}đ`,
     });
 
     return NextResponse.json({

@@ -63,6 +63,7 @@ export default function KeHoachPage() {
         const ok = data.user.permissions?.keHoach !== false || data.user.role === 'OWNER' || data.user.role === 'MANAGER';
         if (!ok) { alert('Bạn không có quyền truy cập.'); router.push('/'); return; }
         setUser(data.user);
+        if (data.user.role !== 'OWNER') setView('dashboard');
         setLoading(false);
       })
       .catch(() => router.push('/login'));
@@ -206,12 +207,14 @@ export default function KeHoachPage() {
               ))}
             </select>
             <div className={styles.viewToggle}>
-              <button
-                className={view === 'ke-hoach' ? styles.toggleActive : styles.toggleBtn}
-                onClick={() => setView('ke-hoach')}
-              >
-                <TableProperties size={15} /> Kế Hoạch
-              </button>
+              {user?.role === 'OWNER' && (
+                <button
+                  className={view === 'ke-hoach' ? styles.toggleActive : styles.toggleBtn}
+                  onClick={() => setView('ke-hoach')}
+                >
+                  <TableProperties size={15} /> Kế Hoạch
+                </button>
+              )}
               <button
                 className={view === 'dashboard' ? styles.toggleActive : styles.toggleBtn}
                 onClick={() => setView('dashboard')}

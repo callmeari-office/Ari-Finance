@@ -4,6 +4,7 @@ import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
 import { isRestrictedToOwnProposals } from '@/lib/roles';
+import { ghiNhatKy } from '@/lib/audit';
 
 export async function GET(request, { params }) {
   try {
@@ -103,6 +104,14 @@ export async function PUT(request, { params }) {
         },
       });
 
+      await ghiNhatKy({
+        user,
+        hanhDong: 'HUY',
+        doiTuong: 'DE_XUAT',
+        maDoiTuong: existingProposal.maPhieu,
+        moTa: `Hủy đề xuất "${existingProposal.noiDung}"`,
+      });
+
       return NextResponse.json({
         success: true,
         proposal: updated,
@@ -166,6 +175,14 @@ export async function PUT(request, { params }) {
         return { phieuChi, proposalUpdated };
       });
 
+      await ghiNhatKy({
+        user,
+        hanhDong: 'DUYET',
+        doiTuong: 'DE_XUAT',
+        maDoiTuong: existingProposal.maPhieu,
+        moTa: `Duyệt thanh toán ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ từ quỹ ${quy.tenQuy} → sinh phiếu chi ${maThuChi}`,
+      });
+
       return NextResponse.json({
         success: true,
         message: `Đã duyệt thanh toán thành công. Đã sinh phiếu chi ${maThuChi}.`,
@@ -202,6 +219,14 @@ export async function PUT(request, { params }) {
     const updatedProposal = await prisma.deXuatChiPhi.update({
       where: { id },
       data: updateData,
+    });
+
+    await ghiNhatKy({
+      user,
+      hanhDong: 'SUA',
+      doiTuong: 'DE_XUAT',
+      maDoiTuong: existingProposal.maPhieu,
+      moTa: `Chỉnh sửa đề xuất "${updatedProposal.noiDung}"`,
     });
 
     return NextResponse.json({

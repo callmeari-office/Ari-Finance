@@ -36,6 +36,10 @@
   --glass-blur: blur(16px);
   
   --sidebar-bg: #f9f6f3; /* Màu kem nâu ấm cho Sidebar */
+
+  /* Alert text — đủ tối để đọc trên nền thành công/lỗi pastel (light mode) */
+  --alert-success-text: #4b6656;
+  --alert-error-text: #8c5353;
 }
 
 /* Reset & Base Styles */
@@ -120,7 +124,7 @@ button, input, select, textarea {
 
 .form-control:focus {
   border-color: var(--primary);
-  background: #ffffff;
+  background: var(--surface);
   box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.25);
 }
 
@@ -306,14 +310,32 @@ button, input, select, textarea {
   --glass-blur: blur(16px);
 
   --sidebar-bg: #1c1712;
+
+  /* Alert text — đủ sáng để đọc trên nền thành công/lỗi pastel (dark mode) */
+  --alert-success-text: #a7d0bb;
+  --alert-error-text: #e6acac;
 }
 
 /* Tinh chỉnh các vị trí dùng màu cố định (hardcoded) cho hợp nền tối */
+/* ---- Form controls ---- */
 [data-theme="dark"] .form-control {
   background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
 }
 [data-theme="dark"] .form-control:focus {
   background: rgba(255, 255, 255, 0.07);
+}
+
+/* Select native dropdown: khi OS render options thì dùng background tối
+   để text trắng ngà (#ece3da) không biến mất trên nền trắng của browser */
+[data-theme="dark"] select.form-control,
+[data-theme="dark"] select {
+  background-color: #2a231d;
+  color: var(--text-main);
+}
+[data-theme="dark"] select option {
+  background-color: #2a231d;
+  color: #ece3da;
 }
 
 [data-theme="dark"] .btn-secondary {

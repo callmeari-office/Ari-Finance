@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
+import { ghiNhatKy } from '@/lib/audit';
 
 const DEFAULT_LIMIT = 50;
 
@@ -21,8 +22,14 @@ export async function GET(request) {
     }
 
     const { searchParams } = new URL(request.url);
+    const loaiGiaoDich = searchParams.get('loaiGiaoDich');
+    const quyId = searchParams.get('quyId');
+    const danhMucId = searchParams.get('danhMucId');
+    const nhomChiPhiId = searchParams.get('nhomChiPhiId');
+    const nam = searchParams.get('nam');
+    const thang = searchParams.get('thang');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
-    const limit = Math.min(500, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10)));
+    const limit = Math.min(5000, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10)));
     const skip = (page - 1) * limit;
     const includeHistory = searchParams.get('includeHistory') === 'true';
 
@@ -43,36 +50,126 @@ export async function GET(request) {
       },
     };
 
-    const [total, thuChis] = await Promise.all([
-      prisma.thuChi.count(),
-      prisma.thuChi.findMany({
-        include,
-        orderBy: { ngayGiaoDich: 'desc' },
-        skip,
-        take: limit,
-      }),
-    ]);
+    // Xây dựng where cho ThuChi
+    const where = {};
+    if (loaiGiaoDich) {
+      where.loaiGiaoDich = { in: loaiGiaoDich.split(',').map(s => s.trim()).filter(Boolean) };
+    }
+    if (quyId) {
+      where.quyId = { in: quyId.split(',').map(s => s.trim()).filter(Boolean) };
+    }
+    if (danhMucId) {
+      where.danhMucId = { in: danhMucId.split(',').map(s => s.trim()).filter(Boolean) };
+    }
+    if (nhomChiPhiId) {
+      where.danhMuc = {
+        nhomChiPhiId: { in: nhomChiPhiId.split(',').map(s => s.trim()).filter(Boolean) }
+      };
+    }
 
-    const data = thuChis.map((tc) => ({
-      ...tc,
-      soPhieuDeXuat: tc.deXuatChiPhi.length,
-      tongTienDeXuat: tc.deXuatChiPhi.reduce((sum, dx) => sum + dx.soTien, 0),
-    }));
+    const year = parseInt(nam, 10);
+    if (!isNaN(year)) {
+      if (thang) {
+        const months = thang.split(',').map(m => parseInt(m.trim(), 10)).filter(m => !isNaN(m) && m >= 1 && m <= 12);
+        if (months.length > 0) {
+          where.OR = months.map(m => {
+            const startDate = new Date(Date.UTC(year, m - 1, 1));
+            const endDate = new Date(Date.UTC(year, m, 1));
+            return {
+              ngayGiaoDich: {
+                gte: startDate,
+                lt: endDate
+              }
+            };
+          });
+        } else {
+          where.ngayGiaoDich = {
+            gte: new Date(Date.UTC(year, 0, 1)),
+            lt: new Date(Date.UTC(year + 1, 0, 1))
+          };
+        }
+      } else {
+        where.ngayGiaoDich = {
+          gte: new Date(Date.UTC(year, 0, 1)),
+          lt: new Date(Date.UTC(year + 1, 0, 1))
+        };
+      }
+    }
 
     // Khi includeHistory=true: gộp thêm phiếu lịch sử từ DeXuatChiPhi vào kết quả
-    // (chỉ dùng cho báo cáo/dashboard, không ảnh hưởng quỹ)
     if (includeHistory) {
-      const lichSuRecords = await prisma.deXuatChiPhi.findMany({
-        where: { laLichSu: true },
-        include: {
-          danhMuc: { include: { nhomChiPhi: true } },
-          nhaCungCap: true,
-          nguoiTao: { select: { id: true, hoTen: true, tenNgan: true, email: true } },
-        },
-        orderBy: { ngayPhatSinh: 'desc' },
+      let isHistoryApplicable = true;
+      if (loaiGiaoDich && !loaiGiaoDich.split(',').map(s => s.trim()).includes('CHI')) {
+        isHistoryApplicable = false;
+      }
+      if (quyId) {
+        isHistoryApplicable = false;
+      }
+
+      let historyRecords = [];
+      if (isHistoryApplicable) {
+        const historyWhere = { laLichSu: true };
+        if (danhMucId) {
+          historyWhere.danhMucId = { in: danhMucId.split(',').map(s => s.trim()).filter(Boolean) };
+        }
+        if (nhomChiPhiId) {
+          historyWhere.danhMuc = {
+            nhomChiPhiId: { in: nhomChiPhiId.split(',').map(s => s.trim()).filter(Boolean) }
+          };
+        }
+        if (!isNaN(year)) {
+          if (thang) {
+            const months = thang.split(',').map(m => parseInt(m.trim(), 10)).filter(m => !isNaN(m) && m >= 1 && m <= 12);
+            if (months.length > 0) {
+              historyWhere.OR = months.map(m => {
+                const startDate = new Date(Date.UTC(year, m - 1, 1));
+                const endDate = new Date(Date.UTC(year, m, 1));
+                return {
+                  ngayPhatSinh: {
+                    gte: startDate,
+                    lt: endDate
+                  }
+                };
+              });
+            } else {
+              historyWhere.ngayPhatSinh = {
+                gte: new Date(Date.UTC(year, 0, 1)),
+                lt: new Date(Date.UTC(year + 1, 0, 1))
+              };
+            }
+          } else {
+            historyWhere.ngayPhatSinh = {
+              gte: new Date(Date.UTC(year, 0, 1)),
+              lt: new Date(Date.UTC(year + 1, 0, 1))
+            };
+          }
+        }
+
+        historyRecords = await prisma.deXuatChiPhi.findMany({
+          where: historyWhere,
+          include: {
+            danhMuc: { include: { nhomChiPhi: true } },
+            nhaCungCap: true,
+            nguoiTao: { select: { id: true, hoTen: true, tenNgan: true, email: true } },
+          },
+          orderBy: { ngayPhatSinh: 'desc' },
+        });
+      }
+
+      const allThuChis = await prisma.thuChi.findMany({
+        where,
+        include,
+        orderBy: { ngayGiaoDich: 'desc' },
       });
 
-      const normalizedLichSu = lichSuRecords.map((dx) => ({
+      const normalizedThuChis = allThuChis.map((tc) => ({
+        ...tc,
+        soPhieuDeXuat: tc.deXuatChiPhi.length,
+        tongTienDeXuat: tc.deXuatChiPhi.reduce((sum, dx) => sum + dx.soTien, 0),
+        laLichSu: false,
+      }));
+
+      const normalizedLichSu = historyRecords.map((dx) => ({
         id: dx.id,
         maPhieu: dx.maPhieu,
         ngayGiaoDich: dx.ngayThanhToan || dx.ngayPhatSinh,
@@ -94,17 +191,111 @@ export async function GET(request) {
         laLichSu: true,
       }));
 
-      const allData = [...data, ...normalizedLichSu].sort(
+      const allData = [...normalizedThuChis, ...normalizedLichSu].sort(
         (a, b) => new Date(b.ngayGiaoDich) - new Date(a.ngayGiaoDich)
       );
 
+      const total = allData.length;
+
+      // Tính toán các chỉ số thống kê trên toàn bộ tập kết quả đã lọc
+      const tongThu = allData
+        .filter(t => t.loaiGiaoDich === 'THU')
+        .reduce((sum, t) => sum + t.soTien, 0);
+
+      const tongChi = allData
+        .filter(t => t.loaiGiaoDich === 'CHI')
+        .reduce((sum, t) => sum + t.soTien, 0);
+
+      const netCashflow = tongThu - tongChi;
+      const tileChiThu = tongThu > 0 ? Math.round((tongChi / tongThu) * 100) : 0;
+
+      const chiGroupStats = {};
+      const thuGroupStats = {};
+      const chiCatStats = {};
+      const thuCatStats = {};
+
+      allData.forEach((tx) => {
+        const gId = tx.danhMuc?.nhomChiPhiId;
+        const gName = tx.danhMuc?.nhomChiPhi?.tenNhom || 'Khác';
+        const catId = tx.danhMucId;
+        const catName = tx.danhMuc?.tenDanhMuc || 'Khác';
+
+        if (tx.loaiGiaoDich === 'CHI') {
+          if (gId) {
+            if (!chiGroupStats[gId]) chiGroupStats[gId] = { id: gId, name: gName, amount: 0 };
+            chiGroupStats[gId].amount += tx.soTien;
+          }
+          if (catId) {
+            if (!chiCatStats[catId]) chiCatStats[catId] = { id: catId, name: catName, amount: 0 };
+            chiCatStats[catId].amount += tx.soTien;
+          }
+        } else {
+          if (gId) {
+            if (!thuGroupStats[gId]) thuGroupStats[gId] = { id: gId, name: gName, amount: 0 };
+            thuGroupStats[gId].amount += tx.soTien;
+          }
+          if (catId) {
+            if (!thuCatStats[catId]) thuCatStats[catId] = { id: catId, name: catName, amount: 0 };
+            thuCatStats[catId].amount += tx.soTien;
+          }
+        }
+      });
+
+      const sortedChiGroups = Object.values(chiGroupStats).sort((a, b) => b.amount - a.amount);
+      const sortedThuGroups = Object.values(thuGroupStats).sort((a, b) => b.amount - a.amount);
+      const sortedChiCats = Object.values(chiCatStats).sort((a, b) => b.amount - a.amount).slice(0, 5);
+      const sortedThuCats = Object.values(thuCatStats).sort((a, b) => b.amount - a.amount).slice(0, 5);
+
+      const paginatedData = allData.slice(skip, skip + limit);
+
       return NextResponse.json({
-        data: allData,
-        pagination: { page, limit, total: total + lichSuRecords.length },
+        data: paginatedData,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+        stats: {
+          tongThu,
+          tongChi,
+          netCashflow,
+          tileChiThu,
+          sortedChiGroups,
+          sortedThuGroups,
+          sortedChiCats,
+          sortedThuCats,
+        }
       });
     }
 
-    return NextResponse.json({ data, pagination: { page, limit, total } });
+    const [total, thuChis] = await Promise.all([
+      prisma.thuChi.count({ where }),
+      prisma.thuChi.findMany({
+        where,
+        include,
+        orderBy: { ngayGiaoDich: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const data = thuChis.map((tc) => ({
+      ...tc,
+      soPhieuDeXuat: tc.deXuatChiPhi.length,
+      tongTienDeXuat: tc.deXuatChiPhi.reduce((sum, dx) => sum + dx.soTien, 0),
+      laLichSu: false,
+    }));
+
+    return NextResponse.json({
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      }
+    });
   } catch (error) {
     logger.error('GET /api/thu-chi', error);
     return NextResponse.json(
@@ -189,6 +380,14 @@ export async function POST(request) {
         nguoiTaoId: user.id,
         ghiChu: ghiChu || '',
       },
+    });
+
+    await ghiNhatKy({
+      user,
+      hanhDong: 'TAO',
+      doiTuong: 'THU_CHI',
+      maDoiTuong: maPhieu,
+      moTa: `Tạo phiếu ${loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'} "${newThuChi.noiDung}" — ${Number(newThuChi.soTien).toLocaleString('vi-VN')}đ (quỹ ${quy.tenQuy})`,
     });
 
     return NextResponse.json({

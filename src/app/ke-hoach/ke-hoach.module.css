@@ -129,7 +129,16 @@
   white-space: nowrap;
 }
 
-.colDanhMuc { text-align: left !important; min-width: 160px; padding-left: 1rem !important; }
+.colDanhMuc {
+  text-align: left !important;
+  min-width: 160px;
+  padding-left: 1rem !important;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: linear-gradient(rgba(255,255,255,0.06), rgba(255,255,255,0.06)), var(--surface);
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+}
 .colThang { width: 80px; }
 .colTotal { width: 100px; background: rgba(255,255,255,0.04) !important; }
 
@@ -147,6 +156,11 @@
   color: #a5b4fc;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: linear-gradient(rgba(99,102,241,0.08), rgba(99,102,241,0.08)), var(--surface);
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
 }
 
 .groupCell {
@@ -165,6 +179,15 @@
   color: var(--text-main);
   font-size: 0.8rem;
   border-bottom: 1px solid rgba(255,255,255,0.04);
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+}
+
+.catRow:hover .catLabel {
+  background: linear-gradient(rgba(255,255,255,0.03), rgba(255,255,255,0.03)), var(--surface);
 }
 
 .inputCell {
@@ -219,6 +242,11 @@
   color: #c7d2fe;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: linear-gradient(rgba(99,102,241,0.12), rgba(99,102,241,0.12)), var(--surface);
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
 }
 
 .totalCell {

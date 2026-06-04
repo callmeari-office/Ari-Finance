@@ -198,3 +198,20 @@ model NganHang {
   tenDayDu    String   // Ví dụ: Vietcombank, Techcombank
   createdAt   DateTime @default(now())
 }
+
+// Nhật ký thao tác (audit log) — ghi lại ai làm gì, lúc nào.
+// Bảng độc lập, không khóa ngoại để xóa nhân viên không ảnh hưởng lịch sử.
+// Bảng được tạo bằng raw SQL (prisma/add-lichsuthaotac.js) — xem lưu ý Prisma 7 db push trên Windows.
+model LichSuThaoTac {
+  id           String   @id @default(uuid())
+  thoiGian     DateTime @default(now())
+  nguoiDungId  String?  // id NhanVien (snapshot, không FK)
+  tenNguoiDung String?  // tên hiển thị tại thời điểm thao tác
+  vaiTro       String?  // OWNER/MANAGER/LEADER/STAFF
+  hanhDong     String   // DANG_NHAP, DOI_MAT_KHAU, TAO, SUA, DUYET, HUY, XOA...
+  doiTuong     String?  // DE_XUAT, THU_CHI, NHAN_VIEN, QUY...
+  maDoiTuong   String?  // mã/ID đối tượng bị tác động
+  moTa         String?  // mô tả ngắn gọn
+
+  @@index([thoiGian])
+}

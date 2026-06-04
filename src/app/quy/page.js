@@ -64,7 +64,7 @@ export default function QuyReportPage() {
       }
 
       // Fetch all transactions
-      const txRes = await fetch('/api/thu-chi?limit=1000');
+      const txRes = await fetch('/api/thu-chi?limit=100');
       if (txRes.ok) {
         const txData = await txRes.json();
         setTransactions(txData.data || []);
@@ -90,14 +90,9 @@ export default function QuyReportPage() {
   // 1. Tổng số dư khả dụng (Tổng tất cả các quỹ)
   const tongSoDuQuy = funds.reduce((sum, f) => sum + f.soDuHienTai, 0);
 
-  // 2. Dòng tiền Cashflow lũy kế
-  const tongDongTienVao = transactions
-    .filter(t => t.loaiGiaoDich === 'THU')
-    .reduce((sum, t) => sum + t.soTien, 0);
-
-  const tongDongTienRa = transactions
-    .filter(t => t.loaiGiaoDich === 'CHI')
-    .reduce((sum, t) => sum + t.soTien, 0);
+  // 2. Dòng tiền Cashflow lũy kế (tính toán từ danh sách quỹ được trả về từ API)
+  const tongDongTienVao = funds.reduce((sum, f) => sum + (f.tongThu || 0), 0);
+  const tongDongTienRa = funds.reduce((sum, f) => sum + (f.tongChi || 0), 0);
 
   const netCashflow = tongDongTienVao - tongDongTienRa;
 

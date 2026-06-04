@@ -3,15 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Users, 
-  Plus, 
-  Search, 
-  Trash2, 
-  Edit3, 
-  X, 
-  Check, 
+  Users,
+  Plus,
+  Search,
+  Edit3,
+  X,
+  Check,
   AlertCircle,
-  Key
+  Key,
+  Lock
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './nhan-su.module.css';
@@ -208,18 +208,18 @@ export default function NhanSuPage() {
 
   const handleDelete = async (emp) => {
     if (emp.id === user.id) {
-      alert('Không thể tự xóa tài khoản của chính mình.');
+      alert('Không thể tự khóa tài khoản của chính mình.');
       return;
     }
 
-    const confirmMsg = `Bạn có chắc chắn muốn XÓA nhân viên "${emp.hoTen}" [${emp.id}]?\nCảnh báo: Hành động này có thể thất bại nếu tài khoản này có phiếu đề xuất chi đã lập trong lịch sử.`;
+    const confirmMsg = `Bạn có chắc chắn muốn KHÓA nhân viên "${emp.hoTen}" [${emp.id}]?\nTài khoản sẽ không đăng nhập được nữa, nhưng toàn bộ lịch sử phiếu/giao dịch vẫn được giữ lại. Bạn có thể mở lại bằng cách Sửa → đổi trạng thái về Hoạt động.`;
     if (confirm(confirmMsg)) {
       try {
         const res = await fetch(`/api/nhan-su/${emp.id}`, { method: 'DELETE' });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
+        if (!res.ok) throw new Error(data.error || 'Khóa tài khoản thất bại.');
 
-        alert(`Đã xóa nhân viên "${emp.hoTen}" thành công.`);
+        alert(data.message || `Đã khóa nhân viên "${emp.hoTen}".`);
         fetchData();
       } catch (err) {
         alert(err.message);
@@ -422,13 +422,13 @@ export default function NhanSuPage() {
                           >
                             <Key size={15} />
                           </button>
-                          {emp.id !== user.id && (
-                            <button 
+                          {emp.id !== user.id && emp.trangThai === 'ACTIVE' && (
+                            <button
                                onClick={() => handleDelete(emp)}
                                className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                               title="Xóa nhân sự"
+                               title="Khóa tài khoản (ngừng hoạt động)"
                             >
-                              <Trash2 size={15} />
+                              <Lock size={15} />
                             </button>
                           )}
                         </div>

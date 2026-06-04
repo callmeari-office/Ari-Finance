@@ -2,17 +2,23 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Layers, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Layers,
+  Clock,
+  CheckCircle,
+  XCircle,
   Wallet,
   ArrowRight,
   PlusCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Scale,
+  Target,
+  Activity,
+  AlertTriangle,
+  CalendarClock,
+  Gauge
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { isRestrictedToOwnProposals } from '@/lib/roles';
@@ -30,6 +36,10 @@ export default function Dashboard() {
   const [fundsLoading, setFundsLoading] = useState(true);
   const [transactions, setTransactions] = useState([]);
   const [txLoading, setTxLoading] = useState(true);
+  // Sức khỏe tài chính tháng + cảnh báo (OWNER/MANAGER)
+  const [profitMonths, setProfitMonths] = useState([]);
+  const [canhBao, setCanhBao] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(true);
 
   useEffect(() => {
     // 1. Kiểm tra session
@@ -51,9 +61,11 @@ export default function Dashboard() {
           if (data.user.role === 'OWNER' || data.user.role === 'MANAGER') {
             fetchFunds();
             fetchTransactions();
+            fetchInsights();
           } else {
             setFundsLoading(false);
             setTxLoading(false);
+            setInsightsLoading(false);
           }
         }
       })
@@ -102,6 +114,27 @@ export default function Dashboard() {
       console.error('Error fetching transactions:', e);
     } finally {
       setTxLoading(false);
+    }
+  };
+
+  const fetchInsights = async () => {
+    try {
+      const nam = new Date().getFullYear();
+      const [resLn, resCb] = await Promise.all([
+        fetch(`/api/loi-nhuan?nam=${nam}`),
+        fetch('/api/canh-bao'),
+      ]);
+      if (resLn.ok) {
+        const d = await resLn.json();
+        setProfitMonths(d.months || []);
+      }
+      if (resCb.ok) {
+        setCanhBao(await resCb.json());
+      }
+    } catch (e) {
+      console.error('Error fetching insights:', e);
+    } finally {
+      setInsightsLoading(false);
     }
   };
 
@@ -165,6 +198,27 @@ export default function Dashboard() {
   const monthlyData = buildMonthlyChart();
   const maxMonthly = Math.max(...monthlyData.flatMap((m) => [m.thu, m.chi]), 1);
 
+  // ===== Sức khỏe tài chính THÁNG NÀY (OWNER/MANAGER) =====
+  const thisMonth = new Date().getMonth() + 1;
+  // Dòng tiền tháng này từ sổ ThuChi đã tải
+  const thisMonthTx = transactions.filter((tx) => {
+    const d = new Date(tx.ngayGiaoDich);
+    return d.getFullYear() === new Date().getFullYear() && d.getMonth() + 1 === thisMonth;
+  });
+  const thuThang = thisMonthTx.filter((t) => t.loaiGiaoDich === 'THU').reduce((s, t) => s + t.soTien, 0);
+  const chiThang = thisMonthTx.filter((t) => t.loaiGiaoDich === 'CHI').reduce((s, t) => s + t.soTien, 0);
+  const dongTienThang = thuThang - chiThang;
+  // Doanh thu + lãi/lỗ tháng này từ API lợi nhuận
+  const lnThang = profitMonths.find((m) => m.thang === thisMonth) || null;
+  const doanhThuThang = lnThang?.doanhThuThucTe || 0;
+  const chiTieuThang = lnThang?.doanhThuChiTieu || 0;
+  const laiLoThang = lnThang?.loiNhuanThucTe || 0;
+  const tileChiTieu = chiTieuThang > 0 ? Math.round((doanhThuThang / chiTieuThang) * 100) : 0;
+  const tileColor = tileChiTieu >= 90 ? '#10b981' : tileChiTieu >= 70 ? '#f59e0b' : '#ef4444';
+
+  const showInsights = user.role === 'OWNER' || user.role === 'MANAGER';
+  const fmtHan = (n) => (n < 0 ? `Quá hạn ${Math.abs(n)} ngày` : n === 0 ? 'Đến hạn hôm nay' : `Còn ${n} ngày`);
+
   return (
     <div className="layout-wrapper">
       <Sidebar user={user} />
@@ -183,6 +237,125 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        {/* ================= SỨC KHỎE TÀI CHÍNH THÁNG NÀY (OWNER/MANAGER) ================= */}
+        {showInsights && (
+          <>
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 1rem' }}>
+              Sức khỏe tài chính — Tháng {thisMonth}/{new Date().getFullYear()}
+            </h2>
+            <div className={styles.dashboardGrid} style={{ marginBottom: '1.5rem' }}>
+              {/* Dòng tiền tháng */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${dongTienThang >= 0 ? '#10b981' : '#ef4444'}` }}>
+                <div className={styles.cardHeader}>
+                  <span>Dòng tiền tháng này</span>
+                  <Activity className={styles.cardIcon} style={{ color: dongTienThang >= 0 ? '#10b981' : '#ef4444' }} />
+                </div>
+                <h3 style={{ color: dongTienThang >= 0 ? '#10b981' : '#ef4444' }}>
+                  {insightsLoading || txLoading ? '...' : formatVND(dongTienThang)}
+                </h3>
+                <p className={styles.cardInfo}>Thu {formatVND(thuThang)} − Chi {formatVND(chiThang)}</p>
+              </div>
+
+              {/* Doanh thu vs chỉ tiêu */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${tileColor}` }}>
+                <div className={styles.cardHeader}>
+                  <span>Doanh thu vs Chỉ tiêu</span>
+                  <Target className={styles.cardIcon} style={{ color: tileColor }} />
+                </div>
+                <h3 style={{ color: tileColor }}>{insightsLoading ? '...' : `${tileChiTieu}%`}</h3>
+                <p className={styles.cardInfo}>{formatVND(doanhThuThang)} / {formatVND(chiTieuThang)}</p>
+              </div>
+
+              {/* Lãi/lỗ tháng */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${laiLoThang >= 0 ? '#10b981' : '#ef4444'}` }}>
+                <div className={styles.cardHeader}>
+                  <span>{laiLoThang >= 0 ? 'Lãi tháng này' : 'Lỗ tháng này'}</span>
+                  <Scale className={styles.cardIcon} style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }} />
+                </div>
+                <h3 style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }}>
+                  {insightsLoading ? '...' : formatVND(laiLoThang)}
+                </h3>
+                <p className={styles.cardInfo}>Doanh thu − Chi phí tháng</p>
+              </div>
+
+              {/* Lối tắt sang trang Lợi nhuận */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--info)', cursor: 'pointer' }} onClick={() => router.push('/loi-nhuan')}>
+                <div className={styles.cardHeader}>
+                  <span>Xem chi tiết</span>
+                  <Gauge className={styles.cardIcon} style={{ color: 'var(--info)' }} />
+                </div>
+                <h3 style={{ fontSize: '1.2rem' }}>Trang Lợi nhuận</h3>
+                <p className={styles.cardInfo} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  Biểu đồ Lãi/Lỗ 12 tháng <ArrowRight size={13} />
+                </p>
+              </div>
+            </div>
+
+            {/* ===== PANEL CẦN CHÚ Ý ===== */}
+            {!insightsLoading && canhBao && canhBao.tongSo > 0 && (
+              <div className="glass-card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #f59e0b' }}>
+                <div className={styles.cardTitleBar}>
+                  <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={20} style={{ color: '#f59e0b' }} /> Cần chú ý
+                    <span style={{ background: '#f59e0b', color: '#fff', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px' }}>{canhBao.tongSo}</span>
+                  </h2>
+                </div>
+
+                {/* Nhắc hạn thanh toán */}
+                {canhBao.nhacHan.length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <p style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <CalendarClock size={15} /> Hạn thanh toán ({canhBao.nhacHan.length})
+                    </p>
+                    {canhBao.nhacHan.map((p) => (
+                      <div key={p.id} onClick={() => router.push('/de-xuat/duyet')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', borderRadius: '8px', background: p.quaHan ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.07)', marginBottom: '0.4rem', cursor: 'pointer', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: '150px' }}>
+                          <span style={{ fontWeight: 600, color: '#60a5fa' }}>{p.maPhieu}</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}> — {p.noiDung}</span>
+                        </div>
+                        <span style={{ fontWeight: 700 }}>{formatVND(p.soTien)}</span>
+                        <span className="badge" style={{ background: p.quaHan ? '#ef4444' : '#f59e0b', color: '#fff', whiteSpace: 'nowrap' }}>{fmtHan(p.soNgay)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Vượt / sắp chạm hạn mức */}
+                {canhBao.vuotHanMuc.length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <p style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Gauge size={15} /> Hạn mức chi tháng ({canhBao.vuotHanMuc.length})
+                    </p>
+                    {canhBao.vuotHanMuc.map((h) => (
+                      <div key={h.danhMucId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', borderRadius: '8px', background: h.vuot ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.07)', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                        <span style={{ flex: 1, minWidth: '140px', fontWeight: 500 }}>{h.tenDanhMuc}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{formatVND(h.daChi)} / {formatVND(h.hanMuc)}</span>
+                        <span className="badge" style={{ background: h.vuot ? '#ef4444' : '#f59e0b', color: '#fff' }}>{h.tile}%</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Vượt kế hoạch */}
+                {canhBao.vuotKeHoach.length > 0 && (
+                  <div>
+                    <p style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <TrendingUp size={15} /> Vượt kế hoạch chi tháng ({canhBao.vuotKeHoach.length})
+                    </p>
+                    {canhBao.vuotKeHoach.map((k) => (
+                      <div key={k.danhMucId} onClick={() => router.push('/ke-hoach')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', marginBottom: '0.4rem', cursor: 'pointer', flexWrap: 'wrap' }}>
+                        <span style={{ flex: 1, minWidth: '140px', fontWeight: 500 }}>{k.tenDanhMuc}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Chi {formatVND(k.daChi)} / KH {formatVND(k.keHoach)}</span>
+                        <span className="badge" style={{ background: '#ef4444', color: '#fff' }}>{k.tile}%</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
 
         {/* ================= OWNER/MANAGER DASHBOARD VIEW ================= */}
         {(user.role === 'OWNER' || user.role === 'MANAGER') && (
@@ -421,9 +594,9 @@ export default function Dashboard() {
                       <td>{prop.danhMuc.tenDanhMuc}</td>
                       <td>
                         {prop.nguonTien === 'TIEN_SHOP' ? (
-                          <span style={{ color: '#60a5fa' }}>🏦 Tiền Shop</span>
+                          <span style={{ color: 'var(--info)' }}>🏦 Tiền Shop</span>
                         ) : (
-                          <span style={{ color: '#a7f3d0' }}>👤 Cá nhân ứng</span>
+                          <span style={{ color: 'var(--success)' }}>👤 Cá nhân ứng</span>
                         )}
                       </td>
                       <td style={{ fontWeight: '700' }}>{formatVND(prop.soTien)}</td>

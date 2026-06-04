@@ -484,7 +484,7 @@ export default function DuyetPage() {
                             <small className={styles.nccLabel}>NCC: {prop.nhaCungCap.tenNCC}</small>
                           )}
                         </td>
-                        <td style={{ fontWeight: '800', color: '#1e293b' }}>{formatVND(prop.soTien)}</td>
+                        <td style={{ fontWeight: '800', color: 'var(--text-main)' }}>{formatVND(prop.soTien)}</td>
 
                         <td>
                           <select 
@@ -604,7 +604,7 @@ export default function DuyetPage() {
                             <span className="badge badge-paid" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem' }}>Đã thanh toán sẵn</span>
                           </div>
                         </td>
-                        <td style={{ fontWeight: '800', color: '#1e293b' }}>{formatVND(prop.soTien)}</td>
+                        <td style={{ fontWeight: '800', color: 'var(--text-main)' }}>{formatVND(prop.soTien)}</td>
 
                         <td>
                           <select 
@@ -813,7 +813,7 @@ export default function DuyetPage() {
                                   <small className={styles.nccLabel}>NCC: {prop.nhaCungCap.tenNCC}</small>
                                 )}
                               </td>
-                              <td style={{ fontWeight: '800', color: '#1e293b' }}>{formatVND(prop.soTien)}</td>
+                              <td style={{ fontWeight: '800', color: 'var(--text-main)' }}>{formatVND(prop.soTien)}</td>
 
                               <td>
                                 <span className="badge badge-reimburse">Chờ hoàn ứng</span>
@@ -921,13 +921,13 @@ export default function DuyetPage() {
 
                 {selectedPreviewProp.nhaCungCap && (
                   <div className={styles.detailItem} style={{ gridColumn: 'span 2', marginTop: '1rem' }}>
-                    <span className={styles.detailLabel} style={{ color: '#60a5fa', fontWeight: 'bold' }}>THÔNG TIN THANH TOÁN (VIETQR ĐỘNG):</span>
+                    <span className={styles.detailLabel} style={{ color: 'var(--info)', fontWeight: 'bold' }}>THÔNG TIN THANH TOÁN (VIETQR ĐỘNG):</span>
                     <div style={{
                       display: 'flex',
                       flexWrap: 'wrap',
                       gap: '1.5rem',
-                      background: 'rgba(30, 41, 59, 0.5)',
-                      border: '1px solid rgba(96, 165, 250, 0.25)',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
                       borderRadius: '12px',
                       padding: '1.25rem',
                       marginTop: '0.5rem',
@@ -937,7 +937,7 @@ export default function DuyetPage() {
                       <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         <div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Chủ tài khoản</div>
-                          <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '0.95rem' }}>{selectedPreviewProp.nhaCungCap.tenTaiKhoan || selectedPreviewProp.nhaCungCap.tenNCC}</div>
+                          <div style={{ fontWeight: 'bold', color: 'var(--text-main)', fontSize: '0.95rem' }}>{selectedPreviewProp.nhaCungCap.tenTaiKhoan || selectedPreviewProp.nhaCungCap.tenNCC}</div>
                         </div>
 
                         <div>
@@ -959,7 +959,7 @@ export default function DuyetPage() {
 
                         <div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Ngân hàng</div>
-                          <div style={{ fontWeight: '600', color: '#f8fafc' }}>{selectedPreviewProp.nhaCungCap.tenNganHang}</div>
+                          <div style={{ fontWeight: '600', color: 'var(--text-main)' }}>{selectedPreviewProp.nhaCungCap.tenNganHang}</div>
                         </div>
 
                         <div>
@@ -1015,7 +1015,7 @@ export default function DuyetPage() {
                           alt="Mã VietQR động chuyển khoản"
                           style={{ width: '130px', height: '130px', objectFit: 'contain' }}
                         />
-                        <div style={{ fontSize: '0.65rem', color: '#1e293b', fontWeight: 'bold', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'bold', textAlign: 'center' }}>
                           Quét QR để tự điền tiền & nội dung
                         </div>
                       </div>

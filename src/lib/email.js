@@ -8,7 +8,7 @@ import { logger } from './logger';
  * Cấu hình trong .env:
  *   SMTP_USER  = email Gmail dùng để gửi (vd: callmeari.office@gmail.com)
  *   SMTP_PASS  = "App Password" 16 ký tự tạo trong Google Account (KHÔNG phải mật khẩu đăng nhập)
- *   SMTP_FROM  = (tuỳ chọn) tên hiển thị người gửi, vd: "Ari-Finance <callmeari.office@gmail.com>"
+ *   SMTP_FROM  = (tuỳ chọn) tên hiển thị người gửi, vd: "ARI Finance <callmeari.office@gmail.com>"
  *   APP_URL    = địa chỉ web app để tạo link bấm vào, vd: http://localhost:3000 hoặc https://...
  */
 
@@ -156,7 +156,7 @@ function buildEmailHtml(proposal, link) {
         <!-- Header -->
         <tr>
           <td style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:28px 28px 24px;">
-            <div style="color:rgba(255,255,255,0.85);font-size:13px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">Ari-Finance</div>
+            <div style="color:rgba(255,255,255,0.85);font-size:13px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">ARI Finance</div>
             <div style="color:#ffffff;font-size:20px;font-weight:700;margin-top:6px;">🔔 Có phiếu chi cần thanh toán</div>
           </td>
         </tr>
@@ -206,7 +206,7 @@ function buildEmailHtml(proposal, link) {
         <!-- Footer -->
         <tr>
           <td style="background:#f9fafb;padding:16px 28px;text-align:center;border-top:1px solid #f3f4f6;">
-            <div style="color:#9ca3af;font-size:12px;">Email tự động từ hệ thống Ari-Finance — vui lòng không trả lời email này.</div>
+            <div style="color:#9ca3af;font-size:12px;">Email tự động từ hệ thống ARI Finance — vui lòng không trả lời email này.</div>
           </td>
         </tr>
 
@@ -215,6 +215,169 @@ function buildEmailHtml(proposal, link) {
   </table>
 </body>
 </html>`;
+}
+
+/**
+ * Lấy danh sách email OWNER + MANAGER đang ACTIVE (dùng chung cho các hàm gửi mail).
+ */
+async function getManagerRecipients() {
+  const recipients = await prisma.nhanVien.findMany({
+    where: {
+      role: { in: ['OWNER', 'MANAGER'] },
+      trangThai: 'ACTIVE',
+      email: { not: '' },
+    },
+    select: { email: true },
+  });
+  return recipients.map((r) => r.email).filter((e) => e && e.includes('@'));
+}
+
+/**
+ * Dựng HTML email TỔNG HỢP cho nhiều phiếu chi "Chờ thanh toán" tạo cùng lúc.
+ * Gọn nhẹ: 1 bảng liệt kê, không nhúng QR từng phiếu (tránh email quá nặng).
+ */
+function buildBulkEmailHtml(proposals, link) {
+  const tongTien = proposals.reduce((s, p) => s + Number(p.soTien || 0), 0);
+
+  const rows = proposals
+    .map((p, i) => {
+      const tenNguoiTao = p.nguoiTao?.tenNgan || p.nguoiTao?.hoTen || '—';
+      const tenDanhMuc = p.danhMuc?.tenDanhMuc || '—';
+      return `
+        <tr>
+          <td style="padding:10px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;text-align:center;">${i + 1}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #f3f4f6;color:#4f46e5;font-size:13px;font-weight:700;white-space:nowrap;">${p.maPhieu}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #f3f4f6;color:#111827;font-size:13px;">${p.noiDung || '—'}<div style="color:#9ca3af;font-size:11px;margin-top:2px;">${tenDanhMuc} · ${tenNguoiTao}</div></td>
+          <td style="padding:10px 8px;border-bottom:1px solid #f3f4f6;color:#111827;font-size:13px;font-weight:700;text-align:right;white-space:nowrap;">${formatVND(p.soTien)}</td>
+        </tr>`;
+    })
+    .join('');
+
+  return `
+<!DOCTYPE html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;padding:24px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:28px 28px 24px;">
+            <div style="color:rgba(255,255,255,0.85);font-size:13px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">ARI Finance</div>
+            <div style="color:#ffffff;font-size:20px;font-weight:700;margin-top:6px;">🔔 ${proposals.length} phiếu chi cần thanh toán</div>
+          </td>
+        </tr>
+
+        <!-- Tổng tiền nổi bật -->
+        <tr>
+          <td style="padding:28px 28px 8px;text-align:center;">
+            <div style="color:#6b7280;font-size:13px;">Tổng số tiền đề xuất (${proposals.length} phiếu)</div>
+            <div style="color:#4f46e5;font-size:32px;font-weight:800;margin-top:4px;">${formatVND(tongTien)}</div>
+            <div style="display:inline-block;margin-top:10px;padding:4px 12px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;border-radius:9999px;">⏳ Chờ thanh toán</div>
+          </td>
+        </tr>
+
+        <!-- Bảng liệt kê -->
+        <tr>
+          <td style="padding:16px 20px 4px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #f3f4f6;">
+              <tr>
+                <th style="padding:8px;color:#9ca3af;font-size:11px;text-transform:uppercase;text-align:center;border-bottom:2px solid #f3f4f6;">#</th>
+                <th style="padding:8px;color:#9ca3af;font-size:11px;text-transform:uppercase;text-align:left;border-bottom:2px solid #f3f4f6;">Mã phiếu</th>
+                <th style="padding:8px;color:#9ca3af;font-size:11px;text-transform:uppercase;text-align:left;border-bottom:2px solid #f3f4f6;">Nội dung</th>
+                <th style="padding:8px;color:#9ca3af;font-size:11px;text-transform:uppercase;text-align:right;border-bottom:2px solid #f3f4f6;">Số tiền</th>
+              </tr>
+              ${rows}
+            </table>
+          </td>
+        </tr>
+
+        <!-- CTA -->
+        <tr>
+          <td style="padding:24px 28px 28px;text-align:center;">
+            <a href="${link}" target="_blank"
+               style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 32px;border-radius:10px;">
+              Kiểm tra & Duyệt thanh toán →
+            </a>
+            <div style="color:#9ca3af;font-size:12px;margin-top:14px;">
+              Hoặc mở đường dẫn:<br>
+              <a href="${link}" target="_blank" style="color:#6366f1;word-break:break-all;">${link}</a>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f9fafb;padding:16px 28px;text-align:center;border-top:1px solid #f3f4f6;">
+            <div style="color:#9ca3af;font-size:12px;">Email tự động từ hệ thống ARI Finance — vui lòng không trả lời email này.</div>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+/**
+ * Gửi MỘT email tổng hợp cho OWNER + MANAGER khi tạo NHIỀU phiếu chi cùng lúc
+ * (trạng thái "Chờ thanh toán"). Tránh spam N email và giảm tải hệ thống.
+ *
+ * Không throw — mọi lỗi chỉ ghi log để KHÔNG làm hỏng luồng tạo phiếu.
+ */
+export async function notifyManagersBulkChoThanhToan(proposalIds) {
+  try {
+    const ids = (proposalIds || []).filter(Boolean);
+    if (ids.length === 0) return;
+
+    // Nếu chỉ có 1 phiếu → dùng email chi tiết (có QR) như bình thường.
+    if (ids.length === 1) {
+      return notifyManagersChoThanhToan(ids[0]);
+    }
+
+    const transporter = getTransporter();
+    if (!transporter) {
+      logger.warn('notifyManagersBulkChoThanhToan: chưa cấu hình SMTP → bỏ qua gửi email.');
+      return;
+    }
+
+    const proposals = await prisma.deXuatChiPhi.findMany({
+      where: { id: { in: ids } },
+      include: {
+        danhMuc: { select: { tenDanhMuc: true } },
+        nguoiTao: { select: { hoTen: true, tenNgan: true } },
+      },
+      orderBy: { maPhieu: 'asc' },
+    });
+    if (proposals.length === 0) return;
+
+    const toList = await getManagerRecipients();
+    if (toList.length === 0) {
+      logger.warn('notifyManagersBulkChoThanhToan: không có người nhận hợp lệ.');
+      return;
+    }
+
+    const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const link = `${appUrl}/de-xuat/duyet`;
+    const from = process.env.SMTP_FROM || `ARI Finance <${process.env.SMTP_USER}>`;
+    const tongTien = proposals.reduce((s, p) => s + Number(p.soTien || 0), 0);
+
+    await transporter.sendMail({
+      from,
+      to: toList.join(', '),
+      subject: `🔔 ${proposals.length} phiếu chi cần thanh toán — tổng ${formatVND(tongTien)}`,
+      html: buildBulkEmailHtml(proposals, link),
+    });
+
+    logger.info(
+      `notifyManagersBulkChoThanhToan: đã gửi 1 email tổng hợp ${proposals.length} phiếu tới ${toList.length} người.`
+    );
+  } catch (error) {
+    logger.error('notifyManagersBulkChoThanhToan', error);
+  }
 }
 
 /**
@@ -265,7 +428,7 @@ export async function notifyManagersChoThanhToan(proposalId) {
     const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
     const link = `${appUrl}/de-xuat/duyet`;
 
-    const from = process.env.SMTP_FROM || `Ari-Finance <${process.env.SMTP_USER}>`;
+    const from = process.env.SMTP_FROM || `ARI Finance <${process.env.SMTP_USER}>`;
 
     await transporter.sendMail({
       from,

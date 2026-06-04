@@ -14,7 +14,8 @@ import {
   TrendingDown,
   Layers,
   Info,
-  Wallet
+  Wallet,
+  DatabaseBackup
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './cau-hinh.module.css';
@@ -23,6 +24,7 @@ export default function CauHinhPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [backupLoading, setBackupLoading] = useState(false);
 
   // Configuration data states
   const [categories, setCategories] = useState([]);
@@ -490,6 +492,49 @@ export default function CauHinhPage() {
     };
   });
 
+  // Sao lưu toàn bộ dữ liệu ra file Excel nhiều sheet (tải về máy).
+  const handleBackup = async () => {
+    setBackupLoading(true);
+    try {
+      const res = await fetch('/api/backup');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Không lấy được dữ liệu sao lưu.');
+      }
+      const payload = await res.json();
+      const XLSX = await import('xlsx');
+      const wb = XLSX.utils.book_new();
+
+      const SHEETS = {
+        nhanVien: 'NhanVien',
+        quy: 'Quy',
+        nhomChiPhi: 'NhomChiPhi',
+        danhMuc: 'DanhMuc',
+        nhaCungCap: 'NhaCungCap',
+        deXuatChiPhi: 'DeXuatChiPhi',
+        thuChi: 'ThuChi',
+        keHoach: 'KeHoachChiPhi',
+        kenhBan: 'KenhBan',
+        keHoachDoanhThu: 'KeHoachDoanhThu',
+        doanhThuHangNgay: 'DoanhThuHangNgay',
+        nganHang: 'NganHang',
+      };
+
+      Object.entries(SHEETS).forEach(([key, sheetName]) => {
+        const rows = payload.data?.[key] || [];
+        const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ '(trống)': '' }]);
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      });
+
+      const today = new Date().toLocaleDateString('vi-VN').replace(/\//g, '-');
+      XLSX.writeFile(wb, `SaoLuu_ARI-Finance_${today}.xlsx`);
+    } catch (err) {
+      alert(err.message || 'Sao lưu thất bại. Vui lòng thử lại.');
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
   return (
     <div className="layout-wrapper">
       <Sidebar user={user} />
@@ -500,7 +545,11 @@ export default function CauHinhPage() {
             <h1>Cấu Hình Hệ Thống</h1>
             <p className={styles.pageDesc}>Thiết lập danh mục Thu-Chi, nhóm chi phí và phân quyền chọn danh mục</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button onClick={handleBackup} className="btn btn-secondary" disabled={backupLoading} title="Tải toàn bộ dữ liệu về máy dưới dạng Excel">
+              <DatabaseBackup size={18} />
+              <span>{backupLoading ? 'Đang sao lưu...' : 'Sao lưu Excel'}</span>
+            </button>
             <button onClick={handleOpenAddFund} className="btn btn-secondary">
               <Wallet size={18} />
               <span>Thêm quỹ</span>

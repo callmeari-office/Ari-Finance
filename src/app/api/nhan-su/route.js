@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { ghiNhatKy } from '@/lib/audit';
 
 export async function GET() {
   try {
@@ -128,6 +129,14 @@ export async function POST(request) {
         role,
         trangThai: trangThai || 'ACTIVE',
       },
+    });
+
+    await ghiNhatKy({
+      user,
+      hanhDong: 'TAO',
+      doiTuong: 'NHAN_VIEN',
+      maDoiTuong: nextId,
+      moTa: `Thêm nhân viên ${hoTen} (${username.trim()}) — vai trò ${role}`,
     });
 
     return NextResponse.json({

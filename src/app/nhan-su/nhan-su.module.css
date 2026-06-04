@@ -201,13 +201,13 @@
 
 .errorAlert {
   background: var(--danger-bg);
-  color: #8c5353;
+  color: var(--alert-error-text);
   border: 1px solid rgba(207, 141, 141, 0.3);
 }
 
 .successAlert {
   background: var(--success-bg);
-  color: #4b6656;
+  color: var(--alert-success-text);
   border: 1px solid rgba(125, 160, 142, 0.3);
 }
 

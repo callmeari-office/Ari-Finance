@@ -19,7 +19,10 @@ import {
   Store,
   Bell,
   CalendarRange,
-  TrendingUp
+  TrendingUp,
+  KeyRound,
+  ScrollText,
+  Scale
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
@@ -30,18 +33,27 @@ export default function Sidebar({ user }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [canhBaoCount, setCanhBaoCount] = useState(0);
 
   useEffect(() => {
     if (!user || (user.role !== 'OWNER' && user.role !== 'MANAGER')) return;
     const fetchPending = async () => {
       try {
-        const res = await fetch('/api/de-xuat?limit=1000');
-        if (!res.ok) return;
-        const data = await res.json();
-        const count = (data.data || []).filter(
-          (p) => p.trangThai === 'CHO_THANH_TOAN' || p.trangThai === 'CHO_HOAN_UNG'
-        ).length;
-        setPendingCount(count);
+        const [resDx, resCb] = await Promise.all([
+          fetch('/api/de-xuat?limit=1000'),
+          fetch('/api/canh-bao'),
+        ]);
+        if (resDx.ok) {
+          const data = await resDx.json();
+          const count = (data.data || []).filter(
+            (p) => p.trangThai === 'CHO_THANH_TOAN' || p.trangThai === 'CHO_HOAN_UNG'
+          ).length;
+          setPendingCount(count);
+        }
+        if (resCb.ok) {
+          const cb = await resCb.json();
+          setCanhBaoCount(cb.tongSo || 0);
+        }
       } catch {}
     };
     fetchPending();
@@ -116,6 +128,13 @@ export default function Sidebar({ user }) {
       roles: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
     },
     {
+      key: 'loiNhuan',
+      name: 'Lợi nhuận (Lãi/Lỗ)',
+      path: '/loi-nhuan',
+      icon: Scale,
+      roles: ['OWNER', 'MANAGER'],
+    },
+    {
       key: 'baoCao',
       name: 'Báo cáo Thu - Chi',
       path: '/bao-cao',
@@ -150,6 +169,13 @@ export default function Sidebar({ user }) {
       icon: Settings,
       roles: ['OWNER'],
     },
+    {
+      key: 'nhatKy',
+      name: 'Nhật ký hệ thống',
+      path: '/nhat-ky',
+      icon: ScrollText,
+      roles: ['OWNER'],
+    },
   ];
 
   const allowedMenuItems = menuItems.filter(item => {
@@ -167,8 +193,8 @@ export default function Sidebar({ user }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="Logo" className={styles.logoImg} />
           <div className={styles.brandText}>
-            <span className={styles.appName}>Ari-Finance</span>
-            <span className={styles.appSub}>Quản lý thu chi</span>
+            <span className={styles.appName}>ARI Finance</span>
+            <span className={styles.appSub}>Quản lý tài chính</span>
           </div>
         </div>
         <button onClick={toggleSidebar} className={styles.toggleBtn}>
@@ -187,7 +213,7 @@ export default function Sidebar({ user }) {
             <img src="/logo.png" alt="Logo" className={styles.logoImg} />
             <div className={styles.brandText}>
               <span className={styles.appName}>Ari-Finance</span>
-              <span className={styles.appSub}>Quản lý thu chi</span>
+              <span className={styles.appSub}>Quản lý tài chính</span>
             </div>
           </div>
           <span className={styles.subtitle}>Call Me Ari</span>
@@ -204,15 +230,15 @@ export default function Sidebar({ user }) {
               {user.role === 'OWNER' ? 'Chủ shop (Owner)' : user.role === 'MANAGER' ? 'Quản lý (Manager)' : user.role === 'LEADER' ? 'Trưởng nhóm (Leader)' : 'Nhân viên (Staff)'}
             </p>
           </div>
-          {(user.role === 'OWNER' || user.role === 'MANAGER') && pendingCount > 0 && (
-            <Link href="/de-xuat/duyet" style={{ position: 'relative', marginLeft: 'auto', color: 'var(--text-muted)' }} title={`${pendingCount} đề xuất chờ duyệt`}>
+          {(user.role === 'OWNER' || user.role === 'MANAGER') && (pendingCount + canhBaoCount) > 0 && (
+            <Link href="/" style={{ position: 'relative', marginLeft: 'auto', color: 'var(--text-muted)' }} title={`${pendingCount} đề xuất chờ duyệt · ${canhBaoCount} cảnh báo cần chú ý`}>
               <Bell size={18} />
               <span style={{
                 position: 'absolute', top: '-6px', right: '-6px',
                 background: '#ef4444', color: '#fff', borderRadius: '999px',
                 fontSize: '0.65rem', fontWeight: '700', lineHeight: 1,
                 padding: '2px 5px', minWidth: '16px', textAlign: 'center'
-              }}>{pendingCount}</span>
+              }}>{pendingCount + canhBaoCount}</span>
             </Link>
           )}
         </div>
@@ -238,6 +264,14 @@ export default function Sidebar({ user }) {
 
         {/* Logout + Theme Section */}
         <div className={styles.sidebarFooter}>
+          <Link
+            href="/doi-mat-khau"
+            className={`${styles.navItem} ${pathname === '/doi-mat-khau' ? styles.active : ''}`}
+            onClick={() => setIsOpen(false)}
+          >
+            <KeyRound size={20} className={styles.navIcon} />
+            <span>Đổi mật khẩu</span>
+          </Link>
           <ThemeToggle />
           <button onClick={handleLogout} className={styles.logoutBtn}>
             <LogOut size={20} />

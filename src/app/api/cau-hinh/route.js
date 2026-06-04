@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
-    if (!checkRole(user, ['OWNER'])) {
+    if (!checkRole(user, ['OWNER', 'MANAGER'])) {
       return NextResponse.json(
         { error: 'Bạn không có quyền truy cập thông tin cấu hình danh mục.' },
         { status: 403 }

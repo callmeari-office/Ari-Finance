@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { createSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { ghiNhatKy } from '@/lib/audit';
 
 export async function POST(request) {
   try {
@@ -37,6 +38,14 @@ export async function POST(request) {
 
     // Tạo session
     await createSession(user.id);
+
+    await ghiNhatKy({
+      user,
+      hanhDong: 'DANG_NHAP',
+      doiTuong: 'NHAN_VIEN',
+      maDoiTuong: user.id,
+      moTa: `Đăng nhập vào hệ thống`,
+    });
 
     return NextResponse.json({
       id: user.id,

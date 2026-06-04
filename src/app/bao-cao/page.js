@@ -35,6 +35,19 @@ export default function BaoCaoThuChiPage() {
   const [filterNhom, setFilterNhom] = useState([]);
   const [filterDanhMuc, setFilterDanhMuc] = useState([]);
 
+  // Pagination & stats states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  
+  const [tongThu, setTongThu] = useState(0);
+  const [tongChi, setTongChi] = useState(0);
+  const [netCashflow, setNetCashflow] = useState(0);
+  const [tileChiThu, setTileChiThu] = useState(0);
+  const [sortedChiGroups, setSortedChiGroups] = useState([]);
+  const [sortedThuGroups, setSortedThuGroups] = useState([]);
+  const [sortedChiCats, setSortedChiCats] = useState([]);
+  const [sortedThuCats, setSortedThuCats] = useState([]);
 
   useEffect(() => {
     // 1. Kiểm tra session & vai trò (Chỉ OWNER/MANAGER được vào dựa trên permissions)
@@ -57,8 +70,8 @@ export default function BaoCaoThuChiPage() {
           }
           setUser(data.user);
           setLoading(false);
-          // 2. Fetch dữ liệu
-          fetchData();
+          // 2. Fetch static config
+          fetchStaticConfig();
         }
       })
       .catch(() => {
@@ -66,22 +79,36 @@ export default function BaoCaoThuChiPage() {
       });
   }, [router]);
 
-  const fetchData = async () => {
+  const fetchData = async (page = currentPage) => {
     setDataLoading(true);
     try {
-      // 1. Fetch transactions
-      const txRes = await fetch('/api/thu-chi?limit=2000&includeHistory=true');
+      const params = new URLSearchParams();
+      params.append('includeHistory', 'true');
+      params.append('page', String(page));
+      params.append('limit', '50');
+      if (filterNam) params.append('nam', filterNam);
+      if (filterThang.length > 0) params.append('thang', filterThang.join(','));
+      if (filterNhom.length > 0) params.append('nhomChiPhiId', filterNhom.join(','));
+      if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
+
+      const txRes = await fetch(`/api/thu-chi?${params.toString()}`);
       if (txRes.ok) {
         const txData = await txRes.json();
         setTransactions(txData.data || []);
-      }
-
-      // 2. Fetch categories & groups
-      const configRes = await fetch('/api/cau-hinh');
-      if (configRes.ok) {
-        const configData = await configRes.json();
-        setCategories(configData.categories || []);
-        setGroups(configData.groups || []);
+        if (txData.pagination) {
+          setTotalPages(txData.pagination.totalPages || 1);
+          setTotalCount(txData.pagination.total || 0);
+        }
+        if (txData.stats) {
+          setTongThu(txData.stats.tongThu || 0);
+          setTongChi(txData.stats.tongChi || 0);
+          setNetCashflow(txData.stats.netCashflow || 0);
+          setTileChiThu(txData.stats.tileChiThu || 0);
+          setSortedChiGroups(txData.stats.sortedChiGroups || []);
+          setSortedThuGroups(txData.stats.sortedThuGroups || []);
+          setSortedChiCats(txData.stats.sortedChiCats || []);
+          setSortedThuCats(txData.stats.sortedThuCats || []);
+        }
       }
     } catch (e) {
       console.error('Error fetching report data:', e);
@@ -89,6 +116,37 @@ export default function BaoCaoThuChiPage() {
       setDataLoading(false);
     }
   };
+
+  const fetchStaticConfig = async () => {
+    try {
+      const configRes = await fetch('/api/cau-hinh');
+      if (configRes.ok) {
+        const configData = await configRes.json();
+        setCategories(configData.categories || []);
+        setGroups(configData.groups || []);
+      }
+    } catch (e) {
+      console.error('Error fetching static config:', e);
+    }
+  };
+
+  // Lấy transactions khi page thay đổi
+  useEffect(() => {
+    if (user) {
+      fetchData(currentPage);
+    }
+  }, [currentPage, user]);
+
+  // Reset page về 1 khi filters thay đổi
+  useEffect(() => {
+    if (user) {
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      } else {
+        fetchData(1);
+      }
+    }
+  }, [filterNam, filterThang, filterNhom, filterDanhMuc]);
 
   if (loading) {
     return (
@@ -99,92 +157,13 @@ export default function BaoCaoThuChiPage() {
     );
   }
 
-  // --- LỌC DỮ LIỆU PHÁT SINH THEO BỘ LỌC CHỌN ---
-  const filteredTx = transactions.filter((tx) => {
-    const txDate = new Date(tx.ngayGiaoDich);
-    if (filterNam && txDate.getFullYear().toString() !== filterNam) return false;
-    if (filterThang.length > 0 && !filterThang.includes(String(txDate.getMonth() + 1))) return false;
-    if (filterNhom.length > 0 && !filterNhom.includes(tx.danhMuc.nhomChiPhiId)) return false;
-    if (filterDanhMuc.length > 0 && !filterDanhMuc.includes(tx.danhMucId)) return false;
-    return true;
-  });
+  // Lọc dữ liệu phát sinh (Đã lọc từ server)
+  const filteredTx = transactions;
 
-  // --- TÍNH TOÁN CÁC CHỈ SỐ THỐNG KÊ ---
-  const tongThu = filteredTx
-    .filter(t => t.loaiGiaoDich === 'THU')
-    .reduce((sum, t) => sum + t.soTien, 0);
-
-  const tongChi = filteredTx
-    .filter(t => t.loaiGiaoDich === 'CHI')
-    .reduce((sum, t) => sum + t.soTien, 0);
-
-  const netCashflow = tongThu - tongChi;
-  
-  // Tỉ lệ Chi / Thu (%)
-  const tileChiThu = tongThu > 0 ? Math.round((tongChi / tongThu) * 100) : 0;
-
-  // --- THỐNG KÊ CHI TIÊU THEO NHÓM CHI PHÍ ---
-  const chiGroupStats = {};
-  filteredTx
-    .filter(t => t.loaiGiaoDich === 'CHI')
-    .forEach((tx) => {
-      const gId = tx.danhMuc.nhomChiPhiId;
-      const gName = tx.danhMuc.nhomChiPhi?.tenNhom || 'Khác';
-      if (!chiGroupStats[gId]) {
-        chiGroupStats[gId] = { id: gId, name: gName, amount: 0 };
-      }
-      chiGroupStats[gId].amount += tx.soTien;
-    });
-
-  const sortedChiGroups = Object.values(chiGroupStats).sort((a, b) => b.amount - a.amount);
+  // Tính các biến bổ trợ hiển thị cơ cấu từ stats nhận về của server
   const tongChiTuNhom = sortedChiGroups.reduce((sum, g) => sum + g.amount, 0) || 1;
-
-  // --- THỐNG KÊ DOANH THU THEO NHÓM THU ---
-  const thuGroupStats = {};
-  filteredTx
-    .filter(t => t.loaiGiaoDich === 'THU')
-    .forEach((tx) => {
-      const gId = tx.danhMuc.nhomChiPhiId;
-      const gName = tx.danhMuc.nhomChiPhi?.tenNhom || 'Khác';
-      if (!thuGroupStats[gId]) {
-        thuGroupStats[gId] = { id: gId, name: gName, amount: 0 };
-      }
-      thuGroupStats[gId].amount += tx.soTien;
-    });
-
-  const sortedThuGroups = Object.values(thuGroupStats).sort((a, b) => b.amount - a.amount);
   const tongThuTuNhom = sortedThuGroups.reduce((sum, g) => sum + g.amount, 0) || 1;
-
-  // --- TOP 5 DANH MỤC CHI PHÍ CAO NHẤT ---
-  const chiCatStats = {};
-  filteredTx
-    .filter(t => t.loaiGiaoDich === 'CHI')
-    .forEach((tx) => {
-      const catId = tx.danhMucId;
-      const catName = tx.danhMuc.tenDanhMuc;
-      if (!chiCatStats[catId]) {
-        chiCatStats[catId] = { id: catId, name: catName, amount: 0 };
-      }
-      chiCatStats[catId].amount += tx.soTien;
-    });
-
-  const sortedChiCats = Object.values(chiCatStats).sort((a, b) => b.amount - a.amount).slice(0, 5);
   const maxChiCatAmount = sortedChiCats.length > 0 ? sortedChiCats[0].amount : 1;
-
-  // --- TOP 5 DANH MỤC THU CAO NHẤT ---
-  const thuCatStats = {};
-  filteredTx
-    .filter(t => t.loaiGiaoDich === 'THU')
-    .forEach((tx) => {
-      const catId = tx.danhMucId;
-      const catName = tx.danhMuc.tenDanhMuc;
-      if (!thuCatStats[catId]) {
-        thuCatStats[catId] = { id: catId, name: catName, amount: 0 };
-      }
-      thuCatStats[catId].amount += tx.soTien;
-    });
-
-  const sortedThuCats = Object.values(thuCatStats).sort((a, b) => b.amount - a.amount).slice(0, 5);
   const maxThuCatAmount = sortedThuCats.length > 0 ? sortedThuCats[0].amount : 1;
 
   const formatVND = (num) => {
@@ -510,53 +489,100 @@ export default function BaoCaoThuChiPage() {
         <div className="glass-card">
           <div className={styles.cardHeader} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '1rem', marginBottom: '1rem' }}>
             <FileSpreadsheet size={20} className={styles.cardTitleIcon} style={{ color: 'var(--brand-accent)' }} />
-            <h2 style={{ fontSize: '1.1rem', margin: 0 }}>Đối soát chi tiết các Giao dịch trong kỳ ({filteredTx.length} giao dịch)</h2>
+            <h2 style={{ fontSize: '1.1rem', margin: 0 }}>Đối soát chi tiết các Giao dịch trong kỳ ({totalCount} giao dịch)</h2>
           </div>
 
           {filteredTx.length === 0 ? (
             <div className={styles.emptyState}>Không tìm thấy giao dịch dòng tiền nào phù hợp với bộ lọc đã chọn.</div>
           ) : (
-            <div className="table-responsive">
-              <table className="custom-table" style={{ fontSize: '0.9rem' }}>
-                <thead>
-                  <tr>
-                    <th>Mã Giao Dịch</th>
-                    <th>Ngày giao dịch</th>
-                    <th>Loại</th>
-                    <th>Quỹ thực hiện</th>
-                    <th>Danh mục</th>
-                    <th>Nội dung chi tiết</th>
-                    <th style={{ textAlign: 'right' }}>Số tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTx.map((tx) => (
-                    <tr key={tx.id}>
-                      <td style={{ fontWeight: 'bold', color: tx.loaiGiaoDich === 'THU' ? '#34d399' : '#f87171' }}>{tx.maPhieu}</td>
-                      <td suppressHydrationWarning>{new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}</td>
-                      <td>
-
-                        {tx.loaiGiaoDich === 'THU' ? (
-                          <span className={styles.thuBadge}>THU</span>
-                        ) : (
-                          <span className={styles.chiBadge}>CHI</span>
-                        )}
-                      </td>
-                      <td style={{ fontWeight: '600' }}>{tx.quy ? tx.quy.tenQuy : <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Lịch sử</span>}</td>
-                      <td>{tx.danhMuc.tenDanhMuc}</td>
-                      <td>{tx.noiDung}</td>
-                      <td style={{ 
-                        fontWeight: '800', 
-                        textAlign: 'right',
-                        color: tx.loaiGiaoDich === 'THU' ? '#2e7d32' : '#8c5353' 
-                      }}>
-                        {tx.loaiGiaoDich === 'THU' ? '+' : '-'}{formatVND(tx.soTien)}
-                      </td>
+            <>
+              <div className="table-responsive">
+                <table className="custom-table" style={{ fontSize: '0.9rem' }}>
+                  <thead>
+                    <tr>
+                      <th>Mã Giao Dịch</th>
+                      <th>Ngày giao dịch</th>
+                      <th>Loại</th>
+                      <th>Quỹ thực hiện</th>
+                      <th>Danh mục</th>
+                      <th>Nội dung chi tiết</th>
+                      <th style={{ textAlign: 'right' }}>Số tiền</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredTx.map((tx) => (
+                      <tr key={tx.id}>
+                        <td style={{ fontWeight: 'bold', color: tx.loaiGiaoDich === 'THU' ? '#34d399' : '#f87171' }}>{tx.maPhieu}</td>
+                        <td suppressHydrationWarning>{new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}</td>
+                        <td>
+                          {tx.loaiGiaoDich === 'THU' ? (
+                            <span className={styles.thuBadge}>THU</span>
+                          ) : (
+                            <span className={styles.chiBadge}>CHI</span>
+                          )}
+                        </td>
+                        <td style={{ fontWeight: '600' }}>{tx.quy ? tx.quy.tenQuy : <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>Lịch sử</span>}</td>
+                        <td>{tx.danhMuc.tenDanhMuc}</td>
+                        <td>{tx.noiDung}</td>
+                        <td style={{ 
+                          fontWeight: '800', 
+                          textAlign: 'right',
+                          color: tx.loaiGiaoDich === 'THU' ? '#2e7d32' : '#8c5353' 
+                        }}>
+                          {tx.loaiGiaoDich === 'THU' ? '+' : '-'}{formatVND(tx.soTien)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.35rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '0.4rem 0.75rem', minWidth: '32px' }}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Trước
+                  </button>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
+                    if (totalPages > 5 && Math.abs(pageNum - currentPage) > 2 && pageNum !== 1 && pageNum !== totalPages) {
+                      if (pageNum === 2 || pageNum === totalPages - 1) {
+                        return <span key={pageNum} style={{ color: 'var(--text-muted)', margin: '0 0.25rem' }}>...</span>;
+                      }
+                      return null;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        className={`btn ${currentPage === pageNum ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                        style={{ padding: '0.4rem 0.75rem', minWidth: '32px', border: currentPage === pageNum ? 'none' : '1px solid var(--border)' }}
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '0.4rem 0.75rem', minWidth: '32px' }}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Sau
+                  </button>
+                  
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+                    Trang {currentPage} / {totalPages}
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>

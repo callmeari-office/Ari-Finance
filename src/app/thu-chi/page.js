@@ -32,6 +32,11 @@ export default function ThuChiPage() {
   const [allCategories, setAllCategories] = useState([]); // Tất cả danh mục để phục vụ filter
   const [dataLoading, setDataLoading] = useState(true);
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
   // Filter states (array-based cho FilterDropdown)
   const [filterLoai, setFilterLoai] = useState([]);
   const [filterQuy, setFilterQuy] = useState([]);
@@ -85,8 +90,8 @@ export default function ThuChiPage() {
           }
           setUser(data.user);
           setLoading(false);
-          // 2. Fetch data
-          fetchData();
+          // 2. Fetch static config
+          fetchStaticData();
         }
       })
       .catch(() => {
@@ -94,17 +99,39 @@ export default function ThuChiPage() {
       });
   }, [router]);
 
-  const fetchData = async () => {
+  const fetchData = async (page = currentPage) => {
     setDataLoading(true);
     try {
-      // 1. Fetch transactions
-      const txRes = await fetch('/api/thu-chi?limit=1000');
+      const params = new URLSearchParams();
+      params.append('page', String(page));
+      params.append('limit', '50');
+      if (filterLoai.length > 0) params.append('loaiGiaoDich', filterLoai.join(','));
+      if (filterQuy.length > 0) params.append('quyId', filterQuy.join(','));
+      if (filterThang.length > 0) params.append('thang', filterThang.join(','));
+      if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
+      
+      const currentYear = new Date().getFullYear();
+      params.append('nam', String(currentYear));
+
+      const txRes = await fetch(`/api/thu-chi?${params.toString()}`);
       if (txRes.ok) {
         const txData = await txRes.json();
         setTransactions(txData.data || []);
+        if (txData.pagination) {
+          setTotalPages(txData.pagination.totalPages || 1);
+          setTotalCount(txData.pagination.total || 0);
+        }
       }
+    } catch (e) {
+      console.error('Error fetching transactions:', e);
+    } finally {
+      setDataLoading(false);
+    }
+  };
 
-      // 2. Fetch funds
+  const fetchStaticData = async () => {
+    try {
+      // Fetch funds
       const quyRes = await fetch('/api/quy');
       if (quyRes.ok) {
         const quyData = await quyRes.json();
@@ -112,7 +139,7 @@ export default function ThuChiPage() {
         if (quyData.length > 0) setQuyId(quyData[0].id);
       }
 
-      // 3. Fetch categories
+      // Fetch categories
       const catRes = await fetch('/api/danh-muc');
       if (catRes.ok) {
         const catData = await catRes.json();
@@ -124,11 +151,27 @@ export default function ThuChiPage() {
         if (thuCategories.length > 0) setDanhMucId(thuCategories[0].id);
       }
     } catch (e) {
-      console.error('Error fetching cashflow data:', e);
-    } finally {
-      setDataLoading(false);
+      console.error('Error fetching static data:', e);
     }
   };
+
+  // Lấy transactions khi page thay đổi
+  useEffect(() => {
+    if (user) {
+      fetchData(currentPage);
+    }
+  }, [currentPage, user]);
+
+  // Reset page về 1 khi filters thay đổi
+  useEffect(() => {
+    if (user) {
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      } else {
+        fetchData(1);
+      }
+    }
+  }, [filterLoai, filterQuy, filterThang, filterDanhMuc]);
 
   const handleCreateReceipt = async (e) => {
     e.preventDefault();
@@ -184,20 +227,8 @@ export default function ThuChiPage() {
     }
   };
 
-  // Lọc danh sách trên client
-  const filteredTransactions = transactions.filter((tx) => {
-    if (filterLoai.length > 0 && !filterLoai.includes(tx.loaiGiaoDich)) return false;
-    if (filterQuy.length > 0 && !filterQuy.includes(tx.quyId)) return false;
-
-    if (filterThang.length > 0) {
-      const txMonth = String(new Date(tx.ngayGiaoDich).getMonth() + 1);
-      if (!filterThang.includes(txMonth)) return false;
-    }
-
-    if (filterDanhMuc.length > 0 && !filterDanhMuc.includes(tx.danhMucId)) return false;
-
-    return true;
-  });
+  // Lọc danh sách trên client (Đã lọc ở Server, nên chỉ cần gán thẳng)
+  const filteredTransactions = transactions;
 
   if (loading) {
     return (
@@ -265,91 +296,207 @@ export default function ThuChiPage() {
         </div>
 
         {/* Transaction Table */}
-        <div className="glass-card" style={{ marginTop: '1.5rem' }}>
+        <div style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.92rem', color: 'var(--text-muted)' }}>
+          Tổng cộng cả kỳ: <strong style={{ color: 'var(--info)' }}>{totalCount}</strong> giao dịch
+        </div>
+
+        <div className="glass-card" style={{ marginTop: '0.5rem' }}>
           {dataLoading ? (
             <div className={styles.loaderSmall}>Đang tải lịch sử giao dịch...</div>
           ) : filteredTransactions.length === 0 ? (
             <div className={styles.emptyState}>Chưa có giao dịch dòng tiền nào được ghi nhận.</div>
           ) : (
-            <div className="table-responsive">
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th>Mã Giao Dịch</th>
-                    <th>Ngày giao dịch</th>
-                    <th>Loại</th>
-                    <th>Quỹ thực hiện</th>
-                    <th>Danh mục</th>
-                    <th>Nội dung</th>
-                    <th>Số tiền</th>
-                    <th>Nguồn gốc</th>
-                    <th style={{ textAlign: 'center' }}>Chi tiết</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTransactions.map((tx) => (
-                    <tr key={tx.id}>
-                      <td style={{ fontWeight: 'bold', color: '#34d399' }}>{tx.maPhieu}</td>
-                      <td>{new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}</td>
-                      <td>
-                        {tx.loaiGiaoDich === 'THU' ? (
-                          <span className={styles.thuBadge}>
-                            <ArrowUpRight size={14} />
-                            <span>THU</span>
-                          </span>
-                        ) : (
-                          <span className={styles.chiBadge}>
-                            <ArrowDownLeft size={14} />
-                            <span>CHI</span>
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ fontWeight: '600' }}>{tx.quy.tenQuy}</td>
-                      <td>{tx.danhMuc.tenDanhMuc}</td>
-                      <td>
-                        <div className={styles.noiDungBox}>{tx.noiDung}</div>
-                        {tx.nhaCungCap && (
-                          <div style={{ marginTop: '0.25rem' }}>
-                            <span className="badge badge-reimburse" style={{ fontSize: '0.75rem', padding: '0.15rem 0.4rem', background: 'rgba(99, 77, 62, 0.05)', color: 'var(--brand-brown)', textTransform: 'none', letterSpacing: 'normal' }}>
-                              NCC: {tx.nhaCungCap.tenNCC} ({tx.nhaCungCap.tenNganHang} - {tx.nhaCungCap.soTaiKhoan})
+            <>
+              {/* Desktop Table View */}
+              <div className={`${styles.desktopTable} table-responsive`}>
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Mã Giao Dịch</th>
+                      <th>Ngày giao dịch</th>
+                      <th>Loại</th>
+                      <th>Quỹ thực hiện</th>
+                      <th>Danh mục</th>
+                      <th>Nội dung</th>
+                      <th>Số tiền</th>
+                      <th>Nguồn gốc</th>
+                      <th style={{ textAlign: 'center' }}>Chi tiết</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTransactions.map((tx) => (
+                      <tr key={tx.id}>
+                        <td style={{ fontWeight: 'bold', color: '#34d399' }}>{tx.maPhieu}</td>
+                        <td>{new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}</td>
+                        <td>
+                          {tx.loaiGiaoDich === 'THU' ? (
+                            <span className={styles.thuBadge}>
+                              <ArrowUpRight size={14} />
+                              <span>THU</span>
                             </span>
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ 
-                        fontWeight: '800', 
-                        color: tx.loaiGiaoDich === 'THU' ? '#2e7d32' : '#8c5353' 
-                      }}>
-                        {tx.loaiGiaoDich === 'THU' ? '+' : '-'}{formatVND(tx.soTien)}
-                      </td>
-                      <td>
+                          ) : (
+                            <span className={styles.chiBadge}>
+                              <ArrowDownLeft size={14} />
+                              <span>CHI</span>
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ fontWeight: '600' }}>{tx.quy.tenQuy}</td>
+                        <td>{tx.danhMuc.tenDanhMuc}</td>
+                        <td>
+                          <div className={styles.noiDungBox}>{tx.noiDung}</div>
+                          {tx.nhaCungCap && (
+                            <div style={{ marginTop: '0.25rem' }}>
+                              <span className="badge badge-reimburse" style={{ fontSize: '0.75rem', padding: '0.15rem 0.4rem', background: 'rgba(99, 77, 62, 0.05)', color: 'var(--brand-brown)', textTransform: 'none', letterSpacing: 'normal' }}>
+                                NCC: {tx.nhaCungCap.tenNCC} ({tx.nhaCungCap.tenNganHang} - {tx.nhaCungCap.soTaiKhoan})
+                              </span>
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ 
+                          fontWeight: '800', 
+                          color: tx.loaiGiaoDich === 'THU' ? '#2e7d32' : '#8c5353' 
+                        }}>
+                          {tx.loaiGiaoDich === 'THU' ? '+' : '-'}{formatVND(tx.soTien)}
+                        </td>
+                        <td>
+                          {tx.soPhieuDeXuat === 1 ? (
+                            <span className={styles.originMergeBadge} style={{ background: 'var(--info-bg)', color: '#536978' }}>
+                              <Layers size={12} />
+                              <span>Đề xuất {tx.deXuatChiPhi[0]?.maPhieu}</span>
+                            </span>
+                          ) : tx.soPhieuDeXuat > 1 ? (
+                            <span className={styles.originMergeBadge}>
+                              <Layers size={12} />
+                              <span>Gộp {tx.soPhieuDeXuat} đề xuất</span>
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Ghi trực tiếp (TH4)</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button 
+                            onClick={() => setSelectedTx(tx)}
+                            className={styles.viewDetailBtn}
+                          >
+                            <Eye size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className={styles.mobileCards}>
+                {filteredTransactions.map((tx) => (
+                  <div key={tx.id} className={styles.mobileCard}>
+                    <div className={styles.cardHeaderRow}>
+                      <span className={styles.cardMaPhieu} style={{ color: tx.loaiGiaoDich === 'THU' ? '#34d399' : '#f87171' }}>
+                        {tx.maPhieu}
+                      </span>
+                      <span className={styles.cardDate}>{new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}</span>
+                    </div>
+                    <div className={styles.cardBodyRow}>
+                      <div className={styles.cardDetailItem}>
+                        <span className={styles.cardLabel}>Loại:</span>
+                        <span>
+                          {tx.loaiGiaoDich === 'THU' ? (
+                            <span className={styles.thuBadge}>THU</span>
+                          ) : (
+                            <span className={styles.chiBadge}>CHI</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className={styles.cardDetailItem}>
+                        <span className={styles.cardLabel}>Quỹ thực hiện:</span>
+                        <span className={styles.cardValue}>{tx.quy.tenQuy}</span>
+                      </div>
+                      <div className={styles.cardDetailItem}>
+                        <span className={styles.cardLabel}>Danh mục:</span>
+                        <span className={styles.cardValue}>{tx.danhMuc.tenDanhMuc}</span>
+                      </div>
+                      <div className={styles.cardDetailItem}>
+                        <span className={styles.cardLabel}>Nội dung:</span>
+                        <span className={styles.cardValue} style={{ textAlign: 'right', maxWidth: '70%' }}>{tx.noiDung}</span>
+                      </div>
+                      <div className={styles.cardDetailItem} style={{ marginTop: '0.25rem' }}>
+                        <span className={styles.cardLabel}>Số tiền:</span>
+                        <span className={styles.cardAmount} style={{ color: tx.loaiGiaoDich === 'THU' ? '#34d399' : '#f87171' }}>
+                          {tx.loaiGiaoDich === 'THU' ? '+' : '-'}{formatVND(tx.soTien)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={styles.cardFooterRow}>
+                      <div>
                         {tx.soPhieuDeXuat === 1 ? (
                           <span className={styles.originMergeBadge} style={{ background: 'var(--info-bg)', color: '#536978' }}>
-                            <Layers size={12} />
-                            <span>Đề xuất {tx.deXuatChiPhi[0]?.maPhieu}</span>
+                            Đề xuất {tx.deXuatChiPhi[0]?.maPhieu}
                           </span>
                         ) : tx.soPhieuDeXuat > 1 ? (
                           <span className={styles.originMergeBadge}>
-                            <Layers size={12} />
-                            <span>Gộp {tx.soPhieuDeXuat} đề xuất</span>
+                            Gộp {tx.soPhieuDeXuat} đề xuất
                           </span>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Ghi trực tiếp (TH4)</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Ghi trực tiếp (TH4)</span>
                         )}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button 
-                          onClick={() => setSelectedTx(tx)}
-                          className={styles.viewDetailBtn}
-                        >
-                          <Eye size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                      <button 
+                        onClick={() => setSelectedTx(tx)}
+                        className={styles.viewDetailBtn}
+                        style={{ width: '28px', height: '28px' }}
+                      >
+                        <Eye size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className={styles.pagination}>
+                  <button
+                    className={styles.pageBtn}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Trước
+                  </button>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
+                    if (totalPages > 5 && Math.abs(pageNum - currentPage) > 2 && pageNum !== 1 && pageNum !== totalPages) {
+                      if (pageNum === 2 || pageNum === totalPages - 1) {
+                        return <span key={pageNum} style={{ color: 'var(--text-muted)', margin: '0 0.25rem' }}>...</span>;
+                      }
+                      return null;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        className={`${styles.pageBtn} ${currentPage === pageNum ? styles.pageActive : ''}`}
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    className={styles.pageBtn}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Sau
+                  </button>
+                  
+                  <span className={styles.pageInfo}>
+                    Trang {currentPage} / {totalPages} (Tổng {totalCount} giao dịch)
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
 

@@ -16,7 +16,9 @@ import {
   Edit3,
   Upload,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Rows3,
+  Plus
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
@@ -32,7 +34,14 @@ export default function DeXuatPage() {
   const [proposals, setProposals] = useState([]);
   const [categories, setCategories] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [creators, setCreators] = useState([]); // Danh sách nhân viên làm bộ lọc
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalSum, setTotalSum] = useState(0);
 
   // Filter states (arrays = multi-select, string = single)
   const [filterTrangThai, setFilterTrangThai] = useState([]);
@@ -87,6 +96,20 @@ export default function DeXuatPage() {
   const [importParseError, setImportParseError] = useState('');
   const [importResult, setImportResult] = useState(null); // kết quả từ server
   const [importLoading, setImportLoading] = useState(false);
+
+  // Tạo nhiều phiếu cùng lúc (bulk)
+  const [isBulkOpen, setIsBulkOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkError, setBulkError] = useState('');
+  const [bulkSuccess, setBulkSuccess] = useState('');
+  const [bulkRowErrors, setBulkRowErrors] = useState([]); // [{ dong, message }]
+  const [bulkCommon, setBulkCommon] = useState({
+    ngayPhatSinh: new Date().toISOString().split('T')[0],
+    nguonTien: 'TIEN_SHOP',
+    trangThai: 'CHO_THANH_TOAN',
+    ngayCanThanhToan: '',
+  });
+  const [bulkRows, setBulkRows] = useState([]);
 
   const handleSoTienChange = (e) => {
     const raw = e.target.value.replace(/\D/g, '');
@@ -162,8 +185,8 @@ export default function DeXuatPage() {
         if (data && data.authenticated) {
           setUser(data.user);
           setLoading(false);
-          // 2. Fetch danh sách đề xuất, danh mục, NCC
-          fetchData(data.user);
+          // 2. Fetch danh mục, NCC, ngân hàng, nhân sự một lần
+          fetchStaticData(data.user);
         }
       })
       .catch(() => {
@@ -180,24 +203,43 @@ export default function DeXuatPage() {
     }
   }, [nguonTien]);
 
-  const fetchData = async (currentUser) => {
+  const fetchData = async (currentUser, page = currentPage) => {
     setDataLoading(true);
     try {
-      // Fetch Proposals
-      const propRes = await fetch('/api/de-xuat?limit=1000');
+      const params = new URLSearchParams();
+      params.append('page', String(page));
+      params.append('limit', '20');
+      if (filterTrangThai.length > 0) params.append('trangThai', filterTrangThai.join(','));
+      if (filterNguonTien.length > 0) params.append('nguonTien', filterNguonTien.join(','));
+      if (filterNam) params.append('nam', filterNam);
+      if (filterThang.length > 0) params.append('thang', filterThang.join(','));
+      if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
+      if (filterNguoiTao.length > 0) params.append('nguoiTaoId', filterNguoiTao.join(','));
+      if (filterSearch) params.append('search', filterSearch);
+
+      const propRes = await fetch(`/api/de-xuat?${params.toString()}`);
       if (propRes.ok) {
         const propData = await propRes.json();
         setProposals(propData.data || []);
+        if (propData.pagination) {
+          setTotalPages(propData.pagination.totalPages || 1);
+          setTotalCount(propData.pagination.total || 0);
+          setTotalSum(propData.pagination.totalSum || 0);
+        }
       }
+    } catch (e) {
+      console.error('Error fetching proposals:', e);
+    } finally {
+      setDataLoading(false);
+    }
+  };
 
+  const fetchStaticData = async (currentUser) => {
+    try {
       // Fetch Categories
       const catRes = await fetch('/api/danh-muc');
       if (catRes.ok) {
         const catData = await catRes.json();
-        
-        // Lọc danh mục:
-        // 1. Chỉ lấy loại CHI (đề xuất chi phí)
-        // 2. Phân quyền vai trò được xem cho từng đối tượng (OWNER, MANAGER, STAFF)
         const activeUser = currentUser || user;
         const userRole = activeUser ? activeUser.role : 'STAFF';
 
@@ -210,7 +252,6 @@ export default function DeXuatPage() {
             return true;
           }
         });
-        
         setCategories(allowedCategories);
       }
 
@@ -227,12 +268,38 @@ export default function DeXuatPage() {
         const bankData = await bankRes.json();
         setBanks(bankData);
       }
+
+      // Fetch Creators (nhân viên) làm bộ lọc cho OWNER/MANAGER
+      const activeUser = currentUser || user;
+      if (activeUser && (activeUser.role === 'OWNER' || activeUser.role === 'MANAGER')) {
+        const creatorsRes = await fetch('/api/nhan-su');
+        if (creatorsRes.ok) {
+          const creatorsData = await creatorsRes.json();
+          setCreators(creatorsData || []);
+        }
+      }
     } catch (e) {
-      console.error('Error fetching data:', e);
-    } finally {
-      setDataLoading(false);
+      console.error('Error fetching static data:', e);
     }
   };
+
+  // Lấy proposals khi page thay đổi
+  useEffect(() => {
+    if (user) {
+      fetchData(user, currentPage);
+    }
+  }, [currentPage, user]);
+
+  // Reset page về 1 khi filters thay đổi
+  useEffect(() => {
+    if (user) {
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      } else {
+        fetchData(user, 1);
+      }
+    }
+  }, [filterTrangThai, filterNguonTien, filterThang, filterNam, filterDanhMuc, filterNguoiTao, filterSearch]);
 
   const handleCancelProp = (id, maPhieu) => {
     setCancelReason('');
@@ -450,6 +517,113 @@ export default function DeXuatPage() {
     setImportResult(null);
   };
 
+  // ===== TẠO NHIỀU PHIẾU CÙNG LÚC (BULK) =====
+
+  const makeBulkRow = () => ({ danhMucId: '', noiDung: '', soTien: '', nhaCungCapId: '', ghiChu: '' });
+
+  const handleOpenBulk = () => {
+    setBulkError('');
+    setBulkRowErrors([]);
+    setBulkSuccess('');
+    setBulkCommon({
+      ngayPhatSinh: new Date().toISOString().split('T')[0],
+      nguonTien: 'TIEN_SHOP',
+      trangThai: 'CHO_THANH_TOAN',
+      ngayCanThanhToan: '',
+    });
+    setBulkRows([makeBulkRow(), makeBulkRow(), makeBulkRow()]);
+    setIsBulkOpen(true);
+  };
+
+  const handleBulkNguonTien = (val) => {
+    setBulkCommon((prev) => ({
+      ...prev,
+      nguonTien: val,
+      trangThai: val === 'TIEN_CA_NHAN' ? 'CHO_HOAN_UNG' : 'CHO_THANH_TOAN',
+    }));
+  };
+
+  const updateBulkRow = (idx, field, value) => {
+    setBulkRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)));
+  };
+  const addBulkRow = () => setBulkRows((prev) => [...prev, makeBulkRow()]);
+  const removeBulkRow = (idx) => setBulkRows((prev) => prev.filter((_, i) => i !== idx));
+
+  // Các dòng "có nhập" (ít nhất 1 trong: danh mục / nội dung / số tiền)
+  const filledBulkRows = bulkRows.filter((r) => r.danhMucId || r.noiDung.trim() || r.soTien);
+  const bulkTongTien = bulkRows.reduce((s, r) => s + (Number(r.soTien) || 0), 0);
+
+  const handleSubmitBulk = async () => {
+    setBulkError('');
+    setBulkRowErrors([]);
+    setBulkSuccess('');
+
+    if (filledBulkRows.length === 0) {
+      setBulkError('Chưa nhập dòng nào. Hãy điền ít nhất 1 phiếu.');
+      return;
+    }
+
+    // Validate phía client (đánh số theo các dòng có nhập)
+    const rowErrors = [];
+    filledBulkRows.forEach((r, i) => {
+      const dong = i + 1;
+      if (!r.danhMucId || !r.noiDung.trim() || !r.soTien || Number(r.soTien) <= 0) {
+        rowErrors.push({ dong, message: 'Cần đủ Danh mục, Nội dung và Số tiền > 0.' });
+        return;
+      }
+      const cat = categories.find((c) => c.id === r.danhMucId);
+      if (cat?.yeuCauNCC && !r.nhaCungCapId) {
+        rowErrors.push({ dong, message: `Danh mục "${cat.tenDanhMuc}" bắt buộc chọn NCC.` });
+        return;
+      }
+      if (r.nhaCungCapId && !r.ghiChu.trim()) {
+        rowErrors.push({ dong, message: 'Có NCC thì cần nhập Nội dung CK.' });
+      }
+    });
+    if (rowErrors.length > 0) {
+      setBulkRowErrors(rowErrors);
+      setBulkError('Một số dòng chưa hợp lệ, vui lòng kiểm tra.');
+      return;
+    }
+
+    const payloadRows = filledBulkRows.map((r) => ({
+      ngayPhatSinh: bulkCommon.ngayPhatSinh,
+      danhMucId: r.danhMucId,
+      noiDung: r.noiDung,
+      soTien: Number(r.soTien),
+      nhaCungCapId: r.nhaCungCapId || null,
+      nguonTien: bulkCommon.nguonTien,
+      trangThai: bulkCommon.trangThai,
+      ghiChu: r.ghiChu || null,
+      ngayCanThanhToan: bulkCommon.ngayCanThanhToan || null,
+    }));
+
+    setBulkLoading(true);
+    try {
+      const res = await fetch('/api/de-xuat/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: payloadRows }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBulkError(data.error || 'Tạo phiếu thất bại.');
+        if (data.errors) setBulkRowErrors(data.errors);
+        return;
+      }
+      setBulkSuccess(data.message || `Đã tạo ${data.successCount} phiếu.`);
+      setTimeout(() => {
+        setIsBulkOpen(false);
+        setBulkSuccess('');
+        fetchData();
+      }, 1200);
+    } catch {
+      setBulkError('Lỗi kết nối khi gửi dữ liệu.');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const handleCreateProposal = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -524,34 +698,14 @@ export default function DeXuatPage() {
   };
 
   // Tập hợp danh sách năm và người tạo từ data
-  const availableYears = [...new Set(proposals.map(p => new Date(p.ngayPhatSinh).getFullYear()))].sort((a, b) => b - a);
-  const availableCreators = [...new Map(proposals.map(p => [p.nguoiTao.id, p.nguoiTao])).values()];
+  const availableYears = [2027, 2026, 2025, 2024];
+  const availableCreators = creators;
 
-  // Lọc dữ liệu hiển thị trên Client
-  const filteredProposals = proposals.filter((p) => {
-    if (filterTrangThai.length > 0 && !filterTrangThai.includes(p.trangThai)) return false;
-    if (filterNguonTien.length > 0 && !filterNguonTien.includes(p.nguonTien)) return false;
-
-    const propDate = new Date(p.ngayPhatSinh);
-    if (filterThang.length > 0 && !filterThang.includes(String(propDate.getMonth() + 1))) return false;
-    if (filterNam && propDate.getFullYear() !== Number(filterNam)) return false;
-    if (filterDanhMuc.length > 0 && !filterDanhMuc.includes(p.danhMucId)) return false;
-    if (filterNguoiTao.length > 0 && !filterNguoiTao.includes(p.nguoiTao.id)) return false;
-
-    // Tìm kiếm theo mã phiếu, nội dung, NCC
-    if (filterSearch) {
-      const q = filterSearch.toLowerCase();
-      const matchMa = p.maPhieu.toLowerCase().includes(q);
-      const matchNoi = p.noiDung.toLowerCase().includes(q);
-      const matchNcc = p.nhaCungCap?.tenNCC?.toLowerCase().includes(q);
-      if (!matchMa && !matchNoi && !matchNcc) return false;
-    }
-
-    return true;
-  });
+  // Lọc dữ liệu hiển thị trên Client (Đã lọc ở Server, nên chỉ cần gán thẳng)
+  const filteredProposals = proposals;
 
   // Tổng kết phiếu đang hiển thị
-  const tongTienHienThi = filteredProposals.reduce((sum, p) => sum + p.soTien, 0);
+  const tongTienHienThi = totalSum;
 
   if (loading) {
     return (
@@ -646,12 +800,21 @@ export default function DeXuatPage() {
                 <span>Nhập từ Excel</span>
               </button>
             )}
+            <button onClick={handleOpenBulk} className="btn btn-secondary" title="Tạo nhiều phiếu chi cùng lúc">
+              <Rows3 size={18} />
+              <span>Tạo nhiều phiếu</span>
+            </button>
             <button onClick={handleOpenAdd} className="btn btn-primary">
               <PlusCircle size={20} />
               <span>Tạo đề xuất chi</span>
             </button>
           </div>
         </div>
+
+        {/* Nút nổi "Tạo đề xuất" — chỉ hiện trên điện thoại, luôn trong tầm ngón tay */}
+        <button onClick={handleOpenAdd} className={styles.fab} aria-label="Tạo đề xuất chi" title="Tạo đề xuất chi">
+          <PlusCircle size={26} />
+        </button>
 
         {/* Filter Section */}
         <div className={`${styles.filterCard} glass-card`}>
@@ -732,66 +895,168 @@ export default function DeXuatPage() {
         </div>
 
         {/* Proposals Table */}
-        <div className="glass-card" style={{ marginTop: '1.5rem' }}>
+        <div style={{ margin: '1.25rem 0 0.5rem 0', fontSize: '0.92rem', color: 'var(--text-muted)' }}>
+          Tổng cộng cả kỳ: <strong style={{ color: 'var(--info)' }}>{totalCount}</strong> phiếu — <strong style={{ color: 'var(--success)' }}>{formatVND(totalSum)}</strong>
+        </div>
+
+        <div className="glass-card" style={{ marginTop: '0.5rem' }}>
           {dataLoading ? (
             <div className={styles.loaderSmall}>Đang tải dữ liệu đề xuất...</div>
           ) : (
-            <div className="table-responsive">
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th>Mã Phiếu</th>
-                    <th>Ngày phát sinh</th>
-                    <th>Người đề xuất</th>
-                    <th>Danh mục</th>
-                    <th>Nguồn tiền</th>
-                    <th>Số tiền</th>
-                    <th>Trạng thái</th>
-                    <th style={{ textAlign: 'center' }}>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProposals.length === 0 && (
+            <>
+              {/* Desktop Table View */}
+              <div className={`${styles.desktopTable} table-responsive`}>
+                <table className="custom-table">
+                  <thead>
                     <tr>
-                      <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontStyle: 'italic' }}>
-                        Không tìm thấy đề xuất phù hợp với bộ lọc.
-                      </td>
+                      <th>Mã Phiếu</th>
+                      <th>Ngày phát sinh</th>
+                      <th>Người đề xuất</th>
+                      <th>Danh mục</th>
+                      <th>Nguồn tiền</th>
+                      <th>Số tiền</th>
+                      <th>Trạng thái</th>
+                      <th style={{ textAlign: 'center' }}>Thao tác</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProposals.length === 0 && (
+                      <tr>
+                        <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontStyle: 'italic' }}>
+                          Không tìm thấy đề xuất phù hợp với bộ lọc.
+                        </td>
+                      </tr>
+                    )}
+                    {filteredProposals.map((prop) => (
+                      <tr key={prop.id}>
+                        <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{prop.maPhieu}</td>
+                        <td suppressHydrationWarning>
+                          {new Date(prop.ngayPhatSinh).toLocaleDateString('vi-VN')}
+                          {getDeadlineBadge(prop.ngayCanThanhToan, prop.trangThai)}
+                        </td>
+
+                        <td>
+                          <span style={{ fontWeight: '600' }} title={prop.nguoiTao.hoTen}>
+                            {prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}
+                          </span>
+                          <br />
+                          <small style={{ color: 'var(--text-muted)' }}>{prop.nguoiTao.role}</small>
+                        </td>
+                        <td>{prop.danhMuc.tenDanhMuc}</td>
+                        <td>
+                          {prop.nguonTien === 'TIEN_SHOP' ? (
+                            <span style={{ color: 'var(--info)', fontWeight: '500' }}>🏦 Tiền Shop</span>
+                          ) : (
+                            <span style={{ color: 'var(--success)', fontWeight: '500' }}>👤 Cá nhân ứng</span>
+                          )}
+                        </td>
+                        <td style={{ fontWeight: '800', color: 'var(--text-main)' }}>{formatVND(prop.soTien)}</td>
+
+                        <td>
+                          {prop.trangThai === 'DA_THANH_TOAN' && prop.laLichSu && <span className="badge badge-paid" style={{ opacity: 0.85 }} title="Phiếu nhập từ dữ liệu cũ">Đã thanh toán (Lịch sử)</span>}
+                          {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId !== null && <span className="badge badge-paid">Đã thanh toán</span>}
+                          {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId === null && <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)' }}>Thanh toán sẵn (Chờ duyệt)</span>}
+                          {prop.trangThai === 'CHO_THANH_TOAN' && <span className="badge badge-pending">Chờ thanh toán</span>}
+                          {prop.trangThai === 'CHO_HOAN_UNG' && <span className="badge badge-reimburse">Chờ hoàn ứng</span>}
+                          {prop.trangThai === 'HUY' && <span className="badge badge-cancelled">Đã hủy</span>}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div className={styles.actionButtons}>
+                            <button 
+                              onClick={() => setSelectedProp(prop)} 
+                              className={`${styles.actionBtn} ${styles.viewBtn}`} 
+                              title="Xem chi tiết"
+                            >
+                              <Eye size={16} />
+                            </button>
+
+                            {canEdit(prop) && (
+                              <button 
+                                onClick={() => handleOpenEdit(prop)} 
+                                className={`${styles.actionBtn} ${styles.editBtn}`} 
+                                title="Sửa đề xuất"
+                              >
+                                <Edit3 size={16} />
+                              </button>
+                            )}
+                            
+                            {/* Cho phép hủy nếu không phải trạng thái DA_THANH_TOAN và HUY */}
+                            {prop.trangThai !== 'DA_THANH_TOAN' && prop.trangThai !== 'HUY' && (
+                              <button 
+                                onClick={() => handleCancelProp(prop.id, prop.maPhieu)} 
+                                className={`${styles.actionBtn} ${styles.deleteBtn}`} 
+                                title="Hủy đề xuất"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {filteredProposals.length > 0 && (
+                    <tfoot>
+                      <tr style={{ background: 'rgba(var(--primary-rgb),0.06)', borderTop: '2px solid var(--border)' }}>
+                        <td colSpan={5} style={{ fontWeight: '700', color: 'var(--info)', padding: '0.75rem 1rem', fontSize: '0.9rem' }}>
+                          TỔNG CẢ KỲ: {totalCount} phiếu
+                        </td>
+                        <td style={{ fontWeight: '800', color: 'var(--success)', fontSize: '1rem', padding: '0.75rem 1rem' }}>
+                          {formatVND(totalSum)}
+                        </td>
+                        <td colSpan={2}></td>
+                      </tr>
+                    </tfoot>
                   )}
-                  {filteredProposals.map((prop) => (
-                    <tr key={prop.id}>
-                      <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{prop.maPhieu}</td>
-                      <td suppressHydrationWarning>
-                        {new Date(prop.ngayPhatSinh).toLocaleDateString('vi-VN')}
-                        {getDeadlineBadge(prop.ngayCanThanhToan, prop.trangThai)}
-                      </td>
+                </table>
+              </div>
 
-                      <td>
-                        <span style={{ fontWeight: '600' }} title={prop.nguoiTao.hoTen}>
-                          {prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}
-                        </span>
-                        <br />
-                        <small style={{ color: 'var(--text-muted)' }}>{prop.nguoiTao.role}</small>
-                      </td>
-                      <td>{prop.danhMuc.tenDanhMuc}</td>
-                      <td>
-                        {prop.nguonTien === 'TIEN_SHOP' ? (
-                          <span style={{ color: '#60a5fa', fontWeight: '500' }}>🏦 Tiền Shop</span>
-                        ) : (
-                          <span style={{ color: '#a7f3d0', fontWeight: '500' }}>👤 Cá nhân ứng</span>
-                        )}
-                      </td>
-                      <td style={{ fontWeight: '800', color: '#1e293b' }}>{formatVND(prop.soTien)}</td>
-
-                      <td>
-                        {prop.trangThai === 'DA_THANH_TOAN' && prop.laLichSu && <span className="badge badge-paid" style={{ opacity: 0.85 }} title="Phiếu nhập từ dữ liệu cũ">Đã thanh toán (Lịch sử)</span>}
-                        {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId !== null && <span className="badge badge-paid">Đã thanh toán</span>}
-                        {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId === null && <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)' }}>Thanh toán sẵn (Chờ duyệt)</span>}
-                        {prop.trangThai === 'CHO_THANH_TOAN' && <span className="badge badge-pending">Chờ thanh toán</span>}
-                        {prop.trangThai === 'CHO_HOAN_UNG' && <span className="badge badge-reimburse">Chờ hoàn ứng</span>}
-                        {prop.trangThai === 'HUY' && <span className="badge badge-cancelled">Đã hủy</span>}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
+              {/* Mobile Cards View */}
+              <div className={styles.mobileCards}>
+                {filteredProposals.length === 0 ? (
+                  <div className={styles.emptyState} style={{ padding: '2rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                    Không tìm thấy đề xuất phù hợp với bộ lọc.
+                  </div>
+                ) : (
+                  filteredProposals.map((prop) => (
+                    <div key={prop.id} className={styles.mobileCard}>
+                      <div className={styles.cardHeaderRow}>
+                        <span className={styles.cardMaPhieu}>{prop.maPhieu}</span>
+                        <span className={styles.cardDate}>{new Date(prop.ngayPhatSinh).toLocaleDateString('vi-VN')}</span>
+                      </div>
+                      <div className={styles.cardBodyRow}>
+                        <div className={styles.cardDetailItem}>
+                          <span className={styles.cardLabel}>Người đề xuất:</span>
+                          <span className={styles.cardValue}>{prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}</span>
+                        </div>
+                        <div className={styles.cardDetailItem}>
+                          <span className={styles.cardLabel}>Danh mục:</span>
+                          <span className={styles.cardValue}>{prop.danhMuc.tenDanhMuc}</span>
+                        </div>
+                        <div className={styles.cardDetailItem}>
+                          <span className={styles.cardLabel}>Nguồn tiền:</span>
+                          <span className={styles.cardValue}>
+                            {prop.nguonTien === 'TIEN_SHOP' ? '🏦 Tiền Shop' : '👤 Cá nhân ứng'}
+                          </span>
+                        </div>
+                        <div className={styles.cardDetailItem}>
+                          <span className={styles.cardLabel}>Nội dung:</span>
+                          <span className={styles.cardValue} style={{ textAlign: 'right', maxWidth: '70%' }}>{prop.noiDung}</span>
+                        </div>
+                        <div className={styles.cardDetailItem} style={{ marginTop: '0.25rem' }}>
+                          <span className={styles.cardLabel}>Số tiền:</span>
+                          <span className={styles.cardAmount}>{formatVND(prop.soTien)}</span>
+                        </div>
+                      </div>
+                      <div className={styles.cardFooterRow}>
+                        <div>
+                          {prop.trangThai === 'DA_THANH_TOAN' && prop.laLichSu && <span className="badge badge-paid" style={{ opacity: 0.85 }}>Lịch sử</span>}
+                          {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId !== null && <span className="badge badge-paid">Đã thanh toán</span>}
+                          {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId === null && <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)' }}>Thanh toán sẵn</span>}
+                          {prop.trangThai === 'CHO_THANH_TOAN' && <span className="badge badge-pending">Chờ thanh toán</span>}
+                          {prop.trangThai === 'CHO_HOAN_UNG' && <span className="badge badge-reimburse">Chờ hoàn ứng</span>}
+                          {prop.trangThai === 'HUY' && <span className="badge badge-cancelled">Đã hủy</span>}
+                        </div>
                         <div className={styles.actionButtons}>
                           <button 
                             onClick={() => setSelectedProp(prop)} 
@@ -800,7 +1065,6 @@ export default function DeXuatPage() {
                           >
                             <Eye size={16} />
                           </button>
-
                           {canEdit(prop) && (
                             <button 
                               onClick={() => handleOpenEdit(prop)} 
@@ -810,8 +1074,6 @@ export default function DeXuatPage() {
                               <Edit3 size={16} />
                             </button>
                           )}
-                          
-                          {/* Cho phép hủy nếu không phải trạng thái DA_THANH_TOAN và HUY */}
                           {prop.trangThai !== 'DA_THANH_TOAN' && prop.trangThai !== 'HUY' && (
                             <button 
                               onClick={() => handleCancelProp(prop.id, prop.maPhieu)} 
@@ -822,25 +1084,56 @@ export default function DeXuatPage() {
                             </button>
                           )}
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                {filteredProposals.length > 0 && (
-                  <tfoot>
-                    <tr style={{ background: 'rgba(96,165,250,0.08)', borderTop: '2px solid rgba(96,165,250,0.3)' }}>
-                      <td colSpan={5} style={{ fontWeight: '700', color: '#60a5fa', padding: '0.75rem 1rem', fontSize: '0.9rem' }}>
-                        TỔNG: {filteredProposals.length} phiếu
-                      </td>
-                      <td style={{ fontWeight: '800', color: '#34d399', fontSize: '1rem', padding: '0.75rem 1rem' }}>
-                        {formatVND(tongTienHienThi)}
-                      </td>
-                      <td colSpan={2}></td>
-                    </tr>
-                  </tfoot>
+                      </div>
+                      {getDeadlineBadge(prop.ngayCanThanhToan, prop.trangThai)}
+                    </div>
+                  ))
                 )}
-              </table>
-            </div>
+              </div>
+
+              {/* Pagination controls */}
+              {totalPages > 1 && (
+                <div className={styles.pagination}>
+                  <button
+                    className={styles.pageBtn}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Trước
+                  </button>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
+                    if (totalPages > 5 && Math.abs(pageNum - currentPage) > 2 && pageNum !== 1 && pageNum !== totalPages) {
+                      if (pageNum === 2 || pageNum === totalPages - 1) {
+                        return <span key={pageNum} style={{ color: 'var(--text-muted)', margin: '0 0.25rem' }}>...</span>;
+                      }
+                      return null;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        className={`${styles.pageBtn} ${currentPage === pageNum ? styles.pageActive : ''}`}
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    className={styles.pageBtn}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Sau
+                  </button>
+                  
+                  <span className={styles.pageInfo}>
+                    Trang {currentPage} / {totalPages} (Tổng {totalCount} phiếu)
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -1079,6 +1372,212 @@ export default function DeXuatPage() {
           </div>
         )}
 
+        {/* Modal: TẠO NHIỀU PHIẾU CÙNG LÚC */}
+        {isBulkOpen && (
+          <div className={styles.modalOverlay}>
+            <div className={`${styles.modalContent} ${styles.bulkContent} glass-card`}>
+              <div className={styles.modalHeader}>
+                <h2>Tạo nhiều phiếu chi cùng lúc</h2>
+                <button onClick={() => setIsBulkOpen(false)} className={styles.closeBtn}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              {bulkError && (
+                <div className={styles.errorAlert}>
+                  <AlertCircle size={18} />
+                  <span>{bulkError}</span>
+                </div>
+              )}
+              {bulkSuccess && (
+                <div className={styles.successAlert}>
+                  <Check size={18} />
+                  <span>{bulkSuccess}</span>
+                </div>
+              )}
+
+              {/* Cài đặt chung — áp dụng cho tất cả các phiếu */}
+              <div className={styles.bulkCommonBar}>
+                <div className={styles.bulkCommonItem}>
+                  <label className="form-label">Ngày phát sinh *</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={bulkCommon.ngayPhatSinh}
+                    onChange={(e) => setBulkCommon((p) => ({ ...p, ngayPhatSinh: e.target.value }))}
+                    disabled={bulkLoading}
+                  />
+                </div>
+                <div className={styles.bulkCommonItem}>
+                  <label className="form-label">Nguồn tiền *</label>
+                  <select
+                    className="form-control"
+                    value={bulkCommon.nguonTien}
+                    onChange={(e) => handleBulkNguonTien(e.target.value)}
+                    disabled={bulkLoading}
+                  >
+                    <option value="TIEN_SHOP">🏦 Tiền Shop</option>
+                    <option value="TIEN_CA_NHAN">👤 Cá nhân ứng</option>
+                  </select>
+                </div>
+                <div className={styles.bulkCommonItem}>
+                  <label className="form-label">Trạng thái *</label>
+                  <select
+                    className="form-control"
+                    value={bulkCommon.trangThai}
+                    onChange={(e) => setBulkCommon((p) => ({ ...p, trangThai: e.target.value }))}
+                    disabled={bulkLoading || bulkCommon.nguonTien === 'TIEN_CA_NHAN'}
+                  >
+                    {bulkCommon.nguonTien === 'TIEN_SHOP' ? (
+                      <>
+                        <option value="CHO_THANH_TOAN">Chờ thanh toán</option>
+                        <option value="DA_THANH_TOAN">Đã thanh toán sẵn</option>
+                      </>
+                    ) : (
+                      <option value="CHO_HOAN_UNG">Chờ hoàn ứng</option>
+                    )}
+                  </select>
+                </div>
+                <div className={styles.bulkCommonItem}>
+                  <label className="form-label">Ngày cần thanh toán</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={bulkCommon.ngayCanThanhToan}
+                    onChange={(e) => setBulkCommon((p) => ({ ...p, ngayCanThanhToan: e.target.value }))}
+                    disabled={bulkLoading}
+                  />
+                </div>
+              </div>
+
+              {/* Danh sách lỗi từng dòng (nếu có) */}
+              {bulkRowErrors.length > 0 && (
+                <div style={{ marginBottom: '1rem', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px', padding: '0.5rem 0.75rem', maxHeight: '140px', overflow: 'auto' }}>
+                  {bulkRowErrors.map((er, i) => (
+                    <div key={i} className={styles.bulkRowError}>• Dòng {er.dong}: {er.message}</div>
+                  ))}
+                </div>
+              )}
+
+              {/* Bảng nhập theo dòng ngang */}
+              <div className={styles.bulkTableWrap}>
+                <table className={styles.bulkTable}>
+                  <thead>
+                    <tr>
+                      <th className={styles.bulkIndex}>#</th>
+                      <th style={{ minWidth: '170px' }}>Danh mục *</th>
+                      <th style={{ minWidth: '200px' }}>Nội dung chi tiết *</th>
+                      <th style={{ minWidth: '130px' }}>Số tiền *</th>
+                      <th style={{ minWidth: '180px' }}>Nhà cung cấp</th>
+                      <th style={{ minWidth: '160px' }}>Nội dung CK</th>
+                      <th style={{ width: '40px' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bulkRows.map((r, idx) => {
+                      const cat = categories.find((c) => c.id === r.danhMucId);
+                      return (
+                        <tr key={idx}>
+                          <td className={styles.bulkIndex}>{idx + 1}</td>
+                          <td>
+                            <select
+                              className="form-control"
+                              value={r.danhMucId}
+                              onChange={(e) => updateBulkRow(idx, 'danhMucId', e.target.value)}
+                              disabled={bulkLoading}
+                            >
+                              <option value="">-- Chọn --</option>
+                              {categories.map((c) => (
+                                <option key={c.id} value={c.id}>{c.tenDanhMuc}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-control"
+                              placeholder="Mô tả lý do chi..."
+                              value={r.noiDung}
+                              onChange={(e) => updateBulkRow(idx, 'noiDung', e.target.value)}
+                              disabled={bulkLoading}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              className="form-control"
+                              placeholder="0"
+                              style={{ textAlign: 'right' }}
+                              value={formatSoTienDisplay(r.soTien)}
+                              onChange={(e) => updateBulkRow(idx, 'soTien', e.target.value.replace(/\D/g, ''))}
+                              disabled={bulkLoading}
+                            />
+                          </td>
+                          <td>
+                            <select
+                              className="form-control"
+                              value={r.nhaCungCapId}
+                              onChange={(e) => updateBulkRow(idx, 'nhaCungCapId', e.target.value)}
+                              disabled={bulkLoading}
+                            >
+                              <option value="">{cat?.yeuCauNCC ? '-- Bắt buộc --' : '-- Không --'}</option>
+                              {vendors.map((v) => (
+                                <option key={v.id} value={v.id}>{v.tenNCC} ({v.tenNganHang})</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-control"
+                              placeholder={r.nhaCungCapId ? 'Nội dung CK *' : '—'}
+                              value={r.ghiChu}
+                              onChange={(e) => updateBulkRow(idx, 'ghiChu', e.target.value)}
+                              disabled={bulkLoading}
+                            />
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              className={styles.bulkDelBtn}
+                              onClick={() => removeBulkRow(idx)}
+                              disabled={bulkLoading || bulkRows.length <= 1}
+                              title="Xóa dòng"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <button type="button" onClick={addBulkRow} className="btn btn-secondary" disabled={bulkLoading} style={{ marginBottom: '1rem' }}>
+                <Plus size={16} />
+                <span>Thêm dòng</span>
+              </button>
+
+              <div className={styles.bulkFooter}>
+                <div className={styles.bulkTotal}>
+                  Tổng: <strong>{filledBulkRows.length} phiếu</strong> — <strong>{bulkTongTien.toLocaleString('vi-VN')} ₫</strong>
+                </div>
+              </div>
+
+              <div className={styles.formActions}>
+                <button type="button" onClick={() => setIsBulkOpen(false)} className="btn btn-secondary" disabled={bulkLoading}>
+                  Hủy bỏ
+                </button>
+                <button type="button" onClick={handleSubmitBulk} className="btn btn-primary" disabled={bulkLoading || filledBulkRows.length === 0}>
+                  {bulkLoading ? 'Đang tạo...' : `Tạo ${filledBulkRows.length} phiếu`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Modal: NHẬP PHIẾU CHI CŨ TỪ EXCEL (chỉ OWNER) */}
         {isImportOpen && (
           <div className={styles.modalOverlay}>
@@ -1195,7 +1694,7 @@ export default function DeXuatPage() {
                       </div>
                       <div style={{ maxHeight: '180px', overflow: 'auto', fontSize: '0.82rem', background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px', padding: '0.5rem 0.75rem' }}>
                         {importResult.errors.map((er, i) => (
-                          <div key={i} style={{ color: '#fca5a5', padding: '0.15rem 0' }}>
+                          <div key={i} style={{ color: 'var(--alert-error-text)', padding: '0.15rem 0' }}>
                             • Dòng {er.dong}: {er.message}
                           </div>
                         ))}
@@ -1341,13 +1840,13 @@ export default function DeXuatPage() {
 
                 {selectedProp.nhaCungCap && (
                   <div className={styles.detailItem} style={{ gridColumn: 'span 2', marginTop: '1rem' }}>
-                    <span className={styles.detailLabel} style={{ color: '#60a5fa', fontWeight: 'bold' }}>THÔNG TIN THANH TOÁN (VIETQR ĐỘNG):</span>
+                    <span className={styles.detailLabel} style={{ color: 'var(--info)', fontWeight: 'bold' }}>THÔNG TIN THANH TOÁN (VIETQR ĐỘNG):</span>
                     <div style={{
                       display: 'flex',
                       flexWrap: 'wrap',
                       gap: '1.5rem',
-                      background: 'rgba(30, 41, 59, 0.5)',
-                      border: '1px solid rgba(96, 165, 250, 0.25)',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
                       borderRadius: '12px',
                       padding: '1.25rem',
                       marginTop: '0.5rem',
@@ -1357,7 +1856,7 @@ export default function DeXuatPage() {
                       <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         <div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Chủ tài khoản</div>
-                          <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '0.95rem' }}>{selectedProp.nhaCungCap.tenTaiKhoan || selectedProp.nhaCungCap.tenNCC}</div>
+                          <div style={{ fontWeight: 'bold', color: 'var(--text-main)', fontSize: '0.95rem' }}>{selectedProp.nhaCungCap.tenTaiKhoan || selectedProp.nhaCungCap.tenNCC}</div>
                         </div>
 
                         <div>
@@ -1379,7 +1878,7 @@ export default function DeXuatPage() {
 
                         <div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Ngân hàng</div>
-                          <div style={{ fontWeight: '600', color: '#f8fafc' }}>{selectedProp.nhaCungCap.tenNganHang}</div>
+                          <div style={{ fontWeight: '600', color: 'var(--text-main)' }}>{selectedProp.nhaCungCap.tenNganHang}</div>
                         </div>
 
                         <div>
@@ -1435,7 +1934,7 @@ export default function DeXuatPage() {
                           alt="Mã VietQR động chuyển khoản"
                           style={{ width: '130px', height: '130px', objectFit: 'contain' }}
                         />
-                        <div style={{ fontSize: '0.65rem', color: '#1e293b', fontWeight: 'bold', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 'bold', textAlign: 'center' }}>
                           Quét QR để tự điền tiền & nội dung
                         </div>
                       </div>

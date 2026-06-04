@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { generateMaDeXuat } from '@/lib/generateId';
 import { notifyManagersChoThanhToan } from '@/lib/email';
 import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
+import { ghiNhatKy } from '@/lib/audit';
 
 const DEFAULT_LIMIT = 20;
 
@@ -19,18 +20,84 @@ export async function GET(request) {
     const trangThai = searchParams.get('trangThai');
     const nguonTien = searchParams.get('nguonTien');
     const nhaCungCapId = searchParams.get('nhaCungCapId');
+    const danhMucId = searchParams.get('danhMucId');
+    const nguoiTaoId = searchParams.get('nguoiTaoId');
+    const nam = searchParams.get('nam');
+    const thang = searchParams.get('thang');
+    const search = searchParams.get('search');
+
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10)));
     const skip = (page - 1) * limit;
 
     const where = {};
-    if (trangThai) where.trangThai = trangThai;
-    if (nguonTien) where.nguonTien = nguonTien;
-    if (nhaCungCapId) where.nhaCungCapId = nhaCungCapId;
+    if (trangThai) {
+      where.trangThai = { in: trangThai.split(',').map(s => s.trim()).filter(Boolean) };
+    }
+    if (nguonTien) {
+      where.nguonTien = { in: nguonTien.split(',').map(s => s.trim()).filter(Boolean) };
+    }
+    if (nhaCungCapId) {
+      where.nhaCungCapId = nhaCungCapId;
+    }
+    if (danhMucId) {
+      where.danhMucId = { in: danhMucId.split(',').map(s => s.trim()).filter(Boolean) };
+    }
 
     // Staff (và Leader) chỉ thấy đề xuất của mình
     if (isRestrictedToOwnProposals(user.role)) {
       where.nguoiTaoId = user.id;
+    } else if (nguoiTaoId) {
+      where.nguoiTaoId = { in: nguoiTaoId.split(',').map(s => s.trim()).filter(Boolean) };
+    }
+
+    // Lọc theo năm và tháng của ngayPhatSinh
+    const year = parseInt(nam, 10);
+    if (!isNaN(year)) {
+      if (thang) {
+        const months = thang.split(',').map(m => parseInt(m.trim(), 10)).filter(m => !isNaN(m) && m >= 1 && m <= 12);
+        if (months.length > 0) {
+          where.OR = months.map(m => {
+            const startDate = new Date(Date.UTC(year, m - 1, 1));
+            const endDate = new Date(Date.UTC(year, m, 1));
+            return {
+              ngayPhatSinh: {
+                gte: startDate,
+                lt: endDate
+              }
+            };
+          });
+        } else {
+          where.ngayPhatSinh = {
+            gte: new Date(Date.UTC(year, 0, 1)),
+            lt: new Date(Date.UTC(year + 1, 0, 1))
+          };
+        }
+      } else {
+        where.ngayPhatSinh = {
+          gte: new Date(Date.UTC(year, 0, 1)),
+          lt: new Date(Date.UTC(year + 1, 0, 1))
+        };
+      }
+    }
+
+    // Tìm kiếm (mã phiếu, nội dung, tên NCC)
+    if (search) {
+      const q = search.trim();
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { maPhieu: { contains: q, mode: 'insensitive' } },
+            { noiDung: { contains: q, mode: 'insensitive' } },
+            {
+              nhaCungCap: {
+                tenNCC: { contains: q, mode: 'insensitive' }
+              }
+            }
+          ]
+        }
+      ];
     }
 
     const include = {
@@ -41,7 +108,7 @@ export async function GET(request) {
       nguoiDuyet: { select: { id: true, hoTen: true, tenNgan: true, email: true } },
     };
 
-    const [total, proposals] = await Promise.all([
+    const [total, proposals, totalSumResult] = await Promise.all([
       prisma.deXuatChiPhi.count({ where }),
       prisma.deXuatChiPhi.findMany({
         where,
@@ -50,6 +117,12 @@ export async function GET(request) {
         skip,
         take: limit,
       }),
+      prisma.deXuatChiPhi.aggregate({
+        where,
+        _sum: {
+          soTien: true
+        }
+      })
     ]);
 
     const filteredProposals = proposals.filter((prop) => {
@@ -62,9 +135,17 @@ export async function GET(request) {
       }
     });
 
+    const totalSum = totalSumResult._sum.soTien || 0;
+
     return NextResponse.json({
       data: filteredProposals,
-      pagination: { page, limit, total },
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        totalSum
+      },
     });
   } catch (error) {
     logger.error('GET /api/de-xuat', error);
@@ -168,6 +249,14 @@ export async function POST(request) {
             ? new Date(ngayCanThanhToan)
             : null,
       },
+    });
+
+    await ghiNhatKy({
+      user,
+      hanhDong: 'TAO',
+      doiTuong: 'DE_XUAT',
+      maDoiTuong: newProposal.maPhieu,
+      moTa: `Tạo đề xuất "${newProposal.noiDung}" — ${Number(newProposal.soTien).toLocaleString('vi-VN')}đ`,
     });
 
     // Gửi email thông báo cho OWNER + MANAGER khi phiếu ở trạng thái "Chờ thanh toán".
