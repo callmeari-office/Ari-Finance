@@ -2019,7 +2019,38 @@ export default function DeXuatPage() {
                     src={selectedProp.anhHoaDon}
                     alt="Ảnh hóa đơn"
                     style={{ maxWidth: '100%', maxHeight: '320px', objectFit: 'contain', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'zoom-in' }}
-                    onClick={() => window.open(selectedProp.anhHoaDon, '_blank')}
+                    onClick={() => {
+                      const win = window.open();
+                      if (win) {
+                        win.document.write(`
+                          <html>
+                            <head>
+                              <title>Xem ảnh hóa đơn - ${selectedProp.maPhieu}</title>
+                              <style>
+                                body {
+                                  margin: 0;
+                                  background-color: #1a1512;
+                                  display: flex;
+                                  justify-content: center;
+                                  align-items: center;
+                                  min-height: 100vh;
+                                }
+                                img {
+                                  max-width: 100%;
+                                  max-height: 100vh;
+                                  object-fit: contain;
+                                  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+                                }
+                              </style>
+                            </head>
+                            <body>
+                              <img src="${selectedProp.anhHoaDon}" alt="Hóa đơn" />
+                            </body>
+                          </html>
+                        `);
+                        win.document.close();
+                      }
+                    }}
                     title="Bấm để xem ảnh đầy đủ"
                   />
                 </div>
