@@ -18,6 +18,7 @@ import {
   Wallet
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { defaultMenuAllowed } from '@/lib/roles';
 import styles from './quyen.module.css';
 
 export default function QuyenPage() {
@@ -63,6 +64,8 @@ export default function QuyenPage() {
     { key: 'quy', name: 'Thông tin Quỹ', path: '/quy', desc: 'Theo dõi số dư realtime chi tiết của các quỹ tiền' },
     { key: 'keHoach', name: 'Kế hoạch chi phí', path: '/ke-hoach', desc: 'Lập kế hoạch chi phí cả năm theo danh mục và so sánh với thực tế' },
     { key: 'doanhThu', name: 'Kế hoạch doanh thu', path: '/doanh-thu', desc: 'Lập chỉ tiêu & nhập doanh thu thực tế theo kênh bán, xem Dashboard so sánh' },
+    { key: 'doanhThuDBThang', name: '↳ Doanh thu · Dashboard Tháng', path: '/doanh-thu', desc: 'Cho phép xem tab "DB Tháng" trong Kế hoạch doanh thu (chỉ hiệu lực khi đã bật xem Kế hoạch doanh thu)', sub: true },
+    { key: 'doanhThuDBNam', name: '↳ Doanh thu · Dashboard Năm', path: '/doanh-thu', desc: 'Cho phép xem tab "DB Năm" trong Kế hoạch doanh thu (chỉ hiệu lực khi đã bật xem Kế hoạch doanh thu)', sub: true },
     { key: 'loiNhuan', name: 'Lợi nhuận (Lãi/Lỗ)', path: '/loi-nhuan', desc: 'Xem lãi/lỗ theo tháng (Doanh thu − Chi phí), biểu đồ xu hướng và đối chiếu kế hoạch' },
     { key: 'baoCao', name: 'Báo cáo Thu - Chi', path: '/bao-cao', desc: 'Xem phân tích doanh thu, cơ cấu chi phí và đối soát thu chi của shop' },
     { key: 'dinhKy', name: 'Chi phí định kỳ', path: '/dinh-ky', desc: 'Quản lý mẫu phiếu chi lặp lại hàng tháng (thuê mặt bằng, dịch vụ...)' },
@@ -132,7 +135,8 @@ export default function QuyenPage() {
             } else if (parsed[menu.key] && typeof parsed[menu.key].xem === 'boolean') {
               mappedPerms[menu.key] = parsed[menu.key].xem;
             } else {
-              mappedPerms[menu.key] = false;
+              // Không có override -> dùng mặc định theo vai trò (khớp với Sidebar)
+              mappedPerms[menu.key] = defaultMenuAllowed(activeRole, menu.key);
             }
           });
           setMenuPermissions(mappedPerms);
@@ -161,7 +165,8 @@ export default function QuyenPage() {
             } else if (parsed[menu.key] && typeof parsed[menu.key].xem === 'boolean') {
               mappedPerms[menu.key] = parsed[menu.key].xem;
             } else {
-              mappedPerms[menu.key] = false;
+              // Không có override -> dùng mặc định theo vai trò (khớp với Sidebar)
+              mappedPerms[menu.key] = defaultMenuAllowed(activeRole, menu.key);
             }
           });
           setMenuPermissions(mappedPerms);
@@ -169,7 +174,7 @@ export default function QuyenPage() {
           // Set defaults
           const defaults = {};
           systemMenus.forEach(m => {
-            defaults[m.key] = activeRole === 'OWNER';
+            defaults[m.key] = defaultMenuAllowed(activeRole, m.key);
           });
           setMenuPermissions(defaults);
         }
@@ -366,7 +371,7 @@ export default function QuyenPage() {
                       const isAllowed = menuPermissions[menu.key] || false;
                       return (
                         <tr key={menu.key}>
-                          <td style={{ fontWeight: 'bold', color: 'var(--brand-brown)' }}>{menu.name}</td>
+                          <td style={{ fontWeight: menu.sub ? 500 : 'bold', color: menu.sub ? 'var(--text-muted)' : 'var(--brand-brown)', paddingLeft: menu.sub ? '1.75rem' : undefined, fontSize: menu.sub ? '0.9rem' : undefined }}>{menu.name}</td>
                           <td>
                             <code style={{ background: 'rgba(99, 77, 62, 0.05)', padding: '0.2rem 0.4rem', borderRadius: '4px', fontSize: '0.85rem' }}>
                               {menu.path}

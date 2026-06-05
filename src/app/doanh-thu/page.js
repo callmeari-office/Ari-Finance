@@ -27,6 +27,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { canViewMenu } from '@/lib/roles';
 import styles from './doanh-thu.module.css';
 
 const THANG_LABELS = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
@@ -94,10 +95,13 @@ export default function DoanhThuPage() {
       .then((data) => {
         if (!data?.authenticated) { router.push('/login'); return; }
         const u = data.user;
-        const ok = u.permissions?.doanhThu !== false; // mặc định cho phép cả 3 vai
-        if (!ok) { alert('Bạn không có quyền truy cập.'); router.push('/'); return; }
+        if (!canViewMenu(u, 'doanhThu')) { alert('Bạn không có quyền truy cập.'); router.push('/'); return; }
         setUser(u);
         setIsOwner(u.role === 'OWNER');
+        // Mở tab đầu tiên mà vai trò được phép xem (DB Tháng -> DB Năm -> Nhập số cho OWNER)
+        const canThang = canViewMenu(u, 'doanhThuDBThang');
+        const canNam = canViewMenu(u, 'doanhThuDBNam');
+        setView(canThang ? 'thang' : canNam ? 'nam' : (u.role === 'OWNER' ? 'nhap' : 'thang'));
         setLoading(false);
       })
       .catch(() => router.push('/login'));
@@ -489,6 +493,11 @@ export default function DoanhThuPage() {
     );
   }
 
+  // Quyền xem từng Dashboard (phân quyền tinh ở trang /quyen). OWNER luôn xem được.
+  const canThang = canViewMenu(user, 'doanhThuDBThang');
+  const canNam = canViewMenu(user, 'doanhThuDBNam');
+  const noDashboard = !canThang && !canNam && !isOwner;
+
   return (
     <div className="layout-wrapper">
       <Sidebar user={user} />
@@ -506,12 +515,16 @@ export default function DoanhThuPage() {
           <div className={styles.headerActions}>
             {/* Toggle Dashboard cho tất cả vai trò */}
             <div className={styles.viewToggle}>
-              <button className={view === 'thang' ? styles.toggleActive : styles.toggleBtn} onClick={() => setView('thang')}>
-                <CalendarDays size={15} /> DB Tháng
-              </button>
-              <button className={view === 'nam' ? styles.toggleActive : styles.toggleBtn} onClick={() => setView('nam')}>
-                <BarChart3 size={15} /> DB Năm
-              </button>
+              {canThang && (
+                <button className={view === 'thang' ? styles.toggleActive : styles.toggleBtn} onClick={() => setView('thang')}>
+                  <CalendarDays size={15} /> DB Tháng
+                </button>
+              )}
+              {canNam && (
+                <button className={view === 'nam' ? styles.toggleActive : styles.toggleBtn} onClick={() => setView('nam')}>
+                  <BarChart3 size={15} /> DB Năm
+                </button>
+              )}
               {isOwner && (
                 <button className={view === 'nhap' ? styles.toggleActive : styles.toggleBtn} onClick={() => setView('nhap')}>
                   <TableProperties size={15} /> Nhập số
@@ -521,8 +534,15 @@ export default function DoanhThuPage() {
           </div>
         </div>
 
+        {/* Vai trò không được cấp Dashboard nào */}
+        {noDashboard && (
+          <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Bạn chưa được cấp quyền xem Dashboard doanh thu nào. Vui lòng liên hệ Chủ shop để được bật quyền.
+          </div>
+        )}
+
         {/* ── DASHBOARD THÁNG ── */}
-        {view === 'thang' && (
+        {canThang && view === 'thang' && (
           <>
             <div className={styles.periodBar}>
               <span className={styles.periodLabel}>Xem tháng:</span>
@@ -548,7 +568,7 @@ export default function DoanhThuPage() {
         )}
 
         {/* ── DASHBOARD NĂM ── */}
-        {view === 'nam' && (
+        {canNam && view === 'nam' && (
           <>
             <div className={styles.periodBar}>
               <span className={styles.periodLabel}>Xem năm:</span>

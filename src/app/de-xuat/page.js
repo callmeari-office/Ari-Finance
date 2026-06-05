@@ -1,15 +1,16 @@
 'use client';
+// Reverted VietQR quick transfer feature to restore clean codebase
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  PlusCircle, 
-  Search, 
-  Filter, 
-  Trash2, 
-  Eye, 
-  X, 
-  Check, 
+import {
+  PlusCircle,
+  Search,
+  Filter,
+  Trash2,
+  Eye,
+  X,
+  Check,
   Info,
   Calendar,
   AlertCircle,
@@ -18,7 +19,8 @@ import {
   Download,
   FileSpreadsheet,
   Rows3,
-  Plus
+  Plus,
+  CheckSquare
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
@@ -114,6 +116,12 @@ export default function DeXuatPage() {
     ngayCanThanhToan: '',
   });
   const [bulkRows, setBulkRows] = useState([]);
+
+  // Duyệt nhanh (OWNER/MANAGER) ngay tại trang danh sách
+  const [funds, setFunds] = useState([]);
+  const [duyetModal, setDuyetModal] = useState({ open: false, id: '', maPhieu: '', soTien: 0, noiDung: '' });
+  const [duyetQuyId, setDuyetQuyId] = useState('');
+  const [duyetLoading, setDuyetLoading] = useState(false);
 
   const handleSoTienChange = (e) => {
     const raw = e.target.value.replace(/\D/g, '');
@@ -273,13 +281,21 @@ export default function DeXuatPage() {
         setBanks(bankData);
       }
 
-      // Fetch Creators (nhân viên) làm bộ lọc cho OWNER/MANAGER
+      // Fetch Creators (nhân viên) và Quỹ cho OWNER/MANAGER
       const activeUser = currentUser || user;
       if (activeUser && (activeUser.role === 'OWNER' || activeUser.role === 'MANAGER')) {
-        const creatorsRes = await fetch('/api/nhan-su');
+        const [creatorsRes, quyRes] = await Promise.all([
+          fetch('/api/nhan-su'),
+          fetch('/api/quy'),
+        ]);
         if (creatorsRes.ok) {
           const creatorsData = await creatorsRes.json();
           setCreators(creatorsData || []);
+        }
+        if (quyRes.ok) {
+          const quyData = await quyRes.json();
+          setFunds(quyData || []);
+          if (quyData?.length > 0) setDuyetQuyId(quyData[0].id);
         }
       }
     } catch (e) {
@@ -566,6 +582,37 @@ export default function DeXuatPage() {
     });
     setBulkRows([makeBulkRow(), makeBulkRow(), makeBulkRow()]);
     setIsBulkOpen(true);
+  };
+
+  // ===== DUYỆT NHANH (OWNER/MANAGER) =====
+
+  const handleOpenDuyet = (prop) => {
+    setDuyetModal({ open: true, id: prop.id, maPhieu: prop.maPhieu, soTien: prop.soTien, noiDung: prop.noiDung });
+  };
+
+  const handleConfirmDuyet = async () => {
+    if (!duyetQuyId) {
+      alert('Vui lòng chọn Quỹ thanh toán.');
+      return;
+    }
+    if (!confirm(`Duyệt thanh toán ${duyetModal.maPhieu} — ${duyetModal.soTien.toLocaleString('vi-VN')}₫?\nHành động này sẽ sinh phiếu Chi và thay đổi số dư quỹ.`)) return;
+
+    setDuyetLoading(true);
+    try {
+      const res = await fetch(`/api/de-xuat/${duyetModal.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'DUYET', quyThanhToanId: duyetQuyId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Duyệt thất bại.');
+      setDuyetModal({ open: false, id: '', maPhieu: '', soTien: 0, noiDung: '' });
+      fetchData(user);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setDuyetLoading(false);
+    }
   };
 
   const handleBulkNguonTien = (val) => {
@@ -1005,15 +1052,28 @@ export default function DeXuatPage() {
                             </button>
 
                             {canEdit(prop) && (
-                              <button 
-                                onClick={() => handleOpenEdit(prop)} 
-                                className={`${styles.actionBtn} ${styles.editBtn}`} 
+                              <button
+                                onClick={() => handleOpenEdit(prop)}
+                                className={`${styles.actionBtn} ${styles.editBtn}`}
                                 title="Sửa đề xuất"
                               >
                                 <Edit3 size={16} />
                               </button>
                             )}
-                            
+
+                            {/* Duyệt nhanh: OWNER/MANAGER, phiếu đang chờ */}
+                            {(user.role === 'OWNER' || user.role === 'MANAGER') &&
+                              (prop.trangThai === 'CHO_THANH_TOAN' || prop.trangThai === 'CHO_HOAN_UNG') && (
+                              <button
+                                onClick={() => handleOpenDuyet(prop)}
+                                className={`${styles.actionBtn}`}
+                                style={{ color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.07)' }}
+                                title="Duyệt thanh toán"
+                              >
+                                <CheckSquare size={16} />
+                              </button>
+                            )}
+
                             {/* Cho phép hủy nếu không phải trạng thái DA_THANH_TOAN và HUY */}
                             {prop.trangThai !== 'DA_THANH_TOAN' && prop.trangThai !== 'HUY' && (
                               <button 
@@ -1100,18 +1160,29 @@ export default function DeXuatPage() {
                             <Eye size={16} />
                           </button>
                           {canEdit(prop) && (
-                            <button 
-                              onClick={() => handleOpenEdit(prop)} 
-                              className={`${styles.actionBtn} ${styles.editBtn}`} 
+                            <button
+                              onClick={() => handleOpenEdit(prop)}
+                              className={`${styles.actionBtn} ${styles.editBtn}`}
                               title="Sửa đề xuất"
                             >
                               <Edit3 size={16} />
                             </button>
                           )}
+                          {(user.role === 'OWNER' || user.role === 'MANAGER') &&
+                            (prop.trangThai === 'CHO_THANH_TOAN' || prop.trangThai === 'CHO_HOAN_UNG') && (
+                            <button
+                              onClick={() => handleOpenDuyet(prop)}
+                              className={`${styles.actionBtn}`}
+                              style={{ color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.07)' }}
+                              title="Duyệt thanh toán"
+                            >
+                              <CheckSquare size={16} />
+                            </button>
+                          )}
                           {prop.trangThai !== 'DA_THANH_TOAN' && prop.trangThai !== 'HUY' && (
-                            <button 
-                              onClick={() => handleCancelProp(prop.id, prop.maPhieu)} 
-                              className={`${styles.actionBtn} ${styles.deleteBtn}`} 
+                            <button
+                              onClick={() => handleCancelProp(prop.id, prop.maPhieu)}
+                              className={`${styles.actionBtn} ${styles.deleteBtn}`}
                               title="Hủy đề xuất"
                             >
                               <Trash2 size={16} />
@@ -2109,16 +2180,19 @@ export default function DeXuatPage() {
                   </button>
                 )}
                 
-                {/* Chủ shop duyệt trực tiếp tại popup chi tiết */}
-                {user.role === 'OWNER' && selectedProp.trangThai === 'CHO_THANH_TOAN' && (
-                  <button 
+                {/* OWNER/MANAGER: nút duyệt nhanh ngay tại popup chi tiết */}
+                {(user.role === 'OWNER' || user.role === 'MANAGER') &&
+                  (selectedProp.trangThai === 'CHO_THANH_TOAN' || selectedProp.trangThai === 'CHO_HOAN_UNG') && (
+                  <button
                     onClick={() => {
+                      const prop = selectedProp;
                       setSelectedProp(null);
-                      router.push('/de-xuat/duyet');
-                    }} 
+                      handleOpenDuyet(prop);
+                    }}
                     className="btn btn-primary"
                   >
-                    Đi duyệt thanh toán
+                    <CheckSquare size={18} />
+                    Duyệt thanh toán
                   </button>
                 )}
 
@@ -2262,6 +2336,54 @@ export default function DeXuatPage() {
           </div>
         )}
       </main>
+
+      {/* MODAL DUYỆT NHANH — OWNER/MANAGER chọn quỹ và xác nhận */}
+      {duyetModal.open && (
+        <div className={styles.modalOverlay} onClick={() => setDuyetModal({ open: false, id: '', maPhieu: '', soTien: 0, noiDung: '' })}>
+          <div
+            className={`${styles.modalContent} glass-card`}
+            style={{ maxWidth: '480px', padding: '2rem' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader} style={{ marginBottom: '1.25rem' }}>
+              <h3 style={{ color: '#10b981' }}>Duyệt thanh toán {duyetModal.maPhieu}</h3>
+              <button onClick={() => setDuyetModal({ open: false, id: '', maPhieu: '', soTien: 0, noiDung: '' })} className={styles.closeBtn}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.18)', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1.25rem', fontSize: '0.9rem' }}>
+              <div><strong>Nội dung:</strong> {duyetModal.noiDung}</div>
+              <div style={{ marginTop: '0.4rem' }}><strong>Số tiền:</strong> <span style={{ color: '#10b981', fontWeight: '800', fontSize: '1.05rem' }}>{duyetModal.soTien.toLocaleString('vi-VN')} ₫</span></div>
+            </div>
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label">Chọn Quỹ thanh toán *</label>
+              <select
+                className="form-control"
+                value={duyetQuyId}
+                onChange={(e) => setDuyetQuyId(e.target.value)}
+                disabled={duyetLoading}
+              >
+                <option value="">-- Chọn quỹ --</option>
+                {funds.map((f) => (
+                  <option key={f.id} value={f.id}>{f.tenQuy}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setDuyetModal({ open: false, id: '', maPhieu: '', soTien: 0, noiDung: '' })}
+                disabled={duyetLoading}
+              >
+                Hủy bỏ
+              </button>
+              <button className="btn btn-primary" onClick={handleConfirmDuyet} disabled={duyetLoading || !duyetQuyId}>
+                {duyetLoading ? 'Đang duyệt...' : 'Xác nhận duyệt'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CANCEL MODAL — Nhập lý do hủy */}
       {cancelModal.open && (

@@ -58,7 +58,8 @@ async function main() {
     }
   });
 
-  // Staff (Nhân viên)
+  // Staff (Nhân viên) — mặc định chỉ thấy Tổng quan + Đề xuất chi phí.
+  // Doanh thu / NCC / Kế hoạch chi phí: Chủ shop tự bật ở trang Quản lý Quyền khi cần.
   const staffPermissions = {
     tongQuan: true,
     deXuat: true,
@@ -66,7 +67,12 @@ async function main() {
     thuChi: false,
     quy: false,
     keHoach: false,
-    doanhThu: true,
+    doanhThu: false,
+    doanhThuDBThang: true,
+    doanhThuDBNam: true,
+    loiNhuan: false,
+    baoCao: false,
+    ncc: false,
     nhanSu: false,
     quyen: false,
     cauHinh: false

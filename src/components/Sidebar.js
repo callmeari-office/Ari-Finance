@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
+import { canViewMenu } from '@/lib/roles';
 import styles from './Sidebar.module.css';
 
 export default function Sidebar({ user }) {
@@ -70,120 +71,27 @@ export default function Sidebar({ user }) {
 
   if (!user) return null;
 
+  // Quyền hiển thị từng menu lấy từ canViewMenu (roles.js) — nguồn sự thật duy nhất:
+  // OWNER full → permissions override (trang /quyen) → mặc định DEFAULT_MENU_ROLES.
   const menuItems = [
-    {
-      key: 'tongQuan',
-      name: 'Tổng quan',
-      path: '/',
-      icon: LayoutDashboard,
-      roles: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
-    },
-    {
-      key: 'deXuat',
-      name: 'Đề xuất chi phí',
-      path: '/de-xuat',
-      icon: FileText,
-      roles: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
-    },
-    {
-      key: 'duyet',
-      name: 'Duyệt đề xuất',
-      path: '/de-xuat/duyet',
-      icon: CheckSquare,
-      roles: ['OWNER'],
-    },
-    {
-      key: 'thuChi',
-      name: 'Giao dịch Thu - Chi',
-      path: '/thu-chi',
-      icon: DollarSign,
-      roles: ['OWNER'],
-    },
-    {
-      key: 'quy',
-      name: 'Thông tin Quỹ',
-      path: '/quy',
-      icon: Wallet,
-      roles: ['OWNER'],
-    },
-    {
-      key: 'keHoach',
-      name: 'Kế hoạch chi phí',
-      path: '/ke-hoach',
-      icon: CalendarRange,
-      roles: ['OWNER', 'MANAGER'],
-    },
-    {
-      key: 'doanhThu',
-      name: 'Kế hoạch doanh thu',
-      path: '/doanh-thu',
-      icon: TrendingUp,
-      roles: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
-    },
-    {
-      key: 'loiNhuan',
-      name: 'Lợi nhuận (Lãi/Lỗ)',
-      path: '/loi-nhuan',
-      icon: Scale,
-      roles: ['OWNER', 'MANAGER'],
-    },
-    {
-      key: 'baoCao',
-      name: 'Báo cáo Thu - Chi',
-      path: '/bao-cao',
-      icon: BarChart3,
-      roles: ['OWNER'],
-    },
-    {
-      key: 'dinhKy',
-      name: 'Chi phí định kỳ',
-      path: '/dinh-ky',
-      icon: Repeat,
-      roles: ['OWNER', 'MANAGER'],
-    },
-    {
-      key: 'nhanSu',
-      name: 'Nhân sự',
-      path: '/nhan-su',
-      icon: Users,
-      roles: ['OWNER'],
-    },
-    {
-      key: 'ncc',
-      name: 'Nhà cung cấp',
-      path: '/ncc',
-      icon: Store,
-      roles: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
-    },
-    {
-      key: 'quyen',
-      name: 'Quản lý Quyền',
-      path: '/quyen',
-      icon: Lock,
-      roles: ['OWNER'],
-    },
-    {
-      key: 'cauHinh',
-      name: 'Cấu hình',
-      path: '/cau-hinh',
-      icon: Settings,
-      roles: ['OWNER'],
-    },
-    {
-      key: 'nhatKy',
-      name: 'Nhật ký hệ thống',
-      path: '/nhat-ky',
-      icon: ScrollText,
-      roles: ['OWNER'],
-    },
+    { key: 'tongQuan', name: 'Tổng quan', path: '/', icon: LayoutDashboard },
+    { key: 'deXuat', name: 'Đề xuất chi phí', path: '/de-xuat', icon: FileText },
+    { key: 'duyet', name: 'Duyệt đề xuất', path: '/de-xuat/duyet', icon: CheckSquare },
+    { key: 'thuChi', name: 'Giao dịch Thu - Chi', path: '/thu-chi', icon: DollarSign },
+    { key: 'quy', name: 'Thông tin Quỹ', path: '/quy', icon: Wallet },
+    { key: 'keHoach', name: 'Kế hoạch chi phí', path: '/ke-hoach', icon: CalendarRange },
+    { key: 'doanhThu', name: 'Kế hoạch doanh thu', path: '/doanh-thu', icon: TrendingUp },
+    { key: 'loiNhuan', name: 'Lợi nhuận (Lãi/Lỗ)', path: '/loi-nhuan', icon: Scale },
+    { key: 'baoCao', name: 'Báo cáo Thu - Chi', path: '/bao-cao', icon: BarChart3 },
+    { key: 'dinhKy', name: 'Chi phí định kỳ', path: '/dinh-ky', icon: Repeat },
+    { key: 'nhanSu', name: 'Nhân sự', path: '/nhan-su', icon: Users },
+    { key: 'ncc', name: 'Nhà cung cấp', path: '/ncc', icon: Store },
+    { key: 'quyen', name: 'Quản lý Quyền', path: '/quyen', icon: Lock },
+    { key: 'cauHinh', name: 'Cấu hình', path: '/cau-hinh', icon: Settings },
+    { key: 'nhatKy', name: 'Nhật ký hệ thống', path: '/nhat-ky', icon: ScrollText },
   ];
 
-  const allowedMenuItems = menuItems.filter(item => {
-    if (user.permissions && typeof user.permissions[item.key] !== 'undefined') {
-      return !!user.permissions[item.key];
-    }
-    return item.roles.includes(user.role);
-  });
+  const allowedMenuItems = menuItems.filter((item) => canViewMenu(user, item.key));
 
   return (
     <>

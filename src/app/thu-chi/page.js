@@ -83,7 +83,7 @@ export default function ThuChiPage() {
       })
       .then((data) => {
         if (data && data.authenticated) {
-          if (!data.user.permissions?.thuChi && data.user.role !== 'OWNER') {
+          if (data.user.role !== 'OWNER' && data.user.role !== 'MANAGER' && !data.user.permissions?.thuChi) {
             alert('Bạn không có quyền truy cập trang quản lý Thu-Chi.');
             router.push('/');
             return;
@@ -319,6 +319,7 @@ export default function ThuChiPage() {
                       <th>Danh mục</th>
                       <th>Nội dung</th>
                       <th>Số tiền</th>
+                      <th>Người tạo</th>
                       <th>Nguồn gốc</th>
                       <th style={{ textAlign: 'center' }}>Chi tiết</th>
                     </tr>
@@ -353,11 +354,14 @@ export default function ThuChiPage() {
                             </div>
                           )}
                         </td>
-                        <td style={{ 
-                          fontWeight: '800', 
-                          color: tx.loaiGiaoDich === 'THU' ? '#2e7d32' : '#8c5353' 
+                        <td style={{
+                          fontWeight: '800',
+                          color: tx.loaiGiaoDich === 'THU' ? '#2e7d32' : '#8c5353'
                         }}>
                           {tx.loaiGiaoDich === 'THU' ? '+' : '-'}{formatVND(tx.soTien)}
+                        </td>
+                        <td style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          {tx.nguoiTao ? (tx.nguoiTao.tenNgan || tx.nguoiTao.hoTen) : '—'}
                         </td>
                         <td>
                           {tx.soPhieuDeXuat === 1 ? (
@@ -427,6 +431,14 @@ export default function ThuChiPage() {
                           {tx.loaiGiaoDich === 'THU' ? '+' : '-'}{formatVND(tx.soTien)}
                         </span>
                       </div>
+                      {tx.nguoiTao && (
+                        <div className={styles.cardDetailItem}>
+                          <span className={styles.cardLabel}>Người tạo:</span>
+                          <span className={styles.cardValue} style={{ color: 'var(--text-muted)' }}>
+                            {tx.nguoiTao.tenNgan || tx.nguoiTao.hoTen}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className={styles.cardFooterRow}>
                       <div>
@@ -691,6 +703,14 @@ export default function ThuChiPage() {
                   <span className={styles.detailLabel}>Ghi chú:</span>
                   <span className={styles.detailValue}>{selectedTx.ghiChu || 'Không có ghi chú.'}</span>
                 </div>
+                {selectedTx.nguoiTao && (
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>Người tạo phiếu:</span>
+                    <span className={styles.detailValue} style={{ fontWeight: '600' }}>
+                      {selectedTx.nguoiTao.tenNgan || selectedTx.nguoiTao.hoTen}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* PHẦN HIỂN THỊ CÁC ĐỀ XUẤT CON ĐƯỢC GỘP (MỐI QUAN HỆ N:1) */}

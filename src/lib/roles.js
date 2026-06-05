@@ -32,3 +32,60 @@ export function canViewCategory(role, allowedRoles) {
 export function isRestrictedToOwnProposals(role) {
   return role === 'STAFF' || role === 'LEADER';
 }
+
+/**
+ * NGUỒN SỰ THẬT DUY NHẤT cho quyền hiển thị menu / tính năng theo vai trò mặc định.
+ * Dùng chung bởi Sidebar (lọc menu), trang Quản lý Quyền (khởi tạo toggle) và các
+ * page guard. Trang /quyen có thể override từng key cho từng vai trò (lưu vào
+ * VaiTroQuyen.permissions). OWNER luôn full quyền nên không phụ thuộc bảng này.
+ *
+ * Ngoài các menu cấp 1, còn có "key con" để phân quyền tinh hơn trong 1 trang:
+ *  - doanhThuDBThang / doanhThuDBNam: bật/tắt riêng tab Dashboard Tháng / Năm
+ *    trong trang Kế hoạch doanh thu (chỉ có tác dụng khi đã được xem `doanhThu`).
+ */
+export const DEFAULT_MENU_ROLES = {
+  tongQuan:        ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
+  deXuat:          ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
+  duyet:           ['OWNER'],
+  thuChi:          ['OWNER', 'MANAGER'],
+  quy:             ['OWNER', 'MANAGER'],
+  keHoach:         ['OWNER', 'MANAGER'],
+  doanhThu:        ['OWNER', 'MANAGER'],
+  doanhThuDBThang: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
+  doanhThuDBNam:   ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
+  loiNhuan:        ['OWNER', 'MANAGER'],
+  baoCao:          ['OWNER', 'MANAGER'],
+  dinhKy:          ['OWNER', 'MANAGER'],
+  nhanSu:          ['OWNER'],
+  ncc:             ['OWNER', 'MANAGER'],
+  quyen:           ['OWNER'],
+  cauHinh:         ['OWNER'],
+  nhatKy:          ['OWNER'],
+};
+
+/**
+ * Vai trò mặc định (chưa override) của một key — dùng để khởi tạo toggle ở /quyen
+ * và làm fallback cho canViewMenu.
+ */
+export function defaultMenuAllowed(role, key) {
+  if (role === 'OWNER') return true;
+  const def = DEFAULT_MENU_ROLES[key];
+  return Array.isArray(def) ? def.includes(role) : false;
+}
+
+/**
+ * Người dùng (kèm `permissions` lấy từ /api/auth/me) có được xem menu/tính năng `key`?
+ * Thứ tự ưu tiên: OWNER full → permissions override (nếu có key) → mặc định theo vai trò.
+ * Tương thích cấu trúc cũ `{ xem: boolean }`.
+ */
+export function canViewMenu(user, key) {
+  if (!user) return false;
+  if (user.role === 'OWNER') return true;
+  const perms = user.permissions;
+  if (perms && typeof perms[key] !== 'undefined') {
+    const v = perms[key];
+    if (typeof v === 'boolean') return v;
+    if (v && typeof v.xem === 'boolean') return v.xem;
+  }
+  return defaultMenuAllowed(user.role, key);
+}

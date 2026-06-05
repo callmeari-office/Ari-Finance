@@ -2,25 +2,44 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { canViewCategory } from '@/lib/roles';
 
 // GET /api/ke-hoach?nam=2026
-// Trả về toàn bộ kế hoạch của năm, kèm thực tế từ ThuChi
+// Trả về toàn bộ kế hoạch của năm, kèm thực tế từ ThuChi.
+// OWNER/MANAGER xem toàn bộ; STAFF/LEADER chỉ xem các DANH MỤC được phân quyền
+// (theo chucVuDuocXem ở Cấu hình), nhưng số THỰC CHI là tổng của CẢ HỆ THỐNG.
 export async function GET(request) {
   try {
     const user = await getSession();
     if (!user) return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
-    if (user.role !== 'OWNER' && user.role !== 'MANAGER') {
-      return NextResponse.json({ error: 'Không có quyền.' }, { status: 403 });
+
+    const isFullView = user.role === 'OWNER' || user.role === 'MANAGER';
+
+    // Với STAFF/LEADER: xác định tập danh mục được phép xem để lọc cả KH lẫn thực tế.
+    let viewableIds = null;
+    if (!isFullView) {
+      const cats = await prisma.danhMuc.findMany({ select: { id: true, chucVuDuocXem: true } });
+      viewableIds = new Set(
+        cats
+          .filter((c) => {
+            try { return canViewCategory(user.role, JSON.parse(c.chucVuDuocXem)); }
+            catch { return false; }
+          })
+          .map((c) => c.id)
+      );
     }
 
     const { searchParams } = new URL(request.url);
     const nam = parseInt(searchParams.get('nam') || new Date().getFullYear());
 
     // Lấy kế hoạch của năm
-    const keHoachList = await prisma.keHoach.findMany({
+    let keHoachList = await prisma.keHoach.findMany({
       where: { nam },
       include: { danhMuc: { include: { nhomChiPhi: true } } },
     });
+    if (viewableIds) {
+      keHoachList = keHoachList.filter((kh) => viewableIds.has(kh.danhMucId));
+    }
 
     // Lấy thực tế từ ThuChi + phiếu lịch sử (laLichSu=true) trong năm
     const startOfYear = new Date(nam, 0, 1);
@@ -66,7 +85,10 @@ export async function GET(request) {
     };
     mergeSimple(thucTeByMonthThuChi);
     mergeSimple(thucTeByMonthLichSu);
-    const thucTeByMonth = Object.values(mergedMapSimple);
+    let thucTeByMonth = Object.values(mergedMapSimple);
+    if (viewableIds) {
+      thucTeByMonth = thucTeByMonth.filter((row) => viewableIds.has(row.danhMucId));
+    }
 
     return NextResponse.json({ keHoach: keHoachList, thucTeByMonth, nam });
   } catch (error) {

@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { canViewMenu } from '@/lib/roles';
 import styles from './ke-hoach.module.css';
 
 const THANG_LABELS = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12'];
@@ -74,8 +75,7 @@ export default function KeHoachPage() {
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (!data?.authenticated) { router.push('/login'); return; }
-        const ok = data.user.permissions?.keHoach !== false || data.user.role === 'OWNER' || data.user.role === 'MANAGER';
-        if (!ok) { alert('Bạn không có quyền truy cập.'); router.push('/'); return; }
+        if (!canViewMenu(data.user, 'keHoach')) { alert('Bạn không có quyền truy cập.'); router.push('/'); return; }
         setUser(data.user);
         if (data.user.role !== 'OWNER') setView('dashboard');
         setLoading(false);
@@ -86,8 +86,11 @@ export default function KeHoachPage() {
   const fetchData = useCallback(async () => {
     setDataLoading(true);
     try {
+      // OWNER/MANAGER lấy toàn bộ danh mục (kể cả ngưng) qua /api/cau-hinh để lập kế hoạch.
+      // STAFF/LEADER lấy /api/danh-muc — đã được LỌC sẵn theo danh mục họ được phân quyền xem.
+      const catUrl = (user?.role === 'OWNER' || user?.role === 'MANAGER') ? '/api/cau-hinh' : '/api/danh-muc';
       const [catRes, khRes] = await Promise.all([
-        fetch('/api/cau-hinh'),
+        fetch(catUrl),
         fetch(`/api/ke-hoach?nam=${nam}`),
       ]);
       const catData = catRes.ok ? await catRes.json() : {};
@@ -119,7 +122,7 @@ export default function KeHoachPage() {
     } finally {
       setDataLoading(false);
     }
-  }, [nam]);
+  }, [nam, user?.role]);
 
   useEffect(() => {
     if (!loading) fetchData();

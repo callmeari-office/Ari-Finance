@@ -37,7 +37,7 @@ export default function QuyReportPage() {
       })
       .then((data) => {
         if (data && data.authenticated) {
-          if (!data.user.permissions?.quy && data.user.role !== 'OWNER') {
+          if (data.user.role !== 'OWNER' && data.user.role !== 'MANAGER' && !data.user.permissions?.quy) {
             alert('Bạn không có quyền truy cập trang Thông tin Quỹ.');
             router.push('/');
             return;
