@@ -1,5 +1,5 @@
 :root {
-  /* Bảng màu của shop thời trang - Clean, Minimalist & Warm Theme */
+  /* Bảng màu của hệ thống - Clean, Minimalist & Warm Theme */
   --primary: #d6a8a8; /* Hồng phấn / Hồng đất làm màu nhấn chính */
   --primary-hover: #c49393;
   --primary-rgb: 214, 168, 168;
@@ -216,12 +216,46 @@ button, input, select, textarea {
 .table-responsive {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .custom-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+}
+
+/* Cố định cột đầu tiên khi cuộn ngang trên di động cho bất kỳ bảng responsive nào */
+@media (max-width: 768px) {
+  .table-responsive {
+    position: relative;
+  }
+  
+  /* Sử dụng border-collapse: separate để sticky cell hoạt động chuẩn và không bị mất viền */
+  .table-responsive table.custom-table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+  }
+  
+  .table-responsive table.custom-table th,
+  .table-responsive table.custom-table td {
+    border-bottom: 1px solid var(--border) !important;
+  }
+  
+  .table-responsive table.custom-table th:first-child,
+  .table-responsive table.custom-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background-color: var(--surface) !important;
+    box-shadow: 2px 0 5px rgba(99, 77, 62, 0.1);
+  }
+  
+  [data-theme="dark"] .table-responsive table.custom-table th:first-child,
+  [data-theme="dark"] .table-responsive table.custom-table td:first-child {
+    background-color: var(--surface) !important;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.4);
+  }
 }
 
 .custom-table th {

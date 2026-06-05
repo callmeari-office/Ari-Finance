@@ -174,7 +174,25 @@ export async function POST(request) {
       trangThai,
       ghiChu,
       ngayCanThanhToan,
+      anhHoaDon,
     } = body;
+
+    // Kiểm tra ảnh hóa đơn nếu có gửi lên
+    if (anhHoaDon) {
+      const MAX_BYTES = 2 * 1024 * 1024; // 2 MB sau khi decode
+      if (typeof anhHoaDon !== 'string' || !anhHoaDon.startsWith('data:image/')) {
+        return NextResponse.json({ error: 'Ảnh hóa đơn không hợp lệ (chỉ chấp nhận file ảnh).' }, { status: 400 });
+      }
+      const commaIdx = anhHoaDon.indexOf(',');
+      if (commaIdx === -1) {
+        return NextResponse.json({ error: 'Định dạng ảnh hóa đơn không hợp lệ.' }, { status: 400 });
+      }
+      const base64Data = anhHoaDon.slice(commaIdx + 1);
+      const byteLength = Math.floor(base64Data.length * 0.75);
+      if (byteLength > MAX_BYTES) {
+        return NextResponse.json({ error: 'Ảnh hóa đơn quá lớn (tối đa 2 MB). Vui lòng nén ảnh trước khi tải lên.' }, { status: 400 });
+      }
+    }
 
     if (!ngayPhatSinh || !danhMucId || !noiDung || !soTien || !nguonTien || !trangThai) {
       return NextResponse.json(
@@ -240,6 +258,7 @@ export async function POST(request) {
         noiDung: noiDung.trim(),
         soTien: Number(soTien),
         nhaCungCapId: nhaCungCapId || null,
+        anhHoaDon: anhHoaDon || null,
         nguonTien,
         trangThai,
         ghiChu: ghiChu || null,

@@ -170,7 +170,7 @@ export default function BaoCaoThuChiPage() {
     return num.toLocaleString('vi-VN') + ' ₫';
   };
 
-  const handleExportCSV = () => {
+  const handleExportExcel = async () => {
     if (filteredTx.length === 0) {
       alert('Không có dữ liệu để xuất.');
       return;
@@ -184,6 +184,9 @@ export default function BaoCaoThuChiPage() {
       ? `Nam ${filterNam}`
       : 'TatCa';
 
+    // Tải thư viện xlsx chỉ khi cần (giữ app nhẹ) — giống Backup/Import.
+    const XLSX = await import('xlsx');
+
     const headers = ['Mã Giao Dịch', 'Ngày Giao Dịch', 'Loại', 'Quỹ', 'Nhóm Danh Mục', 'Danh Mục', 'Nội Dung', 'Số Tiền (VND)'];
 
     const rows = filteredTx.map((tx) => [
@@ -193,7 +196,7 @@ export default function BaoCaoThuChiPage() {
       tx.quy?.tenQuy || '',
       tx.danhMuc?.nhomChiPhi?.tenNhom || '',
       tx.danhMuc?.tenDanhMuc || '',
-      `"${(tx.noiDung || '').replace(/"/g, '""')}"`,
+      tx.noiDung || '',
       tx.loaiGiaoDich === 'THU' ? tx.soTien : -tx.soTien,
     ]);
 
@@ -205,19 +208,18 @@ export default function BaoCaoThuChiPage() {
       ['Net Cashflow', '', '', '', '', '', '', netCashflow],
     ];
 
-    const csvContent =
-      '﻿' +
-      [headers, ...rows, ...summaryRows]
-        .map((r) => r.join(','))
-        .join('\n');
+    const aoa = [headers, ...rows, ...summaryRows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    // Độ rộng cột cho dễ đọc
+    ws['!cols'] = [
+      { wch: 16 }, { wch: 14 }, { wch: 6 }, { wch: 16 },
+      { wch: 20 }, { wch: 22 }, { wch: 40 }, { wch: 16 },
+    ];
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `BaoCaoThuChi_${periodLabel}_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Báo cáo Thu-Chi');
+    const fileName = `BaoCaoThuChi_${periodLabel}_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   // Lọc động dropdown danh mục theo Nhóm đã chọn
@@ -236,13 +238,13 @@ export default function BaoCaoThuChiPage() {
             <p className={styles.pageDesc}>Tổng hợp phân tích cơ cấu chi tiêu, doanh thu và net cashflow tích lũy của shop</p>
           </div>
           <button
-            onClick={handleExportCSV}
+            onClick={handleExportExcel}
             className="btn btn-secondary"
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
             disabled={dataLoading}
           >
             <Download size={16} />
-            Xuất Excel / CSV
+            Xuất Excel
           </button>
         </div>
 

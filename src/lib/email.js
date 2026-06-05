@@ -32,6 +32,18 @@ function getTransporter() {
   return cachedTransporter;
 }
 
+// Escape HTML để chống chèn mã/HTML độc qua nội dung do người dùng nhập
+// (vd: noiDung phiếu, tên NCC) khi nhúng vào email HTML.
+function esc(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function formatVND(n) {
   try {
     return new Intl.NumberFormat('vi-VN').format(Number(n || 0)) + ' ₫';
@@ -98,7 +110,7 @@ function buildPaymentBlock(proposal) {
   const line = (label, value) => `
     <tr>
       <td style="padding:6px 0;color:#8a8079;font-size:13px;white-space:nowrap;vertical-align:top;">${label}</td>
-      <td style="padding:6px 0 6px 14px;color:#3d3733;font-size:13px;font-weight:700;text-align:right;word-break:break-all;">${value}</td>
+      <td style="padding:6px 0 6px 14px;color:#3d3733;font-size:13px;font-weight:700;text-align:right;word-break:break-all;">${esc(value)}</td>
     </tr>`;
 
   const qrImg = qrUrl
@@ -141,7 +153,7 @@ function buildEmailHtml(proposal, link) {
   const row = (label, value) => `
     <tr>
       <td style="padding:10px 0;color:#6b7280;font-size:14px;white-space:nowrap;vertical-align:top;">${label}</td>
-      <td style="padding:10px 0 10px 16px;color:#111827;font-size:14px;font-weight:600;text-align:right;">${value}</td>
+      <td style="padding:10px 0 10px 16px;color:#111827;font-size:14px;font-weight:600;text-align:right;">${esc(value)}</td>
     </tr>`;
 
   return `
@@ -218,6 +230,85 @@ function buildEmailHtml(proposal, link) {
 }
 
 /**
+ * Gửi email đặt lại mật khẩu cho nhân viên.
+ * OWNER bấm nút → gọi hàm này → nhân viên nhận link, click, nhập mật khẩu mới.
+ *
+ * Không throw — lỗi chỉ ghi log để không ảnh hưởng luồng gọi.
+ */
+export async function sendPasswordResetEmail({ employee, resetLink }) {
+  try {
+    const transporter = getTransporter();
+    if (!transporter) {
+      logger.warn('sendPasswordResetEmail: chưa cấu hình SMTP → bỏ qua.');
+      return;
+    }
+
+    const from = process.env.SMTP_FROM || `ARI Finance <${process.env.SMTP_USER}>`;
+    const tenHienThi = esc(employee.tenNgan || employee.hoTen || employee.username || 'Bạn');
+
+    const html = `
+<!DOCTYPE html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <tr>
+          <td style="background:linear-gradient(135deg,#7c3aed,#4f46e5);padding:28px 28px 24px;">
+            <div style="color:rgba(255,255,255,0.85);font-size:13px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;">ARI Finance</div>
+            <div style="color:#fff;font-size:20px;font-weight:700;margin-top:6px;">🔑 Đặt lại mật khẩu</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 28px 8px;">
+            <p style="color:#374151;font-size:15px;margin:0 0 12px;">Xin chào <strong>${tenHienThi}</strong>,</p>
+            <p style="color:#6b7280;font-size:14px;margin:0 0 20px;">
+              Quản lý đã yêu cầu đặt lại mật khẩu tài khoản ARI Finance của bạn.<br>
+              Nhấn vào nút bên dưới để tạo mật khẩu mới. Link có hiệu lực trong <strong>1 giờ</strong>.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:8px 28px 28px;text-align:center;">
+            <a href="${resetLink}" target="_blank"
+               style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 32px;border-radius:10px;">
+              Đặt lại mật khẩu →
+            </a>
+            <div style="color:#9ca3af;font-size:12px;margin-top:16px;">
+              Hoặc mở đường dẫn:<br>
+              <a href="${resetLink}" target="_blank" style="color:#6366f1;word-break:break-all;font-size:11px;">${resetLink}</a>
+            </div>
+            <p style="color:#ef4444;font-size:12px;margin-top:16px;">
+              Nếu bạn không yêu cầu đổi mật khẩu, hãy bỏ qua email này.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#f9fafb;padding:16px 28px;text-align:center;border-top:1px solid #f3f4f6;">
+            <div style="color:#9ca3af;font-size:12px;">Email tự động từ hệ thống ARI Finance — vui lòng không trả lời.</div>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    await transporter.sendMail({
+      from,
+      to: employee.email,
+      subject: `[ARI Finance] Đặt lại mật khẩu của bạn`,
+      html,
+    });
+
+    logger.info(`sendPasswordResetEmail: đã gửi link đặt lại mật khẩu tới ${employee.email}`);
+  } catch (error) {
+    logger.error('sendPasswordResetEmail', error);
+  }
+}
+
+/**
  * Lấy danh sách email OWNER + MANAGER đang ACTIVE (dùng chung cho các hàm gửi mail).
  */
 async function getManagerRecipients() {
@@ -241,13 +332,13 @@ function buildBulkEmailHtml(proposals, link) {
 
   const rows = proposals
     .map((p, i) => {
-      const tenNguoiTao = p.nguoiTao?.tenNgan || p.nguoiTao?.hoTen || '—';
-      const tenDanhMuc = p.danhMuc?.tenDanhMuc || '—';
+      const tenNguoiTao = esc(p.nguoiTao?.tenNgan || p.nguoiTao?.hoTen || '—');
+      const tenDanhMuc = esc(p.danhMuc?.tenDanhMuc || '—');
       return `
         <tr>
           <td style="padding:10px 8px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;text-align:center;">${i + 1}</td>
-          <td style="padding:10px 8px;border-bottom:1px solid #f3f4f6;color:#4f46e5;font-size:13px;font-weight:700;white-space:nowrap;">${p.maPhieu}</td>
-          <td style="padding:10px 8px;border-bottom:1px solid #f3f4f6;color:#111827;font-size:13px;">${p.noiDung || '—'}<div style="color:#9ca3af;font-size:11px;margin-top:2px;">${tenDanhMuc} · ${tenNguoiTao}</div></td>
+          <td style="padding:10px 8px;border-bottom:1px solid #f3f4f6;color:#4f46e5;font-size:13px;font-weight:700;white-space:nowrap;">${esc(p.maPhieu)}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #f3f4f6;color:#111827;font-size:13px;">${esc(p.noiDung || '—')}<div style="color:#9ca3af;font-size:11px;margin-top:2px;">${tenDanhMuc} · ${tenNguoiTao}</div></td>
           <td style="padding:10px 8px;border-bottom:1px solid #f3f4f6;color:#111827;font-size:13px;font-weight:700;text-align:right;white-space:nowrap;">${formatVND(p.soTien)}</td>
         </tr>`;
     })

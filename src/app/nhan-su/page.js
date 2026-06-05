@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
+import {
   Users,
   Plus,
   Search,
@@ -11,7 +11,8 @@ import {
   Check,
   AlertCircle,
   Key,
-  Lock
+  Lock,
+  Mail
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './nhan-su.module.css';
@@ -37,6 +38,9 @@ export default function NhanSuPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
+
+  // Reset password via email
+  const [resetLoadingId, setResetLoadingId] = useState(null);
 
   // Selected Employee for edit/password
   const [selectedEmp, setSelectedEmp] = useState(null);
@@ -177,7 +181,7 @@ export default function NhanSuPage() {
       } else if (formType === 'EDIT') {
         url = `/api/nhan-su/${selectedEmp.id}`;
         method = 'PUT';
-        payload = { hoTen, tenNgan, email, phone, phongBan, viTri, ghiChu, role, trangThai };
+        payload = { hoTen, tenNgan, username, email, phone, phongBan, viTri, ghiChu, role, trangThai };
       } else if (formType === 'PASSWORD') {
         url = `/api/nhan-su/${selectedEmp.id}`;
         method = 'PUT';
@@ -203,6 +207,30 @@ export default function NhanSuPage() {
       setFormError(err.message);
     } finally {
       setFormLoading(false);
+    }
+  };
+
+  const handleResetPasswordByEmail = async (emp) => {
+    if (!emp.email || !emp.email.includes('@')) {
+      alert(`Nhân viên "${emp.hoTen}" chưa có email hợp lệ. Hãy cập nhật email trước.`);
+      return;
+    }
+    if (!confirm(`Gửi link đặt lại mật khẩu qua email "${emp.email}" cho "${emp.hoTen}"?\n\nLink có hiệu lực trong 1 giờ. Link cũ (nếu có) sẽ bị vô hiệu.`)) return;
+
+    setResetLoadingId(emp.id);
+    try {
+      const res = await fetch('/api/auth/dat-lai-mat-khau', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nhanVienId: emp.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gửi email thất bại.');
+      alert(data.message || 'Đã gửi email đặt lại mật khẩu thành công!');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setResetLoadingId(null);
     }
   };
 
@@ -414,14 +442,25 @@ export default function NhanSuPage() {
                           >
                             <Edit3 size={15} />
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleOpenPassword(emp)}
                             className={`${styles.actionBtn} ${styles.editBtn}`}
-                            title="Đổi mật khẩu"
+                            title="Đổi mật khẩu trực tiếp"
                             style={{ color: 'var(--warning)' }}
                           >
                             <Key size={15} />
                           </button>
+                          {emp.email && emp.email.includes('@') && (
+                            <button
+                              onClick={() => handleResetPasswordByEmail(emp)}
+                              className={`${styles.actionBtn} ${styles.editBtn}`}
+                              title="Gửi link đặt lại mật khẩu qua email"
+                              style={{ color: '#60a5fa' }}
+                              disabled={resetLoadingId === emp.id}
+                            >
+                              <Mail size={15} />
+                            </button>
+                          )}
                           {emp.id !== user.id && emp.trangThai === 'ACTIVE' && (
                             <button
                                onClick={() => handleDelete(emp)}
@@ -534,7 +573,7 @@ export default function NhanSuPage() {
                         className="form-control"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        disabled={formLoading || formType === 'EDIT'}
+                        disabled={formLoading}
                         required
                       />
                     </div>

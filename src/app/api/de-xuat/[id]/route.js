@@ -59,7 +59,23 @@ export async function PUT(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const { action, quyThanhToanId, noiDung, soTien, danhMucId, nhaCungCapId, ghiChu, ngayCanThanhToan, ngayPhatSinh, nguonTien, trangThai } = body;
+    const { action, quyThanhToanId, noiDung, soTien, danhMucId, nhaCungCapId, ghiChu, ngayCanThanhToan, ngayPhatSinh, nguonTien, trangThai, anhHoaDon } = body;
+
+    // Kiểm tra ảnh hóa đơn nếu có gửi lên (chỉ validate khi có giá trị khác null)
+    if (anhHoaDon) {
+      const MAX_BYTES = 2 * 1024 * 1024;
+      if (typeof anhHoaDon !== 'string' || !anhHoaDon.startsWith('data:image/')) {
+        return NextResponse.json({ error: 'Ảnh hóa đơn không hợp lệ (chỉ chấp nhận file ảnh).' }, { status: 400 });
+      }
+      const commaIdx = anhHoaDon.indexOf(',');
+      if (commaIdx === -1) {
+        return NextResponse.json({ error: 'Định dạng ảnh hóa đơn không hợp lệ.' }, { status: 400 });
+      }
+      const byteLength = Math.floor(anhHoaDon.slice(commaIdx + 1).length * 0.75);
+      if (byteLength > MAX_BYTES) {
+        return NextResponse.json({ error: 'Ảnh hóa đơn quá lớn (tối đa 2 MB). Vui lòng nén ảnh trước khi tải lên.' }, { status: 400 });
+      }
+    }
 
     const existingProposal = await prisma.deXuatChiPhi.findUnique({
       where: { id },
@@ -214,6 +230,9 @@ export async function PUT(request, { params }) {
     if (trangThai) updateData.trangThai = trangThai;
     if (ngayCanThanhToan !== undefined) {
       updateData.ngayCanThanhToan = (ngayCanThanhToan && String(ngayCanThanhToan).trim() !== '') ? new Date(ngayCanThanhToan) : null;
+    }
+    if (anhHoaDon !== undefined) {
+      updateData.anhHoaDon = anhHoaDon || null;
     }
 
     const updatedProposal = await prisma.deXuatChiPhi.update({

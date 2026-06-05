@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Wallet, User, Lock, ShieldAlert, ArrowRight, Check } from 'lucide-react';
+import { User, Lock, ShieldAlert, ArrowRight, Check } from 'lucide-react';
 import styles from './login.module.css';
 
 export default function LoginPage() {
@@ -78,7 +78,8 @@ export default function LoginPage() {
         {/* Brand Header */}
         <div className={styles.header}>
           <div className={styles.logo}>
-            <Wallet size={36} className={styles.logoIcon} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-hover.png" alt="Logo" className={styles.logoImg} />
           </div>
           <h1>ARI Finance</h1>
           <p className={styles.subtitle}>Hệ thống Quản lý Tài chính Nội bộ</p>
@@ -87,7 +88,7 @@ export default function LoginPage() {
         {/* Login Card */}
         <div className={`${styles.card} glass-card`}>
           <h2>Đăng nhập hệ thống</h2>
-          <p className={styles.cardDesc}>Nhập thông tin ID đăng nhập để tiếp tục nghiệm thu</p>
+          <p className={styles.cardDesc}>Nhập thông tin ID đăng nhập để tiếp tục</p>
 
           {error && (
             <div className={styles.errorAlert}>
@@ -111,7 +112,7 @@ export default function LoginPage() {
                 <input
                   id="email"
                   type="text"
-                  placeholder="Nhập ID (Ví dụ: owner, staff...)"
+                  placeholder="Nhập ID (Ví dụ: namnnb, linhnnt...)"
                   className="form-control"
                   style={{ paddingLeft: '2.5rem' }}
                   value={email}
@@ -149,7 +150,8 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Quick Login Section */}
+        {/* Quick Login Section (Hidden for Production) */}
+        {/*
         <div className={styles.quickLoginBox}>
           <h3>TÀI KHOẢN NGHIỆM THU (QUICK TEST)</h3>
           <p>Nhấp vào vai trò dưới đây để tự động điền ID & Mật khẩu mẫu:</p>
@@ -168,6 +170,7 @@ export default function LoginPage() {
             </button>
           </div>
         </div>
+        */}
       </div>
     </div>
   );

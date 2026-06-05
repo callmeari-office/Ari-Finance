@@ -65,6 +65,7 @@ export default function QuyenPage() {
     { key: 'doanhThu', name: 'Kế hoạch doanh thu', path: '/doanh-thu', desc: 'Lập chỉ tiêu & nhập doanh thu thực tế theo kênh bán, xem Dashboard so sánh' },
     { key: 'loiNhuan', name: 'Lợi nhuận (Lãi/Lỗ)', path: '/loi-nhuan', desc: 'Xem lãi/lỗ theo tháng (Doanh thu − Chi phí), biểu đồ xu hướng và đối chiếu kế hoạch' },
     { key: 'baoCao', name: 'Báo cáo Thu - Chi', path: '/bao-cao', desc: 'Xem phân tích doanh thu, cơ cấu chi phí và đối soát thu chi của shop' },
+    { key: 'dinhKy', name: 'Chi phí định kỳ', path: '/dinh-ky', desc: 'Quản lý mẫu phiếu chi lặp lại hàng tháng (thuê mặt bằng, dịch vụ...)' },
     { key: 'ncc', name: 'Nhà cung cấp', path: '/ncc', desc: 'Quản lý danh sách nhà cung cấp, tài khoản ngân hàng và mã QR' },
     { key: 'nhanSu', name: 'Nhân sự', path: '/nhan-su', desc: 'Quản lý tài khoản, thêm nhân viên, đổi mật khẩu và cấp role' },
     { key: 'quyen', name: 'Quản lý Quyền', path: '/quyen', desc: 'Cấu hình ẩn/hiện các menu hệ thống theo từng vai trò' },

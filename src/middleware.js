@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login'];
+const PUBLIC_PATHS = [
+  '/login',
+  '/api/auth/login',
+  '/dat-lai-mat-khau',
+  '/api/auth/dat-lai-mat-khau/xac-nhan',
+];
 
 export function middleware(request) {
   const { pathname } = request.nextUrl;
@@ -32,6 +37,6 @@ export const config = {
      * - _next/image (image optimization)
      * - favicon.ico
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.png|.*\\.svg|.*\\.webp|.*\\.jpg|.*\\.jpeg|.*\\.gif).*)',
   ],
 };

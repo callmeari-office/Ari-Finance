@@ -28,7 +28,7 @@ export async function GET(request) {
     // Ngưỡng "sắp tới hạn": cuối ngày thứ N tính từ hôm nay.
     const nguongHan = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days, 23, 59, 59);
 
-    const [phieuToiHan, chiThangRaw, danhMucCoHanMuc, keHoachThang] = await Promise.all([
+    const [phieuToiHan, chiThangRaw, danhMucCoHanMuc, keHoachThang, pendingCount] = await Promise.all([
       // 1. Phiếu chờ xử lý có ngày cần thanh toán ≤ ngưỡng
       prisma.deXuatChiPhi.findMany({
         where: {
@@ -60,6 +60,13 @@ export async function GET(request) {
       prisma.keHoach.findMany({
         where: { nam, thang, soTien: { gt: 0 } },
         include: { danhMuc: { select: { tenDanhMuc: true } } },
+      }),
+      // Đếm nhẹ số phiếu đang chờ xử lý (cho chuông Sidebar — thay vì kéo cả 1000 phiếu)
+      prisma.deXuatChiPhi.count({
+        where: {
+          trangThai: { in: ['CHO_THANH_TOAN', 'CHO_HOAN_UNG'] },
+          laLichSu: false,
+        },
       }),
     ]);
 
@@ -133,6 +140,7 @@ export async function GET(request) {
       vuotHanMuc,
       vuotKeHoach,
       tongSo,
+      pendingCount,
     });
   } catch (error) {
     logger.error('GET /api/canh-bao', error);

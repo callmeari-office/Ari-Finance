@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# ARI Finance — Quản lý tài chính nội bộ
 
-## Getting Started
+Ứng dụng quản lý tài chính nội bộ cho shop **Call Me Ari**: đề xuất chi phí, duyệt thanh toán, theo dõi thu-chi, kế hoạch chi phí / doanh thu, lợi nhuận và nhân sự.
 
-First, run the development server:
+## Stack
+
+| Thành phần | Công nghệ |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| ORM | Prisma 7 |
+| Database | Supabase (PostgreSQL) |
+| Auth | Session cookie (bcryptjs) |
+| Email | Nodemailer + Gmail App Password |
+| UI | CSS Modules + CSS variables (Dark/Light mode) |
+| PWA | next-pwa (cài lên điện thoại) |
+
+## Cách chạy
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 1. Cài dependencies
+npm install
+
+# 2. Tạo file .env (xem bên dưới)
+
+# 3. Chạy development server
+npx next dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mở [http://localhost:3000](http://localhost:3000) trên trình duyệt.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Biến môi trường (.env)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+DATABASE_URL=postgresql://...        # Supabase connection string
+DIRECT_URL=postgresql://...          # Supabase direct URL (cho Prisma migrate)
+APP_URL=http://localhost:3000        # URL app (dùng trong email link)
 
-## Learn More
+SMTP_USER=your@gmail.com             # Gmail gửi email
+SMTP_PASS=xxxx xxxx xxxx xxxx        # Google App Password (16 ký tự)
+SMTP_FROM=ARI Finance <your@gmail.com>
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Migrations (lần đầu hoặc cập nhật DB)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# Tạo bảng lịch sử thao tác
+node prisma/add-lichsuthaotac.js
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Tạo bảng token đặt lại mật khẩu
+node prisma/add-password-reset.js
 
-## Deploy on Vercel
+# Tạo bảng phiếu chi định kỳ
+node prisma/add-phieu-dinh-ky.js
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Tái sinh Prisma Client sau khi cập nhật schema
+npx prisma generate
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Build (kiểm tra trước khi deploy)
+
+```bash
+npx next build --no-lint
+```
+
+> Lưu ý: không dùng `--lint` (bị lỗi scopeManager với version eslint hiện tại).
+
+## Tính năng chính
+
+- **Đề xuất chi phí**: tạo phiếu, duyệt, hủy, tìm kiếm, xuất Excel
+- **Chi phí định kỳ**: mẫu phiếu tái diễn hàng tháng (tự động tạo phiếu)
+- **Thu-chi**: ghi nhận giao dịch, theo dõi số dư quỹ
+- **Kế hoạch chi phí & doanh thu**: so sánh kế hoạch vs thực tế theo kênh bán
+- **Lợi nhuận**: dashboard lãi/lỗ tháng, sức khỏe tài chính
+- **Nhân sự**: quản lý tài khoản, đặt lại mật khẩu qua email
+- **Nhật ký hệ thống**: audit log mọi thao tác
+- **Dark mode + PWA**: cài được lên điện thoại

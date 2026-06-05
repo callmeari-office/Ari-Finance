@@ -21,6 +21,10 @@ import {
   Activity,
   Gauge,
   CalendarClock,
+  Upload,
+  Download,
+  FileSpreadsheet,
+  AlertCircle,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './doanh-thu.module.css';
@@ -72,6 +76,16 @@ export default function DoanhThuPage() {
   const [dailyMsg, setDailyMsg] = useState('');
 
   const [showKenhModal, setShowKenhModal] = useState(false);
+
+  // Import States
+  const [isImportYearlyOpen, setIsImportYearlyOpen] = useState(false);
+  const [isImportDailyOpen, setIsImportDailyOpen] = useState(false);
+  const [importFileName, setImportFileName] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importParseError, setImportParseError] = useState('');
+  const [importResult, setImportResult] = useState(null);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importSuccessCount, setImportSuccessCount] = useState(0);
 
   // Auth
   useEffect(() => {
@@ -210,6 +224,250 @@ export default function DoanhThuPage() {
       setDailyMsg('Lỗi kết nối.');
     } finally {
       setSavingDaily(false);
+    }
+  };
+
+  // ── Download & Import Excel (Chỉ tiêu Năm và Doanh thu Ngày) ──
+  const handleDownloadYearlyTemplate = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const headers = ['Kênh bán', ...THANG_LABELS];
+      const rows = kenhBan.map(k => {
+        const row = [k.tenKenh];
+        for (let t = 1; t <= 12; t++) {
+          const val = getCT(k.id, t);
+          row.push(val > 0 ? val : 0);
+        }
+        return row;
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      ws['!cols'] = [{ wch: 18 }, ...Array(12).fill({ wch: 12 })];
+
+      const refSheet = XLSX.utils.aoa_to_sheet([
+        ['KÊNH BÁN HỢP LỆ (Copy chính xác tên vào cột "Kênh bán")'],
+        ...kenhBan.map(k => [k.tenKenh])
+      ]);
+      refSheet['!cols'] = [{ wch: 40 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Chỉ tiêu Doanh thu');
+      XLSX.utils.book_append_sheet(wb, refSheet, 'KenhBan hợp lệ');
+
+      XLSX.writeFile(wb, `mau-chi-tieu-doanh-thu-nam-${nam}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert('Không tải được file mẫu.');
+    }
+  };
+
+  const handleDownloadDailyTemplate = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const headers = ['Ngày', ...kenhBan.map(k => k.tenKenh)];
+      const ld = daysInMonth(nam, thang);
+      const rows = [];
+      for (let d = 1; d <= ld; d++) {
+        const row = [d];
+        kenhBan.forEach(k => {
+          const val = getDaily(k.id, d);
+          row.push(val > 0 ? val : 0);
+        });
+        rows.push(row);
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      ws['!cols'] = [{ wch: 10 }, ...Array(kenhBan.length).fill({ wch: 15 })];
+
+      const refSheet = XLSX.utils.aoa_to_sheet([
+        ['KÊNH BÁN HỢP LỆ'],
+        ...kenhBan.map(k => [k.tenKenh])
+      ]);
+      refSheet['!cols'] = [{ wch: 30 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `Doanh thu T${thang}-${nam}`);
+      XLSX.utils.book_append_sheet(wb, refSheet, 'KenhBan hợp lệ');
+
+      XLSX.writeFile(wb, `mau-doanh-thu-ngay-thang-${thang}-${nam}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert('Không tải được file mẫu.');
+    }
+  };
+
+  const handleImportYearlyFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setImportFileName(file.name);
+    setImportParseError('');
+    setImportResult(null);
+    setImportErrors([]);
+    setImportSuccessCount(0);
+    setImportLoading(true);
+
+    try {
+      const XLSX = await import('xlsx');
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
+
+      if (aoa.length < 2) {
+        setImportParseError('File không có dòng dữ liệu nào (chỉ có tiêu đề).');
+        setImportLoading(false);
+        return;
+      }
+
+      const norm = (s) => String(s || '').trim().toLowerCase();
+      const headers = (aoa[0] || []).map(norm);
+      const colKenh = headers.findIndex(h => h.includes('kênh bán') || h.includes('kenhban') || h.includes('kenh ban') || h.includes('kênh'));
+      if (colKenh === -1) {
+        setImportParseError('Không tìm thấy cột "Kênh bán".');
+        setImportLoading(false);
+        return;
+      }
+
+      const colThangs = {};
+      for (let t = 1; t <= 12; t++) {
+        const idx = headers.findIndex(h => h === `t${t}` || h === `tháng ${t}` || h === `thang ${t}` || h === `th${t}`);
+        if (idx !== -1) {
+          colThangs[t] = idx;
+        } else {
+          const idxPartial = headers.findIndex(h => h.includes(`t${t}`) || h.includes(`t ${t}`));
+          if (idxPartial !== -1) {
+            colThangs[t] = idxPartial;
+          }
+        }
+      }
+
+      if (Object.keys(colThangs).length === 0) {
+        setImportParseError('Không tìm thấy các cột tháng (T1, T2, ..., T12).');
+        setImportLoading(false);
+        return;
+      }
+
+      const rows = [];
+      for (let i = 1; i < aoa.length; i++) {
+        const line = aoa[i];
+        const kenhBanVal = String(line[colKenh] || '').trim();
+        if (!kenhBanVal) continue;
+
+        const rowObj = { kenhBan: kenhBanVal };
+        for (let t = 1; t <= 12; t++) {
+          const colIdx = colThangs[t];
+          if (colIdx !== undefined) {
+            const rawVal = line[colIdx];
+            rowObj[`T${t}`] = rawVal !== '' ? Number(rawVal) : 0;
+          }
+        }
+        rows.push(rowObj);
+      }
+
+      const res = await fetch('/api/doanh-thu/import-chi-tieu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nam, rows }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setImportResult('success');
+        setImportSuccessCount(data.successCount);
+        fetchYear();
+      } else {
+        setImportResult('error');
+        setImportParseError(data.error || 'Nhập dữ liệu thất bại.');
+        setImportErrors(data.errors || []);
+      }
+    } catch (err) {
+      console.error(err);
+      setImportParseError('Lỗi đọc/xử lý file Excel. Vui lòng kiểm tra định dạng.');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleImportDailyFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setImportFileName(file.name);
+    setImportParseError('');
+    setImportResult(null);
+    setImportErrors([]);
+    setImportSuccessCount(0);
+    setImportLoading(true);
+
+    try {
+      const XLSX = await import('xlsx');
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
+
+      if (aoa.length < 2) {
+        setImportParseError('File không có dòng dữ liệu nào (chỉ có tiêu đề).');
+        setImportLoading(false);
+        return;
+      }
+
+      const headers = (aoa[0] || []).map(h => String(h || '').trim());
+      const norm = (s) => String(s || '').trim().toLowerCase();
+      const headersNorm = headers.map(norm);
+      const colNgay = headersNorm.findIndex(h => h === 'ngày' || h === 'ngay' || h === 'day');
+      if (colNgay === -1) {
+        setImportParseError('Không tìm thấy cột "Ngày".');
+        setImportLoading(false);
+        return;
+      }
+
+      const rows = [];
+      const ld = daysInMonth(nam, thang);
+      for (let i = 1; i < aoa.length; i++) {
+        const line = aoa[i];
+        const ngayVal = parseInt(line[colNgay], 10);
+        if (isNaN(ngayVal) || ngayVal < 1 || ngayVal > ld) {
+          const hasAnyVal = line.some((val, colIdx) => colIdx !== colNgay && val !== '');
+          if (!hasAnyVal) continue;
+        }
+
+        const rowObj = { ngay: line[colNgay] };
+        headers.forEach((h, colIdx) => {
+          if (colIdx === colNgay) return;
+          const val = line[colIdx];
+          if (val !== undefined && val !== null && val !== '') {
+            rowObj[h] = val;
+          }
+        });
+        rows.push(rowObj);
+      }
+
+      const res = await fetch('/api/doanh-thu/import-hang-ngay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nam, thang, rows }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setImportResult('success');
+        setImportSuccessCount(data.successCount);
+        await fetchDaily();
+        await fetchYear();
+      } else {
+        setImportResult('error');
+        setImportParseError(data.error || 'Nhập dữ liệu thất bại.');
+        setImportErrors(data.errors || []);
+      }
+    } catch (err) {
+      console.error(err);
+      setImportParseError('Lỗi đọc/xử lý file Excel. Vui lòng kiểm tra định dạng.');
+    } finally {
+      setImportLoading(false);
     }
   };
 
@@ -352,6 +610,18 @@ export default function DoanhThuPage() {
                   </span>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     {saveMsg && <span style={{ color: saveMsg.includes('Đã lưu') ? '#34d399' : '#f87171', fontSize: '0.85rem' }}>{saveMsg}</span>}
+                    <button className="btn btn-secondary" onClick={handleDownloadYearlyTemplate}>
+                      <Download size={14} /> Tải mẫu
+                    </button>
+                    <button className="btn btn-secondary" onClick={() => {
+                      setImportFileName('');
+                      setImportParseError('');
+                      setImportResult(null);
+                      setImportErrors([]);
+                      setIsImportYearlyOpen(true);
+                    }}>
+                      <Upload size={14} /> Nhập Excel
+                    </button>
                     <button className="btn btn-primary" onClick={handleSaveYear} disabled={saving || !hasDirtyYear}>
                       <Save size={14} /> {saving ? 'Đang lưu...' : 'Lưu chỉ tiêu'}
                     </button>
@@ -382,6 +652,18 @@ export default function DoanhThuPage() {
                   </span>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     {dailyMsg && <span style={{ color: dailyMsg.includes('Đã lưu') ? '#34d399' : '#f87171', fontSize: '0.85rem' }}>{dailyMsg}</span>}
+                    <button className="btn btn-secondary" onClick={handleDownloadDailyTemplate}>
+                      <Download size={14} /> Tải mẫu
+                    </button>
+                    <button className="btn btn-secondary" onClick={() => {
+                      setImportFileName('');
+                      setImportParseError('');
+                      setImportResult(null);
+                      setImportErrors([]);
+                      setIsImportDailyOpen(true);
+                    }}>
+                      <Upload size={14} /> Nhập Excel
+                    </button>
                     <button className="btn btn-secondary" onClick={fetchDaily} disabled={dailyLoading}>
                       <RefreshCw size={14} /> Làm mới
                     </button>
@@ -408,6 +690,178 @@ export default function DoanhThuPage() {
 
       {showKenhModal && (
         <KenhModal kenhBan={kenhBan} onClose={() => setShowKenhModal(false)} onChanged={fetchYear} />
+      )}
+
+      {isImportYearlyOpen && (
+        <div className={styles.modalOverlay} onClick={() => { if (!importLoading) setIsImportYearlyOpen(false); }}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Nhập chỉ tiêu doanh thu năm {nam}</h2>
+              <button className={styles.modalClose} onClick={() => setIsImportYearlyOpen(false)} disabled={importLoading}><X size={20} /></button>
+            </div>
+            
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <button type="button" onClick={handleDownloadYearlyTemplate} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+                <Download size={16} /> <span>Tải file Excel mẫu</span>
+              </button>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label className="form-label">Chọn file Excel (.xlsx) đã điền chỉ tiêu</label>
+              <label className={styles.uploadBox}>
+                <FileSpreadsheet size={32} style={{ color: '#6366f1' }} />
+                <span style={{ fontWeight: '600' }}>
+                  {importFileName ? `📄 ${importFileName}` : 'Bấm để chọn file .xlsx'}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Hệ thống sẽ cập nhật tự động chỉ tiêu 12 tháng của các kênh bán
+                </span>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleImportYearlyFile}
+                  style={{ display: 'none' }}
+                  disabled={importLoading}
+                />
+              </label>
+            </div>
+
+            {importLoading && (
+              <div style={{ textAlign: 'center', padding: '1rem' }}>
+                <div className={styles.spinner} style={{ margin: '0 auto 0.5rem' }}></div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Đang xử lý dữ liệu Excel...</p>
+              </div>
+            )}
+
+            {importResult === 'success' && (
+              <div className={styles.successAlert}>
+                <CheckCircle2 size={18} />
+                <span>
+                  Đã nhập thành công! Cập nhật <strong>{importSuccessCount}</strong> bản ghi chỉ tiêu.
+                </span>
+              </div>
+            )}
+
+            {importResult === 'error' && (
+              <div>
+                <div className={styles.errorAlert}>
+                  <AlertTriangle size={18} />
+                  <span>{importParseError}</span>
+                </div>
+                {importErrors.length > 0 && (
+                  <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', padding: '0.5rem' }}>
+                    <table className={styles.importErrorsTable}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: '60px' }}>Dòng</th>
+                          <th>Mô tả lỗi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importErrors.map((err, idx) => (
+                          <tr key={idx}>
+                            <td style={{ fontWeight: '700', color: '#ff8b8b' }}>{err.dong}</td>
+                            <td style={{ color: 'var(--text-main)' }}>{err.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem' }}>
+              <button className="btn btn-secondary" onClick={() => setIsImportYearlyOpen(false)} disabled={importLoading}>Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isImportDailyOpen && (
+        <div className={styles.modalOverlay} onClick={() => { if (!importLoading) setIsImportDailyOpen(false); }}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Nhập doanh thu ngày - Tháng {thang}/{nam}</h2>
+              <button className={styles.modalClose} onClick={() => setIsImportDailyOpen(false)} disabled={importLoading}><X size={20} /></button>
+            </div>
+            
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+              <button type="button" onClick={handleDownloadDailyTemplate} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+                <Download size={16} /> <span>Tải file Excel mẫu (Tháng {thang}/{nam})</span>
+              </button>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label className="form-label">Chọn file Excel (.xlsx) đã điền doanh thu ngày</label>
+              <label className={styles.uploadBox}>
+                <FileSpreadsheet size={32} style={{ color: '#10b981' }} />
+                <span style={{ fontWeight: '600' }}>
+                  {importFileName ? `📄 ${importFileName}` : 'Bấm để chọn file .xlsx'}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Hệ thống sẽ cập nhật doanh thu hàng ngày cho các kênh bán
+                </span>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleImportDailyFile}
+                  style={{ display: 'none' }}
+                  disabled={importLoading}
+                />
+              </label>
+            </div>
+
+            {importLoading && (
+              <div style={{ textAlign: 'center', padding: '1rem' }}>
+                <div className={styles.spinner} style={{ margin: '0 auto 0.5rem' }}></div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Đang xử lý dữ liệu Excel...</p>
+              </div>
+            )}
+
+            {importResult === 'success' && (
+              <div className={styles.successAlert}>
+                <CheckCircle2 size={18} />
+                <span>
+                  Đã nhập thành công! Cập nhật <strong>{importSuccessCount}</strong> bản ghi doanh thu.
+                </span>
+              </div>
+            )}
+
+            {importResult === 'error' && (
+              <div>
+                <div className={styles.errorAlert}>
+                  <AlertTriangle size={18} />
+                  <span>{importParseError}</span>
+                </div>
+                {importErrors.length > 0 && (
+                  <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', padding: '0.5rem' }}>
+                    <table className={styles.importErrorsTable}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: '60px' }}>Dòng</th>
+                          <th>Mô tả lỗi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importErrors.map((err, idx) => (
+                          <tr key={idx}>
+                            <td style={{ fontWeight: '700', color: '#ff8b8b' }}>{err.dong}</td>
+                            <td style={{ color: 'var(--text-main)' }}>{err.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem' }}>
+              <button className="btn btn-secondary" onClick={() => setIsImportDailyOpen(false)} disabled={importLoading}>Đóng</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

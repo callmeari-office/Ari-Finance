@@ -169,6 +169,12 @@ model DeXuatChiPhi {
   thuChi          ThuChi?     @relation(fields: [thuChiId], references: [id], onDelete: SetNull)
   nguoiTao        NhanVien    @relation("NguoiTao", fields: [nguoiTaoId], references: [id])
   nguoiDuyet      NhanVien?   @relation("NguoiDuyet", fields: [nguoiDuyetId], references: [id])
+
+  @@index([trangThai])
+  @@index([ngayPhatSinh])
+  @@index([nguoiTaoId])
+  @@index([danhMucId])
+  @@index([ngayCanThanhToan])
 }
 
 model ThuChi {
@@ -190,6 +196,11 @@ model ThuChi {
   nhaCungCap    NhaCungCap? @relation(fields: [nhaCungCapId], references: [id])
   nguoiTao      NhanVien  @relation(fields: [nguoiTaoId], references: [id])
   deXuatChiPhi  DeXuatChiPhi[]
+
+  @@index([ngayGiaoDich])
+  @@index([danhMucId])
+  @@index([quyId])
+  @@index([loaiGiaoDich, ngayGiaoDich])
 }
 
 model NganHang {
@@ -197,6 +208,36 @@ model NganHang {
   tenVietTat  String   @unique // Ví dụ: VCB, TCB, MB
   tenDayDu    String   // Ví dụ: Vietcombank, Techcombank
   createdAt   DateTime @default(now())
+}
+
+// Token đặt lại mật khẩu do OWNER gửi — TTL 1 giờ, dùng 1 lần.
+model PasswordResetToken {
+  id         String   @id @default(uuid())
+  token      String   @unique @default(uuid())
+  nhanVienId String
+  expiresAt  DateTime
+  used       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([nhanVienId])
+}
+
+// Phiếu chi định kỳ (template tái diễn hàng tháng).
+model PhieuDinhKy {
+  id                String   @id @default(uuid())
+  tenMau            String
+  noiDung           String
+  soTien            Float
+  danhMucId         String
+  nhaCungCapId      String?
+  nguonTien         String
+  trangThaiMacDinh  String   @default("CHO_THANH_TOAN")
+  ngayChiTrongThang Int      @default(1)
+  ghiChu            String?
+  active            Boolean  @default(true)
+  nguoiTaoId        String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 // Nhật ký thao tác (audit log) — ghi lại ai làm gì, lúc nào.

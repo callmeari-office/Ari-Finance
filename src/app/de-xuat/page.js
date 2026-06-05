@@ -71,6 +71,10 @@ export default function DeXuatPage() {
   const [formType, setFormType] = useState('ADD'); // 'ADD' hoặc 'EDIT'
   const [editingId, setEditingId] = useState(null);
 
+  // Ảnh hóa đơn đính kèm
+  const [anhHoaDon, setAnhHoaDon] = useState('');
+  const [anhLoading, setAnhLoading] = useState(false);
+
   // Quick NCC popup states
   const [isQuickNccOpen, setIsQuickNccOpen] = useState(false);
   const [quickTenNcc, setQuickTenNcc] = useState('');
@@ -336,6 +340,33 @@ export default function DeXuatPage() {
     return true;
   };
 
+  const handleAnhHoaDonChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Chỉ chấp nhận file ảnh (jpg, png, webp...).');
+      return;
+    }
+    setAnhLoading(true);
+    try {
+      const { compressImage } = await import('@/lib/compressImage');
+      const compressed = await compressImage(file, { maxWidth: 1000, maxHeight: 1000, quality: 0.7 });
+      // Kiểm tra kích thước sau compress (client-side)
+      const base64 = compressed.split(',')[1] || '';
+      if (base64.length * 0.75 > 2 * 1024 * 1024) {
+        alert('Ảnh sau khi nén vẫn quá 2 MB. Vui lòng chọn ảnh nhỏ hơn.');
+        setAnhLoading(false);
+        return;
+      }
+      setAnhHoaDon(compressed);
+    } catch (err) {
+      alert('Không thể đọc ảnh: ' + err.message);
+    } finally {
+      setAnhLoading(false);
+    }
+  };
+
   const handleOpenAdd = () => {
     setFormType('ADD');
     setEditingId(null);
@@ -348,6 +379,7 @@ export default function DeXuatPage() {
     setNhaCungCapId('');
     setGhiChu('');
     setNoiDung('');
+    setAnhHoaDon('');
 
     setFormError('');
     setFormSuccess('');
@@ -366,6 +398,7 @@ export default function DeXuatPage() {
     setNhaCungCapId(prop.nhaCungCapId || '');
     setGhiChu(prop.ghiChu || '');
     setNoiDung(prop.noiDung);
+    setAnhHoaDon(prop.anhHoaDon || '');
     setFormError('');
     setFormSuccess('');
     setIsModalOpen(true);
@@ -669,6 +702,7 @@ export default function DeXuatPage() {
           trangThai,
           ghiChu,
           ngayCanThanhToan: ngayCanThanhToan || null,
+          anhHoaDon: anhHoaDon || null,
         }),
       });
 
@@ -1358,6 +1392,37 @@ export default function DeXuatPage() {
                   />
                 </div>
 
+                {/* Upload ảnh hóa đơn */}
+                <div className="form-group">
+                  <label className="form-label">Ảnh hóa đơn / chứng từ (tùy chọn, tối đa 2 MB)</label>
+                  <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                    <label style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      gap: '0.35rem', border: '1.5px dashed var(--border)', borderRadius: '10px',
+                      padding: '0.75rem 1.25rem', cursor: 'pointer', fontSize: '0.82rem',
+                      color: 'var(--text-muted)', minWidth: '120px', transition: 'border-color 0.15s',
+                    }}>
+                      <Upload size={20} style={{ color: 'var(--primary)' }} />
+                      <span>{anhLoading ? 'Đang nén...' : 'Chọn ảnh'}</span>
+                      <input type="file" accept="image/*" onChange={handleAnhHoaDonChange} style={{ display: 'none' }} disabled={formLoading || anhLoading} />
+                    </label>
+                    {anhHoaDon && (
+                      <div style={{ position: 'relative', display: 'inline-block' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={anhHoaDon} alt="Ảnh hóa đơn" style={{ height: '80px', width: 'auto', maxWidth: '140px', borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--border)' }} />
+                        <button
+                          type="button"
+                          onClick={() => setAnhHoaDon('')}
+                          style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#ef4444', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                          title="Xóa ảnh"
+                          disabled={formLoading}
+                        >
+                          <X size={12} color="#fff" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 <div className={styles.formActions}>
                   <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary" disabled={formLoading}>
@@ -1942,6 +2007,23 @@ export default function DeXuatPage() {
                   </div>
                 )}
               </div>
+
+              {/* Ảnh hóa đơn nếu có */}
+              {selectedProp.anhHoaDon && (
+                <div style={{ marginTop: '1.25rem' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                    Ảnh hóa đơn / chứng từ:
+                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={selectedProp.anhHoaDon}
+                    alt="Ảnh hóa đơn"
+                    style={{ maxWidth: '100%', maxHeight: '320px', objectFit: 'contain', borderRadius: '10px', border: '1px solid var(--border)', cursor: 'zoom-in' }}
+                    onClick={() => window.open(selectedProp.anhHoaDon, '_blank')}
+                    title="Bấm để xem ảnh đầy đủ"
+                  />
+                </div>
+              )}
 
               <div className={styles.modalActions} style={{ marginTop: '2rem' }}>
                 {selectedProp.trangThai !== 'DA_THANH_TOAN' && selectedProp.trangThai !== 'HUY' && (

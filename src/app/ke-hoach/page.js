@@ -14,6 +14,11 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Upload,
+  Download,
+  FileSpreadsheet,
+  AlertCircle,
+  X,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './ke-hoach.module.css';
@@ -53,6 +58,15 @@ export default function KeHoachPage() {
 
   // Dashboard: expand state per nhóm
   const [expandedGroups, setExpandedGroups] = useState({});
+
+  // Import States
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importFileName, setImportFileName] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importParseError, setImportParseError] = useState('');
+  const [importResult, setImportResult] = useState(null);
+  const [importErrors, setImportErrors] = useState([]);
+  const [importSuccessCount, setImportSuccessCount] = useState(0);
 
   // Auth check
   useEffect(() => {
@@ -151,6 +165,134 @@ export default function KeHoachPage() {
     }
   };
 
+  // ── Download & Import Excel cho Kế hoạch Chi phí ──
+  const handleDownloadTemplate = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const headers = ['Danh mục chi', ...THANG_LABELS];
+      const rows = categories.map(cat => {
+        const row = [cat.tenDanhMuc];
+        for (let t = 1; t <= 12; t++) {
+          const val = getKH(cat.id, t);
+          row.push(val > 0 ? val : 0);
+        }
+        return row;
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      ws['!cols'] = [{ wch: 24 }, ...Array(12).fill({ wch: 12 })];
+
+      const refSheet = XLSX.utils.aoa_to_sheet([
+        ['DANH MỤC CHI HỢP LỆ (Copy chính xác tên vào cột "Danh mục chi")'],
+        ...categories.map(c => [c.tenDanhMuc])
+      ]);
+      refSheet['!cols'] = [{ wch: 40 }];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Kế hoạch chi phí');
+      XLSX.utils.book_append_sheet(wb, refSheet, 'DanhMuc hợp lệ');
+
+      XLSX.writeFile(wb, `mau-ke-hoach-chi-phi-nam-${nam}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert('Không tải được file mẫu.');
+    }
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setImportFileName(file.name);
+    setImportParseError('');
+    setImportResult(null);
+    setImportErrors([]);
+    setImportSuccessCount(0);
+    setImportLoading(true);
+
+    try {
+      const XLSX = await import('xlsx');
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false });
+
+      if (aoa.length < 2) {
+        setImportParseError('File không có dòng dữ liệu nào (chỉ có tiêu đề).');
+        setImportLoading(false);
+        return;
+      }
+
+      const norm = (s) => String(s || '').trim().toLowerCase();
+      const headers = (aoa[0] || []).map(norm);
+      const colDanhMuc = headers.findIndex(h => h.includes('danh mục chi') || h.includes('danhmucchi') || h.includes('danh mục') || h.includes('danhmuc'));
+      if (colDanhMuc === -1) {
+        setImportParseError('Không tìm thấy cột "Danh mục chi".');
+        setImportLoading(false);
+        return;
+      }
+
+      const colThangs = {};
+      for (let t = 1; t <= 12; t++) {
+        const idx = headers.findIndex(h => h === `t${t}` || h === `tháng ${t}` || h === `thang ${t}` || h === `th${t}`);
+        if (idx !== -1) {
+          colThangs[t] = idx;
+        } else {
+          const idxPartial = headers.findIndex(h => h.includes(`t${t}`) || h.includes(`t ${t}`));
+          if (idxPartial !== -1) {
+            colThangs[t] = idxPartial;
+          }
+        }
+      }
+
+      if (Object.keys(colThangs).length === 0) {
+        setImportParseError('Không tìm thấy các cột tháng (T1, T2, ..., T12).');
+        setImportLoading(false);
+        return;
+      }
+
+      const rows = [];
+      for (let i = 1; i < aoa.length; i++) {
+        const line = aoa[i];
+        const danhMucVal = String(line[colDanhMuc] || '').trim();
+        if (!danhMucVal) continue;
+
+        const rowObj = { danhMuc: danhMucVal };
+        for (let t = 1; t <= 12; t++) {
+          const colIdx = colThangs[t];
+          if (colIdx !== undefined) {
+            const rawVal = line[colIdx];
+            rowObj[`T${t}`] = rawVal !== '' ? Number(rawVal) : 0;
+          }
+        }
+        rows.push(rowObj);
+      }
+
+      const res = await fetch('/api/ke-hoach/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nam, rows }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setImportResult('success');
+        setImportSuccessCount(data.successCount);
+        fetchData();
+      } else {
+        setImportResult('error');
+        setImportParseError(data.error || 'Nhập dữ liệu thất bại.');
+        setImportErrors(data.errors || []);
+      }
+    } catch (err) {
+      console.error(err);
+      setImportParseError('Lỗi đọc/xử lý file Excel. Vui lòng kiểm tra định dạng.');
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
   // Nhóm danh mục CHI theo nhóm chi phí
   const groupedCats = groups
     .map((g) => ({
@@ -238,6 +380,18 @@ export default function KeHoachPage() {
               </span>
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 {saveMsg && <span style={{ color: saveMsg.includes('Đã lưu') ? '#34d399' : '#f87171', fontSize: '0.85rem' }}>{saveMsg}</span>}
+                <button className="btn btn-secondary" onClick={handleDownloadTemplate}>
+                  <Download size={14} /> Tải mẫu
+                </button>
+                <button className="btn btn-secondary" onClick={() => {
+                  setImportFileName('');
+                  setImportParseError('');
+                  setImportResult(null);
+                  setImportErrors([]);
+                  setIsImportOpen(true);
+                }}>
+                  <Upload size={14} /> Nhập Excel
+                </button>
                 <button className="btn btn-secondary" onClick={fetchData} disabled={dataLoading}>
                   <RefreshCw size={14} /> Làm mới
                 </button>
@@ -360,6 +514,91 @@ export default function KeHoachPage() {
             setExpandedGroups={setExpandedGroups}
             nam={nam}
           />
+        )}
+        {isImportOpen && (
+          <div className={styles.modalOverlay} onClick={() => { if (!importLoading) setIsImportOpen(false); }}>
+            <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                <h2>Nhập kế hoạch chi phí năm {nam}</h2>
+                <button className={styles.modalClose} onClick={() => setIsImportOpen(false)} disabled={importLoading}><X size={20} /></button>
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <button type="button" onClick={handleDownloadTemplate} className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+                  <Download size={16} /> <span>Tải file Excel mẫu</span>
+                </button>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Chọn file Excel (.xlsx) đã điền kế hoạch</label>
+                <label className={styles.uploadBox}>
+                  <FileSpreadsheet size={32} style={{ color: '#6366f1' }} />
+                  <span style={{ fontWeight: '600' }}>
+                    {importFileName ? `📄 ${importFileName}` : 'Bấm để chọn file .xlsx'}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Hệ thống sẽ cập nhật tự động kế hoạch 12 tháng của các danh mục chi
+                  </span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleImportFile}
+                    style={{ display: 'none' }}
+                    disabled={importLoading}
+                  />
+                </label>
+              </div>
+
+              {importLoading && (
+                <div style={{ textAlign: 'center', padding: '1rem' }}>
+                  <div className={styles.spinner} style={{ margin: '0 auto 0.5rem' }}></div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Đang xử lý dữ liệu Excel...</p>
+                </div>
+              )}
+
+              {importResult === 'success' && (
+                <div className={styles.successAlert}>
+                  <CheckCircle2 size={18} />
+                  <span>
+                    Đã nhập thành công! Cập nhật <strong>{importSuccessCount}</strong> bản ghi kế hoạch.
+                  </span>
+                </div>
+              )}
+
+              {importResult === 'error' && (
+                <div>
+                  <div className={styles.errorAlert}>
+                    <AlertTriangle size={18} />
+                    <span>{importParseError}</span>
+                  </div>
+                  {importErrors.length > 0 && (
+                    <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', padding: '0.5rem' }}>
+                      <table className={styles.importErrorsTable}>
+                        <thead>
+                          <tr>
+                            <th style={{ width: '60px' }}>Dòng</th>
+                            <th>Mô tả lỗi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importErrors.map((err, idx) => (
+                            <tr key={idx}>
+                              <td style={{ fontWeight: '700', color: '#ff8b8b' }}>{err.dong}</td>
+                              <td style={{ color: 'var(--text-main)' }}>{err.message}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1.5rem', gap: '0.5rem' }}>
+                <button className="btn btn-secondary" onClick={() => setIsImportOpen(false)} disabled={importLoading}>Đóng</button>
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>

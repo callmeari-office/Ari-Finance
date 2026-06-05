@@ -22,7 +22,8 @@ import {
   TrendingUp,
   KeyRound,
   ScrollText,
-  Scale
+  Scale,
+  Repeat
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
@@ -39,19 +40,11 @@ export default function Sidebar({ user }) {
     if (!user || (user.role !== 'OWNER' && user.role !== 'MANAGER')) return;
     const fetchPending = async () => {
       try {
-        const [resDx, resCb] = await Promise.all([
-          fetch('/api/de-xuat?limit=1000'),
-          fetch('/api/canh-bao'),
-        ]);
-        if (resDx.ok) {
-          const data = await resDx.json();
-          const count = (data.data || []).filter(
-            (p) => p.trangThai === 'CHO_THANH_TOAN' || p.trangThai === 'CHO_HOAN_UNG'
-          ).length;
-          setPendingCount(count);
-        }
+        // Chỉ gọi /api/canh-bao (đã trả sẵn pendingCount đếm nhẹ) — không kéo cả 1000 phiếu nữa.
+        const resCb = await fetch('/api/canh-bao');
         if (resCb.ok) {
           const cb = await resCb.json();
+          setPendingCount(cb.pendingCount || 0);
           setCanhBaoCount(cb.tongSo || 0);
         }
       } catch {}
@@ -142,6 +135,13 @@ export default function Sidebar({ user }) {
       roles: ['OWNER'],
     },
     {
+      key: 'dinhKy',
+      name: 'Chi phí định kỳ',
+      path: '/dinh-ky',
+      icon: Repeat,
+      roles: ['OWNER', 'MANAGER'],
+    },
+    {
       key: 'nhanSu',
       name: 'Nhân sự',
       path: '/nhan-su',
@@ -212,7 +212,7 @@ export default function Sidebar({ user }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="Logo" className={styles.logoImg} />
             <div className={styles.brandText}>
-              <span className={styles.appName}>Ari-Finance</span>
+              <span className={styles.appName}>ARI Finance</span>
               <span className={styles.appSub}>Quản lý tài chính</span>
             </div>
           </div>

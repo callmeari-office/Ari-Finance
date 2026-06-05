@@ -21,7 +21,7 @@ export async function PUT(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const { hoTen, tenNgan, email, phone, phongBan, viTri, matKhau, role, trangThai } = body;
+    const { hoTen, tenNgan, username, email, phone, phongBan, viTri, matKhau, role, trangThai } = body;
 
     const existingNhanVien = await prisma.nhanVien.findUnique({
       where: { id },
@@ -34,7 +34,41 @@ export async function PUT(request, { params }) {
     const updateData = {};
     if (hoTen) updateData.hoTen = hoTen;
     if (tenNgan !== undefined) updateData.tenNgan = tenNgan || null;
-    if (email !== undefined && email !== null) updateData.email = email.trim();
+
+    if (username && username.trim() !== existingNhanVien.username) {
+      const trimmedUsername = username.trim();
+      if (trimmedUsername.length < 3 || trimmedUsername.length > 50) {
+        return NextResponse.json(
+          { error: 'Username phải từ 3–50 ký tự.' },
+          { status: 400 }
+        );
+      }
+      const duplicateUsername = await prisma.nhanVien.findUnique({
+        where: { username: trimmedUsername }
+      });
+      if (duplicateUsername) {
+        return NextResponse.json(
+          { error: 'Tên đăng nhập (Username) đã tồn tại.' },
+          { status: 400 }
+        );
+      }
+      updateData.username = trimmedUsername;
+    }
+
+    if (email && email.trim() !== existingNhanVien.email) {
+      const trimmedEmail = email.trim();
+      const duplicateEmail = await prisma.nhanVien.findUnique({
+        where: { email: trimmedEmail }
+      });
+      if (duplicateEmail) {
+        return NextResponse.json(
+          { error: 'Email đã tồn tại.' },
+          { status: 400 }
+        );
+      }
+      updateData.email = trimmedEmail;
+    }
+
     if (phone !== undefined) updateData.phone = phone;
     if (phongBan !== undefined) updateData.phongBan = phongBan;
     if (viTri !== undefined) updateData.viTri = viTri;
