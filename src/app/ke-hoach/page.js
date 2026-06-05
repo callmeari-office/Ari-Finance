@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   TableProperties,
   BarChart3,
+  CalendarDays,
   Save,
   RefreshCw,
   TrendingUp,
@@ -40,8 +41,9 @@ export default function KeHoachPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('ke-hoach'); // 'ke-hoach' | 'dashboard'
+  const [view, setView] = useState('ke-hoach'); // 'ke-hoach' | 'db-thang' | 'db-nam'
   const [nam, setNam] = useState(new Date().getFullYear());
+  const [thangXem, setThangXem] = useState(new Date().getMonth() + 1); // tháng đang xem ở DB Tháng
   const [dataLoading, setDataLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
@@ -77,7 +79,10 @@ export default function KeHoachPage() {
         if (!data?.authenticated) { router.push('/login'); return; }
         if (!canViewMenu(data.user, 'keHoach')) { alert('Bạn không có quyền truy cập.'); router.push('/'); return; }
         setUser(data.user);
-        if (data.user.role !== 'OWNER') setView('dashboard');
+        // OWNER mặc định vào màn lập Kế Hoạch; vai trò khác vào Dashboard đầu tiên được phép.
+        if (data.user.role !== 'OWNER') {
+          setView(canViewMenu(data.user, 'keHoachDBThang') ? 'db-thang' : 'db-nam');
+        }
         setLoading(false);
       })
       .catch(() => router.push('/login'));
@@ -329,6 +334,11 @@ export default function KeHoachPage() {
     );
   }
 
+  // Quyền xem từng Dashboard (phân quyền tinh ở trang /quyen). OWNER luôn xem được.
+  const canDBThang = canViewMenu(user, 'keHoachDBThang');
+  const canDBNam = canViewMenu(user, 'keHoachDBNam');
+  const isOwner = user?.role === 'OWNER';
+
   return (
     <div className="layout-wrapper">
       <Sidebar user={user} />
@@ -352,7 +362,7 @@ export default function KeHoachPage() {
               ))}
             </select>
             <div className={styles.viewToggle}>
-              {user?.role === 'OWNER' && (
+              {isOwner && (
                 <button
                   className={view === 'ke-hoach' ? styles.toggleActive : styles.toggleBtn}
                   onClick={() => setView('ke-hoach')}
@@ -360,12 +370,22 @@ export default function KeHoachPage() {
                   <TableProperties size={15} /> Kế Hoạch
                 </button>
               )}
-              <button
-                className={view === 'dashboard' ? styles.toggleActive : styles.toggleBtn}
-                onClick={() => setView('dashboard')}
-              >
-                <BarChart3 size={15} /> Dashboard
-              </button>
+              {canDBThang && (
+                <button
+                  className={view === 'db-thang' ? styles.toggleActive : styles.toggleBtn}
+                  onClick={() => setView('db-thang')}
+                >
+                  <CalendarDays size={15} /> DB Tháng
+                </button>
+              )}
+              {canDBNam && (
+                <button
+                  className={view === 'db-nam' ? styles.toggleActive : styles.toggleBtn}
+                  onClick={() => setView('db-nam')}
+                >
+                  <BarChart3 size={15} /> DB Năm
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -502,7 +522,20 @@ export default function KeHoachPage() {
           </>
         )}
 
-        {view === 'dashboard' && (
+        {view === 'db-thang' && canDBThang && (
+          <DashboardThangView
+            categories={categories}
+            groupedCats={groupedCats}
+            getKH={getKH}
+            getTT={getTT}
+            dataLoading={dataLoading}
+            nam={nam}
+            thang={thangXem}
+            setThang={setThangXem}
+          />
+        )}
+
+        {view === 'db-nam' && canDBNam && (
           <DashboardView
             categories={categories}
             groupedCats={groupedCats}
@@ -608,6 +641,336 @@ export default function KeHoachPage() {
   );
 }
 
+// Dashboard THEO THÁNG: so sánh thực chi vs kế hoạch của 1 tháng + dự đoán cuối tháng.
+function DashboardThangView({ categories, groupedCats, getKH, getTT, dataLoading, nam, thang, setThang }) {
+  const formatVND = (num) => Number(num || 0).toLocaleString('vi-VN') + ' ₫';
+  const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+  // Chi phí: cao là XẤU -> đỏ ≥100% (vượt KH), vàng 80-99% (sắp chạm), xanh <80% (trong KH).
+  const costColor = (p) => (p >= 100 ? 'var(--danger)' : p >= 80 ? 'var(--warning)' : 'var(--success)');
+
+  const khThang = categories.reduce((s, c) => s + getKH(c.id, thang), 0);
+  const ttThang = categories.reduce((s, c) => s + getTT(c.id, thang), 0);
+  const pct = khThang > 0 ? Math.round((ttThang / khThang) * 100) : null;
+  const conLai = khThang - ttThang;
+
+  const today = new Date();
+  const isCurrentMonth = nam === today.getFullYear() && thang === today.getMonth() + 1;
+  const daysInM = new Date(nam, thang, 0).getDate();
+  const daysPassed = isCurrentMonth ? today.getDate() : daysInM;
+  // Dự đoán cuối tháng = nhịp chi trung bình/ngày × số ngày trong tháng (chỉ cho tháng hiện tại).
+  const duDoan = isCurrentMonth && daysPassed > 0 ? Math.round((ttThang / daysPassed) * daysInM) : null;
+  const duDoanPct = duDoan !== null && khThang > 0 ? Math.round((duDoan / khThang) * 100) : null;
+
+  const soVuot = categories.filter((c) => getKH(c.id, thang) > 0 && getTT(c.id, thang) > getKH(c.id, thang)).length;
+  const topCat = categories
+    .map((c) => ({ ten: c.tenDanhMuc, tt: getTT(c.id, thang) }))
+    .filter((r) => r.tt > 0)
+    .sort((a, b) => b.tt - a.tt)[0] || null;
+
+  // Donut chart calculations
+  const donutData = groupedCats.map((grp) => {
+    const tt = grp.cats.reduce((s, c) => s + getTT(c.id, thang), 0);
+    return {
+      id: grp.id,
+      name: grp.tenNhom,
+      amount: tt
+    };
+  }).filter(d => d.amount > 0);
+
+  const totalDonutAmount = donutData.reduce((s, d) => s + d.amount, 0) || 1;
+  const DONUT_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-6)', 'var(--chart-7)'];
+  const donutSegments = donutData.map((d, i) => ({
+    ...d,
+    percent: (d.amount / totalDonutAmount) * 100,
+    color: DONUT_COLORS[i % DONUT_COLORS.length]
+  }));
+
+  let accumulated = 0;
+  const donutSegmentsWithOffsets = donutSegments.map((seg) => {
+    const offset = accumulated;
+    accumulated += seg.percent;
+    return { ...seg, offset };
+  });
+
+  const radius = 35;
+  const strokeWidth = 10;
+  const circumference = 2 * Math.PI * radius;
+
+  // Diverging variance chart calculations
+  const varianceData = groupedCats.map((grp) => {
+    const kh = grp.cats.reduce((s, c) => s + getKH(c.id, thang), 0);
+    const tt = grp.cats.reduce((s, c) => s + getTT(c.id, thang), 0);
+    return {
+      id: grp.id,
+      name: grp.tenNhom,
+      kh,
+      tt,
+      diff: tt - kh
+    };
+  }).filter(d => d.kh > 0 || d.tt > 0);
+
+  const maxAbsoluteDiff = Math.max(...varianceData.map(d => Math.abs(d.diff)), 1);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Chọn tháng */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Xem tháng:</span>
+        <select className="form-control" style={{ width: 'auto' }} value={thang} onChange={(e) => setThang(Number(e.target.value))}>
+          {MONTHS.map((m) => <option key={m} value={m}>Tháng {m}</option>)}
+        </select>
+        {isCurrentMonth && <span style={{ fontSize: '0.8rem', color: '#6366f1', fontWeight: 600 }}>● Tháng hiện tại</span>}
+      </div>
+
+      {dataLoading ? (
+        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Đang tải...</div>
+      ) : khThang === 0 && ttThang === 0 ? (
+        <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          Chưa có kế hoạch hoặc chi phí phát sinh nào trong Tháng {thang}/{nam}.
+        </div>
+      ) : (
+        <>
+          {/* KPI CARDS */}
+          <div className={styles.kpiGrid}>
+            <div className={`glass-card ${styles.kpiCard}`}>
+              <div className={styles.kpiLabel}><Target size={16} style={{ color: '#6366f1' }} /> Kế hoạch chi T{thang}</div>
+              <div className={styles.kpiValue} style={{ color: '#6366f1' }}>{formatVND(khThang)}</div>
+              <div className={styles.kpiSub}>Ngân sách dự kiến tháng</div>
+            </div>
+
+            <div className={`glass-card ${styles.kpiCard}`}>
+              <div className={styles.kpiLabel}><TrendingDown size={16} style={{ color: '#ef4444' }} /> Thực chi T{thang}</div>
+              <div className={styles.kpiValue} style={{ color: '#ef4444' }}>{formatVND(ttThang)}</div>
+              <div className={styles.kpiSub}>
+                {khThang === 0 ? <span style={{ color: 'var(--text-muted)' }}>Chưa lập KH</span>
+                  : conLai < 0 ? <span style={{ color: '#f87171' }}>▲ Vượt {formatVND(-conLai)}</span>
+                  : <span style={{ color: '#34d399' }}>Còn được chi {formatVND(conLai)}</span>}
+              </div>
+            </div>
+
+            <div className={`glass-card ${styles.kpiCard}`}>
+              <div className={styles.kpiLabel}><BarChart3 size={16} style={{ color: '#f59e0b' }} /> Tỉ lệ thực hiện</div>
+              <div className={styles.kpiValue} style={{ color: pct === null ? 'var(--text-muted)' : costColor(pct) }}>
+                {pct === null ? '—' : `${pct}%`}
+              </div>
+              {pct === null ? <div className={styles.kpiSub}>Chưa lập kế hoạch</div> : <ProgressBar value={pct} />}
+            </div>
+
+            {isCurrentMonth && khThang > 0 ? (
+              <div className={`glass-card ${styles.kpiCard}`}>
+                <div className={styles.kpiLabel}><TrendingUp size={16} style={{ color: '#10b981' }} /> Dự đoán cuối tháng</div>
+                <div className={styles.kpiValue} style={{ color: duDoanPct === null ? 'var(--text-muted)' : costColor(duDoanPct) }}>{formatVND(duDoan)}</div>
+                <div className={styles.kpiSub}>
+                  {duDoanPct !== null && duDoanPct >= 100
+                    ? <span style={{ color: '#f87171' }}>Dự kiến VƯỢT {duDoanPct - 100}% KH</span>
+                    : <span style={{ color: '#34d399' }}>Dự kiến trong KH ({duDoanPct ?? 0}%)</span>}
+                  {` · theo ${daysPassed}/${daysInM} ngày`}
+                </div>
+              </div>
+            ) : (
+              <div className={`glass-card ${styles.kpiCard}`}>
+                <div className={styles.kpiLabel}><AlertTriangle size={16} style={{ color: '#f59e0b' }} /> {topCat ? 'Chi nhiều nhất' : 'Vượt kế hoạch'}</div>
+                {topCat ? (
+                  <>
+                    <div className={styles.kpiValue} style={{ fontSize: '1.05rem', color: 'var(--brand-brown)' }}>{topCat.ten}</div>
+                    <div className={styles.kpiSub}>{formatVND(topCat.tt)} · {soVuot} danh mục vượt KH</div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.kpiValue}>{soVuot}</div>
+                    <div className={styles.kpiSub}>danh mục vượt kế hoạch</div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* CEO VISUAL DASHBOARD CHARTS */}
+          <div className={styles.chartsGrid}>
+            {/* Donut Chart */}
+            <div className="glass-card" style={{ padding: '1.25rem' }}>
+              <div className={styles.cardHeader}>
+                <Target size={18} style={{ color: 'var(--brand-accent)' }} />
+                <h2>Cơ cấu thực chi theo Nhóm</h2>
+              </div>
+              {donutSegments.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2.5rem 0' }}>
+                  Chưa có chi phí thực tế trong tháng {thang}/{nam}
+                </div>
+              ) : (
+                <div className={styles.donutWrapper}>
+                  <svg width="100" height="100" viewBox="0 0 100 100" className={styles.donutSvg}>
+                    <circle cx="50" cy="50" r={radius} fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth={strokeWidth} />
+                    {donutSegmentsWithOffsets.map((seg) => {
+                      const strokeDasharray = `${(seg.percent / 100) * circumference} ${circumference}`;
+                      const rotation = (seg.offset / 100) * 360;
+                      return (
+                        <circle
+                          key={seg.id}
+                          cx="50"
+                          cy="50"
+                          r={radius}
+                          fill="transparent"
+                          stroke={seg.color}
+                          strokeWidth={strokeWidth}
+                          strokeDasharray={strokeDasharray}
+                          transform={`rotate(${-90 + rotation} 50 50)`}
+                          style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+                        />
+                      );
+                    })}
+                  </svg>
+                  <div className={styles.donutLegends}>
+                    {donutSegmentsWithOffsets.map((seg) => (
+                      <div key={seg.id} className={styles.legendRow}>
+                        <div className={styles.legendLabelGroup}>
+                          <div className={styles.legendColorBox} style={{ backgroundColor: seg.color }} />
+                          <span>{seg.name}</span>
+                        </div>
+                        <span className={styles.legendPercent}>
+                          {seg.percent.toFixed(0)}% ({Number(seg.amount).toLocaleString('vi-VN')} đ)
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Diverging Bar Chart */}
+            <div className="glass-card" style={{ padding: '1.25rem' }}>
+              <div className={styles.cardHeader}>
+                <BarChart3 size={18} style={{ color: 'var(--brand-accent)' }} />
+                <h2>Độ lệch Ngân sách (Thực tế - Kế hoạch)</h2>
+              </div>
+              {varianceData.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2.5rem 0' }}>
+                  Chưa lập kế hoạch hoặc chi phí phát sinh
+                </div>
+              ) : (
+                <div className={styles.varianceChart}>
+                  {varianceData.map((d) => {
+                    const widthPercent = (Math.abs(d.diff) / maxAbsoluteDiff) * 50;
+                    const isOverspent = d.diff > 0;
+                    const displayVal = (d.diff > 0 ? '+' : '') + Number(d.diff).toLocaleString('vi-VN') + ' đ';
+                    
+                    return (
+                      <div key={d.id} className={styles.varianceRow}>
+                        <div className={styles.varianceLabel} title={d.name}>{d.name}</div>
+                        <div className={styles.varianceTrack}>
+                          <div className={styles.varianceMidline} />
+                          {d.diff !== 0 && (
+                            <div 
+                              className={`${styles.varianceBar} ${isOverspent ? styles.varianceBarPositive : styles.varianceBarNegative}`}
+                              style={{ 
+                                width: `${widthPercent}%`,
+                                [isOverspent ? 'left' : 'right']: '50%'
+                              }}
+                            />
+                          )}
+                        </div>
+                        <div className={styles.varianceVal} style={{ color: d.diff > 0 ? 'var(--alert-error-text)' : d.diff < 0 ? 'var(--alert-success-text)' : 'var(--text-muted)' }}>
+                          {d.diff === 0 ? 'Cân bằng' : displayVal}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                    <span>← Tiết kiệm (Xanh)</span>
+                    <span>Vượt hạn mức (Đỏ) →</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* BẢNG CHI TIẾT THEO DANH MỤC TRONG THÁNG */}
+          <div className="glass-card">
+            <div className={styles.cardHeader}>
+              <Target size={18} style={{ color: 'var(--brand-accent)' }} />
+              <h2>Chi tiết theo Danh mục — Tháng {thang}/{nam}</h2>
+            </div>
+            <div className="table-responsive">
+              <table className="custom-table" style={{ fontSize: '0.85rem' }}>
+                <thead>
+                  <tr>
+                    <th>Danh mục</th>
+                    <th style={{ textAlign: 'right' }}>Kế hoạch</th>
+                    <th style={{ textAlign: 'right' }}>Thực chi</th>
+                    <th style={{ textAlign: 'right' }}>Chênh lệch</th>
+                    <th style={{ textAlign: 'center' }}>Tỉ lệ</th>
+                    <th>Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupedCats.map((grp) => {
+                    const gKH = grp.cats.reduce((s, c) => s + getKH(c.id, thang), 0);
+                    const gTT = grp.cats.reduce((s, c) => s + getTT(c.id, thang), 0);
+                    if (gKH === 0 && gTT === 0) return null;
+                    const gp = gKH > 0 ? Math.round((gTT / gKH) * 100) : null;
+                    return (
+                      <React.Fragment key={grp.id}>
+                        <tr style={{ background: 'rgba(99,102,241,0.06)', fontWeight: 700 }}>
+                          <td>{grp.tenNhom}</td>
+                          <td style={{ textAlign: 'right' }}>{gKH > 0 ? formatVND(gKH) : '—'}</td>
+                          <td style={{ textAlign: 'right' }}>{gTT > 0 ? formatVND(gTT) : '—'}</td>
+                          <td style={{ textAlign: 'right', color: gTT - gKH > 0 ? '#ef4444' : '#34d399' }}>
+                            {gKH > 0 ? (gTT - gKH > 0 ? '+' : '') + formatVND(gTT - gKH) : '—'}
+                          </td>
+                          <td style={{ textAlign: 'center', color: gp === null ? 'var(--text-muted)' : costColor(gp) }}>{gp === null ? '—' : `${gp}%`}</td>
+                          <td></td>
+                        </tr>
+                        {grp.cats.map((cat) => {
+                          const kh = getKH(cat.id, thang);
+                          const tt = getTT(cat.id, thang);
+                          if (kh === 0 && tt === 0) return null;
+                          const p = kh > 0 ? Math.round((tt / kh) * 100) : null;
+                          const diff = tt - kh;
+                          return (
+                            <tr key={cat.id}>
+                              <td style={{ paddingLeft: '1.5rem' }}>{cat.tenDanhMuc}</td>
+                              <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{kh > 0 ? formatVND(kh) : '—'}</td>
+                              <td style={{ textAlign: 'right', fontWeight: 600 }}>{tt > 0 ? formatVND(tt) : '—'}</td>
+                              <td style={{ textAlign: 'right', color: diff > 0 ? '#ef4444' : '#34d399', fontWeight: 600 }}>
+                                {kh > 0 ? (diff > 0 ? '+' : '') + formatVND(diff) : '—'}
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                {p !== null ? <span style={{ fontWeight: 700, color: costColor(p) }}>{p}%</span> : '—'}
+                              </td>
+                              <td>
+                                {kh === 0 ? <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>Chưa lập KH</span>
+                                  : p >= 100 ? <span className={styles.badgeRed}><AlertTriangle size={12} /> Vượt KH</span>
+                                  : p >= 80 ? <span className={styles.badgeYellow}><AlertTriangle size={12} /> Sắp chạm</span>
+                                  : <span className={styles.badgeGreen}><CheckCircle2 size={12} /> Trong KH</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr style={{ fontWeight: 700, background: 'rgba(255,255,255,0.04)' }}>
+                    <td>TỔNG THÁNG {thang}</td>
+                    <td style={{ textAlign: 'right' }}>{formatVND(khThang)}</td>
+                    <td style={{ textAlign: 'right' }}>{formatVND(ttThang)}</td>
+                    <td style={{ textAlign: 'right', color: ttThang - khThang > 0 ? '#ef4444' : '#34d399' }}>
+                      {khThang > 0 ? (ttThang - khThang > 0 ? '+' : '') + formatVND(ttThang - khThang) : '—'}
+                    </td>
+                    <td style={{ textAlign: 'center', color: pct === null ? 'var(--text-muted)' : costColor(pct), fontWeight: 800 }}>{pct === null ? '—' : `${pct}%`}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function DashboardView({
   categories, groupedCats, getKH, getTT,
   tongKHThang, tongTTThang, tongKHNam, tongTTNam,
@@ -681,6 +1044,71 @@ function DashboardView({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* BIỂU ĐỒ XU HƯỚNG CẢ NĂM */}
+          <div className="glass-card" style={{ padding: '1.25rem' }}>
+            <div className={styles.cardHeader}>
+              <BarChart3 size={18} style={{ color: 'var(--brand-accent)' }} />
+              <h2>Biểu đồ Xu hướng Chi phí cả năm {nam}</h2>
+            </div>
+            
+            <div className={styles.chartLegend}>
+              <div className={styles.legendItem}>
+                <div className={styles.legendSwatch} style={{ backgroundColor: 'var(--chart-1)' }} />
+                <span>Kế hoạch năm</span>
+              </div>
+              <div className={styles.legendItem}>
+                <div className={styles.legendSwatch} style={{ backgroundColor: 'var(--success)' }} />
+                <span>Thực tế trong hạn mức (Xanh)</span>
+              </div>
+              <div className={styles.legendItem}>
+                <div className={styles.legendSwatch} style={{ backgroundColor: 'var(--danger)' }} />
+                <span>Thực tế vượt hạn mức (Đỏ)</span>
+              </div>
+            </div>
+
+            <div className={styles.chartScroll}>
+              <div className={styles.chart}>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((t) => {
+                  const kh = tongKHThang(t);
+                  const tt = tongTTThang(t);
+                  
+                  // Compute max for scaling
+                  const maxVal = Math.max(...Array.from({ length: 12 }, (_, i) => i + 1).map(m => Math.max(tongKHThang(m), tongTTThang(m))), 1);
+                  const heightKH = kh > 0 ? (kh / maxVal) * 100 : 0;
+                  const heightTT = tt > 0 ? (tt / maxVal) * 100 : 0;
+                  
+                  const isCurrentMonth = new Date().getFullYear() === nam && new Date().getMonth() + 1 === t;
+
+                  return (
+                    <div key={t} className={styles.chartCol}>
+                      <div className={styles.chartBars}>
+                        <div 
+                          className={`${styles.bar} ${styles.barKH}`} 
+                          style={{ height: `${heightKH}%` }} 
+                          title={`Kế hoạch: ${Number(kh).toLocaleString('vi-VN')} đ`}
+                        />
+                        <div 
+                          className={styles.bar} 
+                          style={{ 
+                            height: `${heightTT}%`, 
+                            backgroundColor: tt > kh ? 'var(--danger)' : 'var(--success)' 
+                          }} 
+                          title={`Thực chi: ${Number(tt).toLocaleString('vi-VN')} đ`}
+                        />
+                      </div>
+                      <span 
+                        className={styles.barLabel} 
+                        style={isCurrentMonth ? { color: '#6366f1', fontWeight: 700 } : {}}
+                      >
+                        Tháng {t}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {/* BẢNG SO SÁNH THEO THÁNG */}
@@ -862,7 +1290,7 @@ function DashboardView({
 
 function ProgressBar({ value }) {
   const capped = Math.min(value, 100);
-  const color = value >= 100 ? '#ef4444' : value >= 80 ? '#f59e0b' : '#34d399';
+  const color = value >= 100 ? 'var(--danger)' : value >= 80 ? 'var(--warning)' : 'var(--success)';
   return (
     <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '999px', height: '6px', overflow: 'hidden', marginTop: '4px' }}>
       <div style={{ width: `${capped}%`, height: '100%', background: color, borderRadius: '999px', transition: 'width 0.4s' }} />

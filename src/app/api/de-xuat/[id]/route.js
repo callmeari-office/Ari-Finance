@@ -49,6 +49,63 @@ export async function GET(request, { params }) {
   }
 }
 
+// Xóa cứng đề xuất — CHỈ OWNER, chỉ với phiếu CHƯA gắn dòng tiền (chứng từ rác)
+export async function DELETE(request, { params }) {
+  try {
+    const user = await getSession();
+    if (!user) {
+      return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+    }
+
+    // Chỉ Chủ shop (OWNER) mới được xóa vĩnh viễn
+    if (user.role !== 'OWNER') {
+      return NextResponse.json(
+        { error: 'Chỉ Chủ shop (Owner) mới có quyền xóa vĩnh viễn đề xuất.' },
+        { status: 403 }
+      );
+    }
+
+    const { id } = await params;
+
+    const existingProposal = await prisma.deXuatChiPhi.findUnique({
+      where: { id },
+    });
+
+    if (!existingProposal) {
+      return NextResponse.json({ error: 'Không tìm thấy đề xuất.' }, { status: 404 });
+    }
+
+    // Không cho xóa phiếu đã gắn dòng tiền (đã thanh toán thực tế) để tránh lệch quỹ/sổ sách
+    if (existingProposal.thuChiId !== null) {
+      return NextResponse.json(
+        { error: 'Đề xuất đã thanh toán và liên kết dòng tiền, không thể xóa vĩnh viễn. Hãy xử lý phiếu chi liên quan trước.' },
+        { status: 400 }
+      );
+    }
+
+    await prisma.deXuatChiPhi.delete({ where: { id } });
+
+    await ghiNhatKy({
+      user,
+      hanhDong: 'XOA',
+      doiTuong: 'DE_XUAT',
+      maDoiTuong: existingProposal.maPhieu,
+      moTa: `Xóa vĩnh viễn đề xuất "${existingProposal.noiDung}" (${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ)`,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Đã xóa vĩnh viễn đề xuất ${existingProposal.maPhieu}.`,
+    });
+  } catch (error) {
+    logger.error('DELETE /api/de-xuat/[id]', error);
+    return NextResponse.json(
+      { error: 'Đã xảy ra lỗi trên hệ thống.' },
+      { status: 500 }
+    );
+  }
+}
+
 // Cập nhật, Duyệt (TH1, TH2) hoặc Hủy đề xuất
 export async function PUT(request, { params }) {
   try {

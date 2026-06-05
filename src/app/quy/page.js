@@ -9,24 +9,48 @@ import {
   DollarSign,
   ChevronDown,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle,
+  SlidersHorizontal,
+  ArrowRight,
+  UserCheck,
+  X,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './quy.module.css';
+
+const KY_OPTIONS = [
+  { key: 'thang', label: 'Tháng này' },
+  { key: 'nam', label: 'Năm nay' },
+  { key: 'all', label: 'Tất cả' },
+];
+
+const RECENT_LIMIT = 8;
 
 export default function QuyReportPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Data states
   const [funds, setFunds] = useState([]);
-  const [transactions, setTransactions] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [expandedFund, setExpandedFund] = useState(null);
 
+  // Lazy-load phiếu của từng quỹ: { [fundId]: { loading, items, error } }
+  const [fundDetails, setFundDetails] = useState({});
+
+  // KPI dòng tiền theo kỳ
+  const [ky, setKy] = useState('thang');
+  const [cashflow, setCashflow] = useState({ kyThu: 0, kyChi: 0, netCashflow: 0, tienDangUng: 0, soPhieuDangUng: 0 });
+
+  // Modal điều chỉnh số dư (OWNER)
+  const [adjustFund, setAdjustFund] = useState(null);
+  const [adjustTarget, setAdjustTarget] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [adjustSubmitting, setAdjustSubmitting] = useState(false);
+  const [adjustError, setAdjustError] = useState('');
+
   useEffect(() => {
-    // 1. Kiểm tra session & vai trò (Chỉ OWNER/MANAGER được vào dựa trên permissions)
     fetch('/api/auth/me')
       .then((res) => {
         if (res.status === 401) {
@@ -44,8 +68,7 @@ export default function QuyReportPage() {
           }
           setUser(data.user);
           setLoading(false);
-          // 2. Fetch data
-          fetchData();
+          fetchFunds();
         }
       })
       .catch(() => {
@@ -53,26 +76,91 @@ export default function QuyReportPage() {
       });
   }, [router]);
 
-  const fetchData = async () => {
+  const fetchFunds = async () => {
     setDataLoading(true);
     try {
-      // Fetch funds
       const quyRes = await fetch('/api/quy');
       if (quyRes.ok) {
         const quyData = await quyRes.json();
-        setFunds(quyData);
-      }
-
-      // Fetch all transactions
-      const txRes = await fetch('/api/thu-chi?limit=100');
-      if (txRes.ok) {
-        const txData = await txRes.json();
-        setTransactions(txData.data || []);
+        setFunds(Array.isArray(quyData) ? quyData : []);
       }
     } catch (e) {
       console.error('Error fetching fund data:', e);
     } finally {
       setDataLoading(false);
+    }
+  };
+
+  // Tải KPI dòng tiền theo kỳ mỗi khi đổi kỳ
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetch(`/api/quy/cashflow?ky=${ky}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d && !cancelled) setCashflow(d);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [ky, user]);
+
+  const toggleExpand = async (fundId) => {
+    if (expandedFund === fundId) {
+      setExpandedFund(null);
+      return;
+    }
+    setExpandedFund(fundId);
+    // Lazy-load lần đầu
+    if (!fundDetails[fundId]) {
+      setFundDetails((prev) => ({ ...prev, [fundId]: { loading: true, items: [], error: '' } }));
+      try {
+        const res = await fetch(`/api/thu-chi?quyId=${encodeURIComponent(fundId)}&limit=${RECENT_LIMIT}`);
+        if (res.ok) {
+          const d = await res.json();
+          setFundDetails((prev) => ({ ...prev, [fundId]: { loading: false, items: d.data || [], error: '' } }));
+        } else {
+          setFundDetails((prev) => ({ ...prev, [fundId]: { loading: false, items: [], error: 'Không tải được phiếu.' } }));
+        }
+      } catch {
+        setFundDetails((prev) => ({ ...prev, [fundId]: { loading: false, items: [], error: 'Không tải được phiếu.' } }));
+      }
+    }
+  };
+
+  const openAdjust = (fund, e) => {
+    if (e) e.stopPropagation();
+    setAdjustFund(fund);
+    setAdjustTarget(String(Math.round(fund.soDuHienTai)));
+    setAdjustReason('');
+    setAdjustError('');
+  };
+
+  const submitAdjust = async () => {
+    if (!adjustFund) return;
+    const target = parseInt(String(adjustTarget).replace(/[^\d-]/g, ''), 10);
+    if (isNaN(target)) {
+      setAdjustError('Vui lòng nhập số dư thực tế hợp lệ.');
+      return;
+    }
+    setAdjustSubmitting(true);
+    setAdjustError('');
+    try {
+      const res = await fetch(`/api/quy/${encodeURIComponent(adjustFund.id)}/dieu-chinh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ soDuMucTieu: target, lyDo: adjustReason.trim() }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setAdjustFund(null);
+        await fetchFunds();
+      } else {
+        setAdjustError(d.error || 'Có lỗi xảy ra.');
+      }
+    } catch {
+      setAdjustError('Không kết nối được máy chủ.');
+    } finally {
+      setAdjustSubmitting(false);
     }
   };
 
@@ -85,20 +173,24 @@ export default function QuyReportPage() {
     );
   }
 
-  // TÍNH TOÁN CÁC CHỈ SỐ QUỸ REALTIME
-  
-  // 1. Tổng số dư khả dụng (Tổng tất cả các quỹ)
+  const isOwner = user?.role === 'OWNER';
+  const formatVND = (num) => Number(num || 0).toLocaleString('vi-VN') + ' ₫';
+
   const tongSoDuQuy = funds.reduce((sum, f) => sum + f.soDuHienTai, 0);
+  const tongDuongDuong = funds.reduce((s, f) => s + Math.max(0, f.soDuHienTai), 0); // mẫu số cho tỷ trọng
+  const coQuyAm = funds.some((f) => f.soDuHienTai < 0);
+  const kyLabel = (KY_OPTIONS.find((o) => o.key === ky) || {}).label || '';
 
-  // 2. Dòng tiền Cashflow lũy kế (tính toán từ danh sách quỹ được trả về từ API)
-  const tongDongTienVao = funds.reduce((sum, f) => sum + (f.tongThu || 0), 0);
-  const tongDongTienRa = funds.reduce((sum, f) => sum + (f.tongChi || 0), 0);
+  const loaiQuyLabel = (lq) =>
+    lq === 'TIEN_MAT' ? '💵 Tiền mặt' : lq === 'NGAN_HANG' ? '🏦 Ngân hàng' : '👤 Cá nhân ứng';
 
-  const netCashflow = tongDongTienVao - tongDongTienRa;
-
-  const formatVND = (num) => {
-    return num.toLocaleString('vi-VN') + ' ₫';
-  };
+  // Preview chênh lệch trong modal điều chỉnh
+  const adjustDelta = (() => {
+    if (!adjustFund) return 0;
+    const t = parseInt(String(adjustTarget).replace(/[^\d-]/g, ''), 10);
+    if (isNaN(t)) return 0;
+    return t - adjustFund.soDuHienTai;
+  })();
 
   return (
     <div className="layout-wrapper">
@@ -108,170 +200,333 @@ export default function QuyReportPage() {
         <div className={styles.pageHeader}>
           <div>
             <h1>Thông tin Quỹ</h1>
-            <p className={styles.pageDesc}>Theo dõi trạng thái số dư realtime chi tiết và lịch sử dòng tiền vào ra trên các quỹ</p>
+            <p className={styles.pageDesc}>Theo dõi số dư realtime và dòng tiền vào ra trên các quỹ</p>
           </div>
         </div>
 
-        {/* Realtime Fund Summary Widgets */}
-        <div className={styles.summaryGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+        {/* Cảnh báo quỹ âm */}
+        {coQuyAm && (
+          <div className={styles.warningBanner}>
+            <AlertTriangle size={18} />
+            <span>Có quỹ đang bị <strong>âm số dư</strong>. Kiểm tra lại các phiếu chi hoặc điều chỉnh cân bằng.</span>
+          </div>
+        )}
+
+        {/* Bộ chọn kỳ cho dòng tiền VÀO/RA */}
+        <div className={styles.kyBar}>
+          <span className={styles.kyLabel}>Dòng tiền theo kỳ:</span>
+          <div className={styles.kyToggle}>
+            {KY_OPTIONS.map((o) => (
+              <button
+                key={o.key}
+                className={`${styles.kyBtn} ${ky === o.key ? styles.kyBtnActive : ''}`}
+                onClick={() => setKy(o.key)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* KPI cards */}
+        <div className={styles.summaryGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
           <div className={`${styles.sumCard} glass-card`} style={{ borderLeft: '4px solid var(--brand-brown)' }}>
             <div className={styles.sumHeader}>
               <span style={{ color: 'var(--brand-brown)', fontWeight: '700' }}>Tổng số dư các Quỹ</span>
               <Wallet className={styles.sumIcon} style={{ color: 'var(--brand-brown)' }} />
             </div>
-            <h3 style={{ fontSize: '1.6rem', color: 'var(--text-main)' }}>{formatVND(tongSoDuQuy)}</h3>
-            <p>Tổng tiền mặt & ngân hàng thực tế khả dụng</p>
+            <h3 style={{ fontSize: '1.6rem', color: tongSoDuQuy >= 0 ? 'var(--text-main)' : '#f87171' }}>{formatVND(tongSoDuQuy)}</h3>
+            <p>Tiền mặt &amp; ngân hàng thực tế khả dụng (số dư hiện tại)</p>
           </div>
 
           <div className={`${styles.sumCard} ${styles.greenBg} glass-card`}>
             <div className={styles.sumHeader}>
-              <span>Tổng dòng tiền VÀO (THU)</span>
+              <span>Dòng tiền VÀO (THU)</span>
               <TrendingUp className={styles.sumIcon} />
             </div>
-            <h3>+{formatVND(tongDongTienVao)}</h3>
-            <p>Doanh thu lũy kế nạp vào quỹ shop</p>
+            <h3>+{formatVND(cashflow.kyThu)}</h3>
+            <p>Tiền thu nạp vào quỹ — {kyLabel.toLowerCase()}</p>
           </div>
 
           <div className={`${styles.sumCard} ${styles.redBg} glass-card`}>
             <div className={styles.sumHeader}>
-              <span>Tổng dòng tiền RA (CHI)</span>
+              <span>Dòng tiền RA (CHI)</span>
               <TrendingDown className={styles.sumIcon} />
             </div>
-            <h3>-{formatVND(tongDongTienRa)}</h3>
-            <p>Chi tiêu thanh toán & hoàn ứng lũy kế</p>
+            <h3>-{formatVND(cashflow.kyChi)}</h3>
+            <p>Chi thanh toán &amp; hoàn ứng — {kyLabel.toLowerCase()}</p>
           </div>
 
           <div className={`${styles.sumCard} ${styles.blueBg} glass-card`}>
             <div className={styles.sumHeader}>
-              <span>Dòng tiền thuần (Net Cashflow)</span>
+              <span>Dòng tiền thuần (Net)</span>
               <DollarSign className={styles.sumIcon} />
             </div>
-            <h3 style={{ color: netCashflow >= 0 ? '#34d399' : '#f87171' }}>
-              {netCashflow >= 0 ? '+' : ''}{formatVND(netCashflow)}
+            <h3 style={{ color: cashflow.netCashflow >= 0 ? '#34d399' : '#f87171' }}>
+              {cashflow.netCashflow >= 0 ? '+' : ''}{formatVND(cashflow.netCashflow)}
             </h3>
-            <p>Hiệu số thu chi tích lũy dòng tiền</p>
+            <p>Hiệu thu − chi {kyLabel.toLowerCase()}</p>
           </div>
         </div>
 
-        {/* Quys Status Table */}
+        {/* Thông tin tiền NV đang ứng */}
+        {cashflow.tienDangUng > 0 && (
+          <div className={styles.ungBanner}>
+            <UserCheck size={18} />
+            <span>
+              Nhân viên đang ứng cá nhân chưa được hoàn: <strong>{formatVND(cashflow.tienDangUng)}</strong>
+              {cashflow.soPhieuDangUng ? ` (${cashflow.soPhieuDangUng} phiếu)` : ''}.{' '}
+              <a href="/de-xuat/duyet" className={styles.ungLink}>Xử lý hoàn ứng →</a>
+            </span>
+          </div>
+        )}
+
+        {/* Bảng kê quỹ */}
         <div className="glass-card">
           <div className={styles.cardHeader}>
             <Wallet size={20} className={styles.cardTitleIcon} />
             <h2>Bảng kê số dư chi tiết các Quỹ tiền</h2>
           </div>
+
           {dataLoading ? (
             <div className={styles.loaderSmall}>Đang tải danh sách quỹ...</div>
+          ) : funds.length === 0 ? (
+            <div className={styles.emptyState}>Chưa có quỹ nào. Vào Cấu hình để thêm quỹ.</div>
           ) : (
-            <div className="table-responsive">
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th>Mã Quỹ</th>
-                    <th>Tên Quỹ</th>
-                    <th>Loại Quỹ</th>
-                    <th>Đầu Kỳ</th>
-                    <th>Tổng Thu (+)</th>
-                    <th>Tổng Chi (-)</th>
-                    <th>Số dư Hiện Tại</th>
-                    <th>Phiếu TC</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {funds.map((fund) => {
-                    const fundTxs = transactions.filter(t => t.quyId === fund.id);
-                    const isExpanded = expandedFund === fund.id;
-                    return (
-                      <React.Fragment key={fund.id}>
-                        <tr style={{ cursor: 'pointer' }} onClick={() => setExpandedFund(isExpanded ? null : fund.id)}>
-                          <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                              {fund.id}
-                            </span>
-                          </td>
-                          <td style={{ fontWeight: '600' }}>{fund.tenQuy}</td>
-                          <td>
-                            {fund.loaiQuy === 'TIEN_MAT' && '💵 Tiền mặt'}
-                            {fund.loaiQuy === 'NGAN_HANG' && '🏦 Ngân hàng'}
-                            {fund.loaiQuy === 'CA_NHAN' && '👤 Cá nhân ứng'}
-                          </td>
-                          <td>{formatVND(fund.soDuDauKy)}</td>
-                          <td style={{ color: '#34d399', fontWeight: '500' }}>+{formatVND(fund.tongThu)}</td>
-                          <td style={{ color: '#f87171', fontWeight: '500' }}>-{formatVND(fund.tongChi)}</td>
-                          <td style={{ fontWeight: '800', color: fund.soDuHienTai >= 0 ? '#34d399' : '#f87171', fontSize: '1rem' }}>
-                            {formatVND(fund.soDuHienTai)}
-                          </td>
-                          <td>
-                            <span className="badge badge-paid">{fundTxs.length} phiếu</span>
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr>
-                            <td colSpan={8} style={{ padding: 0 }}>
-                              <div style={{ background: 'rgba(15,23,42,0.6)', padding: '1rem 1.5rem', borderTop: '1px solid rgba(96,165,250,0.15)', borderBottom: '1px solid rgba(96,165,250,0.15)' }}>
-                                <div style={{ fontSize: '0.8rem', color: '#60a5fa', fontWeight: '700', marginBottom: '0.75rem' }}>
-                                  PHIẾU THU-CHI LIÊN KẾT VỚI QUỸ: {fund.tenQuy}
+            <>
+              {/* ===== Desktop: bảng ===== */}
+              <div className={`table-responsive ${styles.desktopOnly}`}>
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Mã Quỹ</th>
+                      <th>Tên Quỹ</th>
+                      <th>Loại Quỹ</th>
+                      <th>Đầu Kỳ</th>
+                      <th>Tổng Thu (+)</th>
+                      <th>Tổng Chi (-)</th>
+                      <th>Số dư Hiện Tại</th>
+                      <th>Tỷ trọng</th>
+                      <th>Phiếu</th>
+                      {isOwner && <th></th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {funds.map((fund) => {
+                      const isExpanded = expandedFund === fund.id;
+                      const am = fund.soDuHienTai < 0;
+                      const pct = tongDuongDuong > 0 ? Math.max(0, fund.soDuHienTai) / tongDuongDuong * 100 : 0;
+                      const detail = fundDetails[fund.id];
+                      const colSpan = isOwner ? 10 : 9;
+                      return (
+                        <React.Fragment key={fund.id}>
+                          <tr style={{ cursor: 'pointer' }} onClick={() => toggleExpand(fund.id)}>
+                            <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                                {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                {fund.id}
+                              </span>
+                            </td>
+                            <td style={{ fontWeight: '600' }}>
+                              {fund.tenQuy}
+                              {fund.soDuDieuChinh ? (
+                                <span className={styles.adjTag} title={`Đã điều chỉnh ${fund.soDuDieuChinh >= 0 ? '+' : ''}${formatVND(fund.soDuDieuChinh)}`}>
+                                  đã chỉnh
+                                </span>
+                              ) : null}
+                            </td>
+                            <td>{loaiQuyLabel(fund.loaiQuy)}</td>
+                            <td>{formatVND(fund.soDuDauKy)}</td>
+                            <td style={{ color: '#34d399', fontWeight: '500' }}>+{formatVND(fund.tongThu)}</td>
+                            <td style={{ color: '#f87171', fontWeight: '500' }}>-{formatVND(fund.tongChi)}</td>
+                            <td style={{ fontWeight: '800', color: am ? '#f87171' : '#34d399', fontSize: '1rem' }}>
+                              {am && <AlertTriangle size={13} style={{ verticalAlign: '-2px', marginRight: 3 }} />}
+                              {formatVND(fund.soDuHienTai)}
+                            </td>
+                            <td style={{ minWidth: 90 }}>
+                              <div className={styles.compRow}>
+                                <div className={styles.compBarWrap}>
+                                  <div className={styles.compBar} style={{ width: `${pct}%` }} />
                                 </div>
-                                {fundTxs.length === 0 ? (
-                                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>Chưa có phiếu thu-chi nào từ quỹ này.</p>
-                                ) : (
-                                  <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
-                                    <thead>
-                                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: '600' }}>Mã phiếu</th>
-                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: '600' }}>Ngày</th>
-                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: '600' }}>Loại</th>
-                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: '600' }}>Nội dung</th>
-                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'right', color: 'var(--text-muted)', fontWeight: '600' }}>Số tiền</th>
-                                        <th style={{ padding: '0.4rem 0.6rem', textAlign: 'center', color: 'var(--text-muted)', fontWeight: '600' }}>Đề xuất</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {fundTxs.map(tx => (
-                                        <tr key={tx.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                                          <td style={{ padding: '0.4rem 0.6rem', fontWeight: 'bold', color: '#60a5fa' }}>{tx.maPhieu}</td>
-                                          <td style={{ padding: '0.4rem 0.6rem' }} suppressHydrationWarning>{new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}</td>
-                                          <td style={{ padding: '0.4rem 0.6rem' }}>
-                                            {tx.loaiGiaoDich === 'THU'
-                                              ? <span style={{ color: '#34d399', fontWeight: '600' }}>THU +</span>
-                                              : <span style={{ color: '#f87171', fontWeight: '600' }}>CHI -</span>}
-                                          </td>
-                                          <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-main)' }}>{tx.noiDung}</td>
-                                          <td style={{ padding: '0.4rem 0.6rem', textAlign: 'right', fontWeight: '700', color: tx.loaiGiaoDich === 'THU' ? '#34d399' : '#f87171' }}>
-                                            {tx.loaiGiaoDich === 'THU' ? '+' : '-'}{formatVND(tx.soTien)}
-                                          </td>
-                                          <td style={{ padding: '0.4rem 0.6rem', textAlign: 'center' }}>
-                                            {tx.deXuatChiPhi && tx.deXuatChiPhi.length > 0 ? (
-                                              <a
-                                                href="/de-xuat"
-                                                style={{ color: '#60a5fa', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '3px', textDecoration: 'none' }}
-                                                title={`Liên kết ${tx.deXuatChiPhi.length} đề xuất`}
-                                              >
-                                                <ExternalLink size={12} />
-                                                {tx.deXuatChiPhi.length} phiếu
-                                              </a>
-                                            ) : (
-                                              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>—</span>
-                                            )}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                )}
+                                <span className={styles.compPct}>{Math.round(pct)}%</span>
                               </div>
                             </td>
+                            <td>
+                              <span className="badge badge-paid">{fund.soPhieu} phiếu</span>
+                            </td>
+                            {isOwner && (
+                              <td>
+                                <button className={styles.adjBtn} onClick={(e) => openAdjust(fund, e)} title="Điều chỉnh số dư">
+                                  <SlidersHorizontal size={14} />
+                                </button>
+                              </td>
+                            )}
                           </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={colSpan} style={{ padding: 0 }}>
+                                {renderDetail(fund, detail)}
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ===== Mobile: thẻ ===== */}
+              <div className={styles.mobileCards}>
+                {funds.map((fund) => {
+                  const isExpanded = expandedFund === fund.id;
+                  const am = fund.soDuHienTai < 0;
+                  const pct = tongDuongDuong > 0 ? Math.max(0, fund.soDuHienTai) / tongDuongDuong * 100 : 0;
+                  const detail = fundDetails[fund.id];
+                  return (
+                    <div key={fund.id} className={`${styles.fundCard} ${am ? styles.fundCardNeg : ''}`}>
+                      <div className={styles.fcTop} onClick={() => toggleExpand(fund.id)}>
+                        <div>
+                          <div className={styles.fcName}>
+                            {fund.tenQuy}
+                            {fund.soDuDieuChinh ? <span className={styles.adjTag}>đã chỉnh</span> : null}
+                          </div>
+                          <div className={styles.fcMeta}>{fund.id} · {loaiQuyLabel(fund.loaiQuy)} · {fund.soPhieu} phiếu</div>
+                        </div>
+                        {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                      </div>
+                      <div className={styles.fcBalanceRow}>
+                        <span className={styles.fcBalanceLabel}>Số dư hiện tại</span>
+                        <span className={styles.fcBalance} style={{ color: am ? '#f87171' : '#34d399' }}>
+                          {am && <AlertTriangle size={13} style={{ verticalAlign: '-2px', marginRight: 3 }} />}
+                          {formatVND(fund.soDuHienTai)}
+                        </span>
+                      </div>
+                      <div className={styles.fcFlow}>
+                        <span style={{ color: '#34d399' }}>+{formatVND(fund.tongThu)}</span>
+                        <span style={{ color: '#f87171' }}>-{formatVND(fund.tongChi)}</span>
+                      </div>
+                      <div className={styles.compBarWrap}>
+                        <div className={styles.compBar} style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className={styles.fcActions}>
+                        <span className={styles.compPct}>{Math.round(pct)}% tổng quỹ</span>
+                        {isOwner && (
+                          <button className={styles.adjBtnText} onClick={(e) => openAdjust(fund, e)}>
+                            <SlidersHorizontal size={13} /> Điều chỉnh
+                          </button>
                         )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                      {isExpanded && renderDetail(fund, detail)}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       </main>
+
+      {/* Modal điều chỉnh số dư */}
+      {adjustFund && (
+        <div className={styles.modalOverlay} onClick={() => !adjustSubmitting && setAdjustFund(null)}>
+          <div className={`${styles.modal} glass-card`} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHead}>
+              <h3><SlidersHorizontal size={18} /> Điều chỉnh số dư quỹ</h3>
+              <button className={styles.modalClose} onClick={() => !adjustSubmitting && setAdjustFund(null)}><X size={18} /></button>
+            </div>
+            <p className={styles.modalSub}>
+              Quỹ <strong>{adjustFund.tenQuy}</strong> ({adjustFund.id}). Nhập số dư <strong>thực tế</strong> bạn kiểm đếm được — hệ thống sẽ cân bằng mà <strong>không tạo phiếu thu-chi</strong>.
+            </p>
+
+            <div className={styles.modalRow}>
+              <span>Số dư đang ghi nhận</span>
+              <strong>{formatVND(adjustFund.soDuHienTai)}</strong>
+            </div>
+
+            <label className={styles.modalLabel}>Số dư thực tế (₫) *</label>
+            <input
+              className={styles.modalInput}
+              inputMode="numeric"
+              value={adjustTarget ? Number(String(adjustTarget).replace(/[^\d-]/g, '') || 0).toLocaleString('vi-VN') : ''}
+              onChange={(e) => setAdjustTarget(e.target.value.replace(/[^\d-]/g, ''))}
+              placeholder="0"
+            />
+
+            <div className={styles.modalRow} style={{ marginTop: '0.5rem' }}>
+              <span>Chênh lệch sẽ điều chỉnh</span>
+              <strong style={{ color: adjustDelta === 0 ? 'var(--text-muted)' : adjustDelta > 0 ? '#34d399' : '#f87171' }}>
+                {adjustDelta > 0 ? '+' : ''}{formatVND(adjustDelta)}
+              </strong>
+            </div>
+
+            <label className={styles.modalLabel}>Lý do (khuyến nghị)</label>
+            <textarea
+              className={styles.modalTextarea}
+              value={adjustReason}
+              onChange={(e) => setAdjustReason(e.target.value)}
+              placeholder="VD: Kiểm kê tiền mặt cuối ngày, làm tròn phí ngân hàng..."
+              rows={2}
+            />
+
+            {adjustError && <div className={styles.modalError}>{adjustError}</div>}
+
+            <div className={styles.modalActions}>
+              <button className={styles.btnGhost} onClick={() => setAdjustFund(null)} disabled={adjustSubmitting}>Hủy</button>
+              <button className={styles.btnPrimary} onClick={submitAdjust} disabled={adjustSubmitting || adjustDelta === 0}>
+                {adjustSubmitting ? 'Đang lưu...' : 'Xác nhận điều chỉnh'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+
+  // ===== Helper render chi tiết phiếu (dùng chung desktop + mobile) =====
+  function renderDetail(fund, detail) {
+    return (
+      <div className={styles.detailBox}>
+        <div className={styles.detailTitle}>
+          PHIẾU GẦN NHẤT — QUỸ: {fund.tenQuy}
+        </div>
+        {!detail || detail.loading ? (
+          <p className={styles.detailMuted}>Đang tải phiếu...</p>
+        ) : detail.error ? (
+          <p className={styles.detailMuted}>{detail.error}</p>
+        ) : detail.items.length === 0 ? (
+          <p className={styles.detailMuted}>Chưa có phiếu thu-chi nào từ quỹ này.</p>
+        ) : (
+          <>
+            <div className={styles.detailList}>
+              {detail.items.map((tx) => {
+                const thu = tx.loaiGiaoDich === 'THU';
+                return (
+                  <div key={tx.id} className={styles.detailItem}>
+                    <div className={styles.diLeft}>
+                      <span className={styles.diCode}>{tx.maPhieu}</span>
+                      <span className={styles.diDesc}>{tx.noiDung}</span>
+                    </div>
+                    <div className={styles.diRight}>
+                      <span className={styles.diAmt} style={{ color: thu ? '#34d399' : '#f87171' }}>
+                        {thu ? '+' : '-'}{formatVND(tx.soTien)}
+                      </span>
+                      <span className={styles.diDate} suppressHydrationWarning>
+                        {new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {fund.soPhieu > detail.items.length && (
+              <a href={`/thu-chi?quyId=${encodeURIComponent(fund.id)}`} className={styles.viewAll}>
+                Xem tất cả {fund.soPhieu} phiếu <ArrowRight size={14} />
+              </a>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
 }

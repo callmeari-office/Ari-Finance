@@ -505,3 +505,205 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* ── NEW CHART STYLES FOR CEO DASHBOARD ── */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 992px) {
+  .chartsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chartContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Donut Chart styles */
+.donutWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 1rem;
+  flex-wrap: wrap;
+}
+
+.donutSvg {
+  transform: rotate(-90deg);
+  border-radius: 50%;
+}
+
+.donutLegends {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 180px;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-main);
+}
+
+.legendLabelGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legendColorBox {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.legendPercent {
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* Diverging Variance Bar Chart styles */
+.varianceChart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem;
+}
+
+.varianceRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.8rem;
+}
+
+.varianceLabel {
+  width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.varianceTrack {
+  flex: 1;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.varianceMidline {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  z-index: 10;
+}
+
+.varianceBar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  transition: all 0.4s ease;
+}
+
+.varianceBarPositive {
+  left: 50%;
+  background: var(--danger); /* Vượt chi tiêu = Đỏ (động) */
+}
+
+.varianceBarNegative {
+  right: 50%;
+  background: var(--success); /* Tiết kiệm = Xanh (động) */
+}
+
+.varianceVal {
+  width: 110px;
+  text-align: right;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Vertical 12m Bar Chart styles */
+.chartLegend {
+  display: flex;
+  gap: 1.25rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.legendSwatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.chartScroll { overflow-x: auto; }
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.4rem;
+  height: 200px;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.chartCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.chartBars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  height: 100%;
+  width: 100%;
+}
+
+.bar {
+  width: 42%;
+  max-width: 18px;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.4s ease;
+  min-height: 2px;
+}
+.barKH { background: var(--chart-1); }
+.barTT { background: var(--danger); } /* Chi phí thực tế dùng màu đỏ/vàng/thương hiệu để phân biệt */
+.barLabel {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+

@@ -26,6 +26,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  text-decoration: none;
 }
 
 .logoImg {
@@ -291,3 +292,40 @@
 :global([data-theme='dark']) .sidebar::-webkit-scrollbar-thumb {
   background-color: rgba(227, 199, 176, 0.2);
 }
+
+/* Overrides for ARI Pink Theme in Sidebar */
+:global([data-theme='pink']) .themeToggle {
+  background: rgba(230, 162, 197, 0.08);
+  border: 1px solid rgba(230, 162, 197, 0.22);
+  color: #73485E;
+}
+:global([data-theme='pink']) .themeToggle:hover {
+  background: rgba(230, 162, 197, 0.18);
+  color: #85526C;
+}
+:global([data-theme='pink']) .navItem:hover {
+  background: rgba(230, 162, 197, 0.08);
+  color: #73485E;
+}
+:global([data-theme='pink']) .navItem.active {
+  background: rgba(230, 162, 197, 0.18);
+  color: #73485E;
+  border-left-color: #E6A2C5;
+  padding-left: calc(1rem - 3px);
+}
+:global([data-theme='pink']) .userCard {
+  background: rgba(230, 162, 197, 0.08);
+  border-color: rgba(230, 162, 197, 0.22);
+}
+:global([data-theme='pink']) .avatar {
+  background: rgba(230, 162, 197, 0.18);
+  border-color: rgba(230, 162, 197, 0.3);
+  color: #73485E;
+}
+:global([data-theme='pink']) .userName {
+  color: #73485E;
+}
+:global([data-theme='pink']) .logoutBtn:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+

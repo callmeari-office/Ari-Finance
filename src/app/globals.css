@@ -40,6 +40,15 @@
   /* Alert text — đủ tối để đọc trên nền thành công/lỗi pastel (light mode) */
   --alert-success-text: #4b6656;
   --alert-error-text: #8c5353;
+
+  /* Chart Colors */
+  --chart-1: #6366f1;
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #ef4444;
+  --chart-5: #8b5cf6;
+  --chart-6: #ec4899;
+  --chart-7: #06b6d4;
 }
 
 /* Reset & Base Styles */
@@ -348,7 +357,98 @@ button, input, select, textarea {
   /* Alert text — đủ sáng để đọc trên nền thành công/lỗi pastel (dark mode) */
   --alert-success-text: #a7d0bb;
   --alert-error-text: #e6acac;
+
+  /* Chart Colors */
+  --chart-1: #818cf8;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #f87171;
+  --chart-5: #a78bfa;
+  --chart-6: #f472b6;
+  --chart-7: #22d3ee;
 }
+
+/* =========================================================
+   ARI PINK MODE — Chế độ hồng thương hiệu nhẹ nhàng, chuyên nghiệp
+   ========================================================= */
+[data-theme="pink"] {
+  --primary: #E6A2C5;
+  --primary-hover: #d88cb3;
+  --primary-rgb: 230, 162, 197;
+
+  --brand-brown: #73485E; /* Nâu mận tối để tương phản tốt */
+  --brand-brown-hover: #85526C;
+  --brand-brown-rgb: 115, 72, 94;
+
+  --success: #7EB899;
+  --success-bg: rgba(126, 184, 153, 0.15);
+  --warning: #DBA785;
+  --warning-bg: rgba(219, 167, 133, 0.15);
+  --danger: #E89BB0;
+  --danger-bg: rgba(232, 155, 176, 0.15);
+  --info: #95B2C4;
+  --info-bg: rgba(149, 178, 196, 0.15);
+
+  --background: #FFF5F8; /* Nền hồng phấn cực nhạt */
+  --bg-gradient: linear-gradient(135deg, #FFF9FA 0%, #FFF5F8 100%);
+
+  --surface: #FFFBFD; /* Khối thông tin nền hồng-kem nhạt */
+  --surface-hover: #FFFDFE;
+  --border: rgba(230, 162, 197, 0.22);
+  --border-focus: rgba(230, 162, 197, 0.65);
+
+  --text-main: #4A3F45; /* Chữ tối xám-hồng đậm */
+  --text-muted: #8C7C85;
+
+  --shadow: 0 10px 30px -10px rgba(115, 72, 94, 0.06);
+  --glass-bg: rgba(255, 251, 253, 0.88);
+  --glass-blur: blur(16px);
+
+  --sidebar-bg: #FFEBF1; /* Nền sidebar hồng phấn mượt */
+
+  --alert-success-text: #426955;
+  --alert-error-text: #8E445B;
+
+  /* Chart Colors (Pastel palette) */
+  --chart-1: #E6A2C5;
+  --chart-2: #84C7B5;
+  --chart-3: #B5A2E6;
+  --chart-4: #E6B2A2;
+  --chart-5: #A2C5E6;
+  --chart-6: #D5A2E6;
+  --chart-7: #BBE6A2;
+}
+
+[data-theme="pink"] select.form-control,
+[data-theme="pink"] select {
+  background-color: #FFFBFD;
+  color: var(--text-main);
+}
+[data-theme="pink"] select option {
+  background-color: #FFFBFD;
+  color: #4A3F45;
+}
+
+[data-theme="pink"] .btn-secondary {
+  background: rgba(230, 162, 197, 0.08);
+  color: #73485E;
+}
+[data-theme="pink"] .btn-secondary:hover {
+  background: rgba(230, 162, 197, 0.15);
+}
+
+[data-theme="pink"] .btn-danger {
+  color: #4A3F45;
+}
+
+[data-theme="pink"] .custom-table tbody tr:hover {
+  background: rgba(230, 162, 197, 0.04);
+}
+
+[data-theme="pink"] .badge-paid { color: #426955; }
+[data-theme="pink"] .badge-pending { color: #8C5B32; }
+[data-theme="pink"] .badge-reimburse { color: #536978; }
+[data-theme="pink"] .badge-cancelled { color: #8E445B; }
 
 /* Tinh chỉnh các vị trí dùng màu cố định (hardcoded) cho hợp nền tối */
 /* ---- Form controls ---- */

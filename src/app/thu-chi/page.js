@@ -155,6 +155,18 @@ export default function ThuChiPage() {
     }
   };
 
+  // Áp lọc theo quỹ từ URL (vd: /thu-chi?quyId=Q_001 — link "Xem tất cả" từ trang Quỹ)
+  useEffect(() => {
+    if (!user) return;
+    const sp = new URLSearchParams(window.location.search);
+    const quyParam = sp.get('quyId');
+    if (quyParam) {
+      setFilterQuy(quyParam.split(',').map(s => s.trim()).filter(Boolean));
+      setFilterThang([]); // bỏ lọc tháng để thấy toàn bộ phiếu của quỹ
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   // Lấy transactions khi page thay đổi
   useEffect(() => {
     if (user) {

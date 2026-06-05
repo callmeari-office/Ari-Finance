@@ -57,12 +57,19 @@ export default function QuyenPage() {
 
   // Define actual system menus mapping
   const systemMenus = [
-    { key: 'tongQuan', name: 'Tổng quan (Dashboard)', path: '/', desc: 'Xem biểu đồ tổng kết doanh số, chi phí và trạng thái shop' },
+    { key: 'tongQuan', name: 'Tổng quan (Dashboard)', path: '/', desc: 'Cho phép truy cập trang Tổng quan. Bật/tắt từng khối bên dưới' },
+    { key: 'tqKPITaiChinh', name: '↳ Khối KPI tài chính', path: '/', desc: '4 thẻ Doanh thu / Chi phí / Lãi-Lỗ / Tiền đang có của tháng (thông tin tài chính nhạy cảm)', sub: true },
+    { key: 'tqCanXuLy', name: '↳ Khối "Cần xử lý"', path: '/', desc: 'Phiếu chờ duyệt, nhắc hạn thanh toán, vượt hạn mức / kế hoạch chi', sub: true },
+    { key: 'tqQuy', name: '↳ Bảng số dư các Quỹ', path: '/', desc: 'Bảng số dư realtime của các quỹ tiền ngay trên Tổng quan', sub: true },
+    { key: 'tqXuHuong', name: '↳ Biểu đồ Thu-Chi & Lãi/Lỗ', path: '/', desc: 'Biểu đồ xu hướng Thu-Chi kèm đường Lãi/Lỗ 6 tháng gần nhất', sub: true },
+    { key: 'tqDeXuatCuaToi', name: '↳ Khối đề xuất cá nhân', path: '/', desc: '4 thẻ thống kê đề xuất của chính mình (chỉ hiệu lực với Leader/Staff)', sub: true },
     { key: 'deXuat', name: 'Đề xuất chi phí', path: '/de-xuat', desc: 'Lập, quản lý và theo dõi các đề xuất chi tiêu nội bộ' },
     { key: 'duyet', name: 'Duyệt đề xuất', path: '/de-xuat/duyet', desc: 'Chủ shop duyệt chi tiền mặt (TH1) hoặc hoàn ứng gộp (TH3)' },
     { key: 'thuChi', name: 'Giao dịch Thu - Chi', path: '/thu-chi', desc: 'Lớp ghi nhận dòng tiền thực tế tác động trực tiếp vào các quỹ' },
     { key: 'quy', name: 'Thông tin Quỹ', path: '/quy', desc: 'Theo dõi số dư realtime chi tiết của các quỹ tiền' },
     { key: 'keHoach', name: 'Kế hoạch chi phí', path: '/ke-hoach', desc: 'Lập kế hoạch chi phí cả năm theo danh mục và so sánh với thực tế' },
+    { key: 'keHoachDBThang', name: '↳ Chi phí · Dashboard Tháng', path: '/ke-hoach', desc: 'Cho phép xem tab "DB Tháng" trong Kế hoạch chi phí (chỉ hiệu lực khi đã bật xem Kế hoạch chi phí)', sub: true },
+    { key: 'keHoachDBNam', name: '↳ Chi phí · Dashboard Năm', path: '/ke-hoach', desc: 'Cho phép xem tab "DB Năm" trong Kế hoạch chi phí (chỉ hiệu lực khi đã bật xem Kế hoạch chi phí)', sub: true },
     { key: 'doanhThu', name: 'Kế hoạch doanh thu', path: '/doanh-thu', desc: 'Lập chỉ tiêu & nhập doanh thu thực tế theo kênh bán, xem Dashboard so sánh' },
     { key: 'doanhThuDBThang', name: '↳ Doanh thu · Dashboard Tháng', path: '/doanh-thu', desc: 'Cho phép xem tab "DB Tháng" trong Kế hoạch doanh thu (chỉ hiệu lực khi đã bật xem Kế hoạch doanh thu)', sub: true },
     { key: 'doanhThuDBNam', name: '↳ Doanh thu · Dashboard Năm', path: '/doanh-thu', desc: 'Cho phép xem tab "DB Năm" trong Kế hoạch doanh thu (chỉ hiệu lực khi đã bật xem Kế hoạch doanh thu)', sub: true },

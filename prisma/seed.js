@@ -67,6 +67,8 @@ async function main() {
     thuChi: false,
     quy: false,
     keHoach: false,
+    keHoachDBThang: true,
+    keHoachDBNam: true,
     doanhThu: false,
     doanhThuDBThang: true,
     doanhThuDBNam: true,

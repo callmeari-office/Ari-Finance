@@ -35,6 +35,10 @@ export default function DuyetPage() {
   const [selectedQuyId, setSelectedQuyId] = useState({}); // Lưu quỹ được chọn cho từng proposalId
   const [actionLoading, setActionLoading] = useState(false);
 
+  // States: TH1/TH2 (Duyệt nhiều phiếu cùng lúc)
+  const [selectedPayIds, setSelectedPayIds] = useState([]); // Các phiếu được tích chọn để duyệt hàng loạt
+  const [bulkQuyId, setBulkQuyId] = useState(''); // Quỹ áp dụng chung cho các phiếu chưa chọn quỹ riêng
+
   // States: TH3 (Duyệt gộp hoàn ứng)
   const [selectedStaffId, setSelectedStaffId] = useState(''); // Nhân viên được chọn để hoàn ứng
   const [selectedProposalIds, setSelectedProposalIds] = useState([]); // Các đề xuất hoàn ứng được tích chọn
@@ -183,6 +187,104 @@ export default function DuyetPage() {
       if (!res.ok) throw new Error(data.error || 'Hủy thất bại.');
 
       setCancelModal({ open: false, id: '', maPhieu: '' });
+      fetchData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // OWNER: Xóa vĩnh viễn đề xuất rác (chỉ phiếu chưa gắn dòng tiền)
+  const handleDeleteProposal = async () => {
+    const { id, maPhieu } = cancelModal;
+    if (!confirm(`XÓA VĨNH VIỄN đề xuất ${maPhieu}?\nThao tác này KHÔNG THỂ hoàn tác và sẽ xóa hẳn dữ liệu khỏi hệ thống.`)) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/de-xuat/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
+
+      setCancelModal({ open: false, id: '', maPhieu: '' });
+      fetchData();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // TH1/TH2: Tích chọn / bỏ chọn một phiếu để duyệt hàng loạt
+  const handleTogglePay = (proposalId) => {
+    setSelectedPayIds((prev) =>
+      prev.includes(proposalId)
+        ? prev.filter((id) => id !== proposalId)
+        : [...prev, proposalId]
+    );
+  };
+
+  // TH1/TH2: Duyệt nhiều phiếu cùng lúc (mỗi phiếu sinh 1 phiếu Chi riêng)
+  const handleApproveBulk = async (listProps) => {
+    if (selectedPayIds.length === 0) {
+      alert('Vui lòng tích chọn ít nhất một phiếu để duyệt!');
+      return;
+    }
+
+    // Mỗi phiếu dùng quỹ đã chọn riêng (nếu có), nếu chưa chọn thì dùng quỹ chung
+    const items = [];
+    const missing = [];
+    let total = 0;
+    for (const id of selectedPayIds) {
+      const prop = listProps.find((p) => p.id === id);
+      if (!prop) continue;
+      const quyId = selectedQuyId[id] || bulkQuyId;
+      if (!quyId) {
+        missing.push(prop.maPhieu);
+        continue;
+      }
+      items.push({ id, quyThanhToanId: quyId });
+      total += prop.soTien;
+    }
+
+    if (missing.length > 0) {
+      alert(
+        `Các phiếu sau chưa chọn quỹ chi: ${missing.join(', ')}.\n` +
+        `Hãy chọn "Quỹ chi cho tất cả" ở thanh bên trên, hoặc chọn quỹ riêng cho từng phiếu.`
+      );
+      return;
+    }
+
+    const message =
+      `Bạn có chắc chắn DUYỆT CHI ${items.length} phiếu đã chọn?\n` +
+      `- Tổng tiền chi: ${total.toLocaleString('vi-VN')} VND\n` +
+      `Hệ thống sẽ sinh ${items.length} phiếu Chi riêng và trừ tiền các quỹ tương ứng.`;
+
+    if (!confirm(message)) return;
+
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/de-xuat/duyet-nhieu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Duyệt hàng loạt thất bại.');
+
+      if (data.failCount > 0) {
+        const failed = (data.results || [])
+          .filter((r) => !r.success)
+          .map((r) => `${r.maPhieu || r.id}: ${r.error}`)
+          .join('\n');
+        alert(`${data.message}\n\nChi tiết phiếu lỗi:\n${failed}`);
+      } else {
+        alert(data.message);
+      }
+
+      setSelectedPayIds([]);
+      setBulkQuyId('');
       fetchData();
     } catch (err) {
       alert(err.message);
@@ -379,6 +481,8 @@ export default function DuyetPage() {
               setActiveTab('TH1');
               setSelectedProposalIds([]);
               setSelectedStaffId('');
+              setSelectedPayIds([]);
+              setBulkQuyId('');
             }}
           >
             <Clock size={18} />
@@ -393,6 +497,8 @@ export default function DuyetPage() {
               setActiveTab('TH2');
               setSelectedProposalIds([]);
               setSelectedStaffId('');
+              setSelectedPayIds([]);
+              setBulkQuyId('');
             }}
           >
             <TrendingDown size={18} />
@@ -407,6 +513,8 @@ export default function DuyetPage() {
               setActiveTab('TH3');
               setSelectedProposalIds([]);
               setSelectedStaffId('');
+              setSelectedPayIds([]);
+              setBulkQuyId('');
             }}
           >
             <Layers size={18} />
@@ -429,10 +537,61 @@ export default function DuyetPage() {
             ) : pendingPaymentProps.length === 0 ? (
               <div className={styles.emptyState}>Không có đề xuất Chờ thanh toán nào cần duyệt.</div>
             ) : (
+              <>
+                {selectedPayIds.length > 0 && (
+                  <div className={styles.bulkBar}>
+                    <div className={styles.bulkInfo}>
+                      <CheckSquare size={18} />
+                      <span>Đã chọn <strong>{selectedPayIds.length}</strong> phiếu — Tổng <strong style={{ color: '#10b981' }}>{formatVND(pendingPaymentProps.filter(p => selectedPayIds.includes(p.id)).reduce((s, p) => s + p.soTien, 0))}</strong></span>
+                    </div>
+                    <div className={styles.bulkActions}>
+                      <select
+                        className="form-control form-control-sm"
+                        style={{ minWidth: '180px' }}
+                        value={bulkQuyId}
+                        onChange={(e) => setBulkQuyId(e.target.value)}
+                        disabled={actionLoading}
+                        title="Quỹ áp dụng cho các phiếu chưa chọn quỹ riêng"
+                      >
+                        <option value="">-- Quỹ chi cho tất cả --</option>
+                        {funds.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.tenQuy} ({formatVND(f.soDuHienTai)})
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => handleApproveBulk(pendingPaymentProps)}
+                        className="btn btn-primary"
+                        style={{ whiteSpace: 'nowrap' }}
+                        disabled={actionLoading}
+                      >
+                        <CheckCircle size={16} />
+                        <span>Duyệt {selectedPayIds.length} phiếu đã chọn</span>
+                      </button>
+                      <button
+                        onClick={() => { setSelectedPayIds([]); setBulkQuyId(''); }}
+                        className="btn btn-secondary"
+                        disabled={actionLoading}
+                      >
+                        Bỏ chọn
+                      </button>
+                    </div>
+                  </div>
+                )}
               <div className="table-responsive">
                 <table className="custom-table">
                   <thead>
                     <tr>
+                      <th style={{ width: '40px', textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          onChange={(e) => setSelectedPayIds(e.target.checked ? pendingPaymentProps.map(p => p.id) : [])}
+                          checked={selectedPayIds.length === pendingPaymentProps.length && pendingPaymentProps.length > 0}
+                          disabled={actionLoading}
+                          title="Chọn tất cả"
+                        />
+                      </th>
                       <th>Mã Phiếu</th>
                       <th>Ngày lập</th>
                       <th>Nhân viên</th>
@@ -446,8 +605,16 @@ export default function DuyetPage() {
                   </thead>
                   <tbody>
                     {pendingPaymentProps.map((prop) => (
-                      <tr key={prop.id}>
-                        <td 
+                      <tr key={prop.id} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedPayIds.includes(prop.id)}
+                            onChange={() => handleTogglePay(prop.id)}
+                            disabled={actionLoading}
+                          />
+                        </td>
+                        <td
                           onClick={() => setSelectedPreviewProp(prop)}
                           style={{ fontWeight: 'bold', color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline' }}
                           title="Click xem nhanh đề xuất"
@@ -530,6 +697,7 @@ export default function DuyetPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         )}
@@ -546,10 +714,61 @@ export default function DuyetPage() {
             ) : pendingAssignFundProps.length === 0 ? (
               <div className={styles.emptyState}>Không có đề xuất Đã thanh toán nào cần gán Quỹ.</div>
             ) : (
+              <>
+                {selectedPayIds.length > 0 && (
+                  <div className={styles.bulkBar}>
+                    <div className={styles.bulkInfo}>
+                      <CheckSquare size={18} />
+                      <span>Đã chọn <strong>{selectedPayIds.length}</strong> phiếu — Tổng <strong style={{ color: '#10b981' }}>{formatVND(pendingAssignFundProps.filter(p => selectedPayIds.includes(p.id)).reduce((s, p) => s + p.soTien, 0))}</strong></span>
+                    </div>
+                    <div className={styles.bulkActions}>
+                      <select
+                        className="form-control form-control-sm"
+                        style={{ minWidth: '180px' }}
+                        value={bulkQuyId}
+                        onChange={(e) => setBulkQuyId(e.target.value)}
+                        disabled={actionLoading}
+                        title="Quỹ áp dụng cho các phiếu chưa chọn quỹ riêng"
+                      >
+                        <option value="">-- Quỹ chi cho tất cả --</option>
+                        {funds.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.tenQuy} ({formatVND(f.soDuHienTai)})
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => handleApproveBulk(pendingAssignFundProps)}
+                        className="btn btn-primary"
+                        style={{ whiteSpace: 'nowrap' }}
+                        disabled={actionLoading}
+                      >
+                        <CheckCircle size={16} />
+                        <span>Gán quỹ & Duyệt {selectedPayIds.length} phiếu</span>
+                      </button>
+                      <button
+                        onClick={() => { setSelectedPayIds([]); setBulkQuyId(''); }}
+                        className="btn btn-secondary"
+                        disabled={actionLoading}
+                      >
+                        Bỏ chọn
+                      </button>
+                    </div>
+                  </div>
+                )}
               <div className="table-responsive">
                 <table className="custom-table">
                   <thead>
                     <tr>
+                      <th style={{ width: '40px', textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          onChange={(e) => setSelectedPayIds(e.target.checked ? pendingAssignFundProps.map(p => p.id) : [])}
+                          checked={selectedPayIds.length === pendingAssignFundProps.length && pendingAssignFundProps.length > 0}
+                          disabled={actionLoading}
+                          title="Chọn tất cả"
+                        />
+                      </th>
                       <th>Mã Phiếu</th>
                       <th>Ngày lập</th>
                       <th>Nhân viên</th>
@@ -563,8 +782,16 @@ export default function DuyetPage() {
                   </thead>
                   <tbody>
                     {pendingAssignFundProps.map((prop) => (
-                      <tr key={prop.id}>
-                        <td 
+                      <tr key={prop.id} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedPayIds.includes(prop.id)}
+                            onChange={() => handleTogglePay(prop.id)}
+                            disabled={actionLoading}
+                          />
+                        </td>
+                        <td
                           onClick={() => setSelectedPreviewProp(prop)}
                           style={{ fontWeight: 'bold', color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline' }}
                           title="Click xem nhanh đề xuất"
@@ -642,6 +869,7 @@ export default function DuyetPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         )}
@@ -1098,7 +1326,18 @@ export default function DuyetPage() {
                 autoFocus
               />
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+              {user?.role === 'OWNER' && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleDeleteProposal}
+                  disabled={actionLoading}
+                  style={{ marginRight: 'auto', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)', fontWeight: '600' }}
+                  title="Xóa hẳn dữ liệu khỏi hệ thống (chứng từ rác)"
+                >
+                  🗑 Xác nhận xóa
+                </button>
+              )}
               <button
                 className="btn btn-secondary"
                 onClick={() => setCancelModal({ open: false, id: '', maPhieu: '' })}

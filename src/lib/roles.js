@@ -40,16 +40,33 @@ export function isRestrictedToOwnProposals(role) {
  * VaiTroQuyen.permissions). OWNER luôn full quyền nên không phụ thuộc bảng này.
  *
  * Ngoài các menu cấp 1, còn có "key con" để phân quyền tinh hơn trong 1 trang:
- *  - doanhThuDBThang / doanhThuDBNam: bật/tắt riêng tab Dashboard Tháng / Năm
- *    trong trang Kế hoạch doanh thu (chỉ có tác dụng khi đã được xem `doanhThu`).
+ *  - doanhThuDBThang / doanhThuDBNam: tab Dashboard Tháng / Năm trong Kế hoạch doanh thu
+ *    (chỉ có tác dụng khi đã được xem `doanhThu`).
+ *  - keHoachDBThang / keHoachDBNam: tab Dashboard Tháng / Năm trong Kế hoạch chi phí
+ *    (chỉ có tác dụng khi đã được xem `keHoach`).
+ *
+ * Riêng trang Tổng quan (Dashboard) còn có các "widget con" tq*  để bật/tắt từng
+ * khối thông tin theo vai trò (chỉ có tác dụng khi đã được xem `tongQuan`):
+ *  - tqKPITaiChinh: 4 thẻ KPI Doanh thu / Chi phí / Lãi-Lỗ / Tiền đang có.
+ *  - tqCanXuLy:     khối "Cần xử lý" (chờ duyệt + nhắc hạn + vượt kế hoạch).
+ *  - tqQuy:         bảng số dư các quỹ (realtime).
+ *  - tqXuHuong:     biểu đồ Thu-Chi + đường Lãi/Lỗ 6 tháng.
+ *  - tqDeXuatCuaToi: 4 thẻ thống kê đề xuất cá nhân (dành cho LEADER/STAFF).
  */
 export const DEFAULT_MENU_ROLES = {
   tongQuan:        ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
+  tqKPITaiChinh:   ['OWNER', 'MANAGER'],
+  tqCanXuLy:       ['OWNER', 'MANAGER'],
+  tqQuy:           ['OWNER', 'MANAGER'],
+  tqXuHuong:       ['OWNER', 'MANAGER'],
+  tqDeXuatCuaToi:  ['LEADER', 'STAFF'],
   deXuat:          ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
   duyet:           ['OWNER'],
   thuChi:          ['OWNER', 'MANAGER'],
   quy:             ['OWNER', 'MANAGER'],
   keHoach:         ['OWNER', 'MANAGER'],
+  keHoachDBThang:  ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
+  keHoachDBNam:    ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
   doanhThu:        ['OWNER', 'MANAGER'],
   doanhThuDBThang: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
   doanhThuDBNam:   ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],

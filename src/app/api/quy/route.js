@@ -56,26 +56,33 @@ export async function GET() {
 
     const [quys, aggregations] = await Promise.all([
       prisma.quy.findMany({ where: { trangThai: 'ACTIVE' } }),
+      // Lũy kế toàn thời gian theo quỹ (số dư thực tế + tổng thu/chi + số phiếu mỗi quỹ)
       prisma.thuChi.groupBy({
         by: ['quyId', 'loaiGiaoDich'],
         _sum: { soTien: true },
+        _count: { _all: true },
       }),
     ]);
 
     const data = quys.map((quy) => {
-      const tongThu = aggregations
-        .filter((a) => a.quyId === quy.id && a.loaiGiaoDich === 'THU')
+      const rows = aggregations.filter((a) => a.quyId === quy.id);
+      const tongThu = rows
+        .filter((a) => a.loaiGiaoDich === 'THU')
         .reduce((sum, a) => sum + (a._sum.soTien ?? 0), 0);
-
-      const tongChi = aggregations
-        .filter((a) => a.quyId === quy.id && a.loaiGiaoDich === 'CHI')
+      const tongChi = rows
+        .filter((a) => a.loaiGiaoDich === 'CHI')
         .reduce((sum, a) => sum + (a._sum.soTien ?? 0), 0);
+      const soPhieu = rows.reduce((sum, a) => sum + (a._count?._all ?? 0), 0);
+      const soDuDieuChinh = quy.soDuDieuChinh ?? 0;
 
       return {
         ...quy,
+        soDuDieuChinh,
         tongThu,
         tongChi,
-        soDuHienTai: quy.soDuDauKy + tongThu - tongChi,
+        soPhieu,
+        // Số dư thực tế = đầu kỳ + thu − chi + điều chỉnh thủ công
+        soDuHienTai: quy.soDuDauKy + tongThu - tongChi + soDuDieuChinh,
       };
     });
 

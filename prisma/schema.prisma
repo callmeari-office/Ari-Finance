@@ -41,12 +41,13 @@ model VaiTroQuyen {
 }
 
 model Quy {
-  id           String   @id
-  tenQuy       String
-  loaiQuy      String
-  soDuDauKy    Float
-  trangThai    String   // ACTIVE, INACTIVE
-  createdAt    DateTime @default(now())
+  id            String   @id
+  tenQuy        String
+  loaiQuy       String
+  soDuDauKy     Float
+  soDuDieuChinh Float    @default(0) // Khoản điều chỉnh cân bằng thủ công (OWNER), không qua phiếu thu-chi
+  trangThai     String   // ACTIVE, INACTIVE
+  createdAt     DateTime @default(now())
 
   deXuatThanhToan DeXuatChiPhi[]
   thuChi          ThuChi[]

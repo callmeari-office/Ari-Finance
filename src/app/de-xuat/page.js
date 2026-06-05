@@ -347,6 +347,27 @@ export default function DeXuatPage() {
     }
   };
 
+  // OWNER: Xóa vĩnh viễn đề xuất rác (chỉ phiếu chưa gắn dòng tiền)
+  const handleDeleteProposal = async () => {
+    const { id, maPhieu } = cancelModal;
+    if (!confirm(`XÓA VĨNH VIỄN đề xuất ${maPhieu}?\nThao tác này KHÔNG THỂ hoàn tác và sẽ xóa hẳn dữ liệu khỏi hệ thống.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/de-xuat/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Xóa thất bại');
+
+      setCancelModal({ open: false, id: '', maPhieu: '' });
+      fetchData();
+      if (selectedProp && selectedProp.id === id) {
+        setSelectedProp(null);
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const canEdit = (prop) => {
     if (!user) return false;
     if (user.role === 'OWNER') return true;
@@ -2409,7 +2430,17 @@ export default function DeXuatPage() {
                 autoFocus
               />
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
+              {user?.role === 'OWNER' && proposals.find((p) => p.id === cancelModal.id)?.thuChiId == null && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleDeleteProposal}
+                  style={{ marginRight: 'auto', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)', fontWeight: '600' }}
+                  title="Xóa hẳn dữ liệu khỏi hệ thống (chứng từ rác)"
+                >
+                  🗑 Xác nhận xóa
+                </button>
+              )}
               <button
                 className="btn btn-secondary"
                 onClick={() => setCancelModal({ open: false, id: '', maPhieu: '' })}

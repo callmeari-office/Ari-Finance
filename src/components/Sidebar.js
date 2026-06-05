@@ -97,14 +97,14 @@ export default function Sidebar({ user }) {
     <>
       {/* Mobile Toggle Header */}
       <header className={styles.mobileHeader}>
-        <div className={styles.brand}>
+        <Link href="/" className={styles.brand} onClick={() => setIsOpen(false)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="Logo" className={styles.logoImg} />
           <div className={styles.brandText}>
             <span className={styles.appName}>ARI Finance</span>
             <span className={styles.appSub}>Quản lý tài chính</span>
           </div>
-        </div>
+        </Link>
         <button onClick={toggleSidebar} className={styles.toggleBtn}>
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -116,14 +116,14 @@ export default function Sidebar({ user }) {
       {/* Main Sidebar */}
       <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
         <div className={styles.sidebarHeader}>
-          <div className={styles.brand}>
+          <Link href="/" className={styles.brand} onClick={() => setIsOpen(false)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="Logo" className={styles.logoImg} />
             <div className={styles.brandText}>
               <span className={styles.appName}>ARI Finance</span>
               <span className={styles.appSub}>Quản lý tài chính</span>
             </div>
-          </div>
+          </Link>
           <span className={styles.subtitle}>Call Me Ari</span>
         </div>
 
