@@ -2026,25 +2026,68 @@ export default function DeXuatPage() {
                           <html>
                             <head>
                               <title>Xem ảnh hóa đơn - ${selectedProp.maPhieu}</title>
+                              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                               <style>
                                 body {
                                   margin: 0;
                                   background-color: #1a1512;
                                   display: flex;
+                                  flex-direction: column;
                                   justify-content: center;
                                   align-items: center;
                                   min-height: 100vh;
+                                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                                  color: #ece3da;
+                                  cursor: pointer;
+                                  user-select: none;
+                                }
+                                .container {
+                                  display: flex;
+                                  flex-direction: column;
+                                  align-items: center;
+                                  justify-content: center;
+                                  width: 100%;
+                                  min-height: 100vh;
+                                  padding: 16px;
+                                  box-sizing: border-box;
                                 }
                                 img {
                                   max-width: 100%;
-                                  max-height: 100vh;
+                                  max-height: 75vh;
                                   object-fit: contain;
                                   box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+                                  border-radius: 8px;
+                                  margin-bottom: 20px;
+                                }
+                                .close-btn {
+                                  background: #cf8d8d;
+                                  color: #3e2723;
+                                  border: none;
+                                  padding: 12px 28px;
+                                  border-radius: 999px;
+                                  font-size: 15px;
+                                  font-weight: bold;
+                                  cursor: pointer;
+                                  box-shadow: 0 4px 12px rgba(207, 141, 141, 0.2);
+                                  transition: transform 0.1s;
+                                }
+                                .close-btn:active {
+                                  transform: scale(0.95);
+                                }
+                                .tip {
+                                  font-size: 11px;
+                                  color: #a89c90;
+                                  margin-top: 10px;
+                                  opacity: 0.8;
                                 }
                               </style>
                             </head>
                             <body>
-                              <img src="${selectedProp.anhHoaDon}" alt="Hóa đơn" />
+                              <div class="container" onclick="window.close()">
+                                <img src="${selectedProp.anhHoaDon}" alt="Hóa đơn" onclick="event.stopPropagation()" />
+                                <button class="close-btn" onclick="window.close()">Đóng ảnh</button>
+                                <div class="tip">Chạm vùng trống bên ngoài ảnh để đóng nhanh</div>
+                              </div>
                             </body>
                           </html>
                         `);
