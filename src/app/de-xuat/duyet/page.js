@@ -108,16 +108,10 @@ export default function DuyetPage() {
     setDataLoading(true);
     try {
       // Tải các đề xuất ở trạng thái chờ duyệt (CHO_THANH_TOAN hoặc CHO_HOAN_UNG)
-      const propRes = await fetch('/api/de-xuat?limit=1000');
+      const propRes = await fetch('/api/de-xuat?trangThai=CHO_THANH_TOAN,CHO_HOAN_UNG&limit=500');
       if (propRes.ok) {
         const propData = await propRes.json();
-        // Lấy các phiếu chờ thanh toán, chờ hoàn ứng, hoặc đã thanh toán sẵn nhưng chưa gán quỹ
-        const pendingProps = (propData.data || []).filter(
-          (p) => !p.laLichSu && (
-                 p.trangThai === 'CHO_THANH_TOAN' ||
-                 p.trangThai === 'CHO_HOAN_UNG' ||
-                 (p.trangThai === 'DA_THANH_TOAN' && (p.quyThanhToanId === null || p.thuChiId === null)))
-        );
+        const pendingProps = (propData.data || []).filter(p => !p.laLichSu);
         setProposals(pendingProps);
       }
 
@@ -158,6 +152,7 @@ export default function DuyetPage() {
         if (!res.ok) throw new Error(data.error || 'Duyệt đề xuất thất bại.');
 
         alert(`Đã duyệt thanh toán thành công đề xuất ${maPhieu}!`);
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('ari:celebrate'));
         fetchData(); // Tải lại danh sách
       } catch (err) {
         alert(err.message);
@@ -281,6 +276,7 @@ export default function DuyetPage() {
         alert(`${data.message}\n\nChi tiết phiếu lỗi:\n${failed}`);
       } else {
         alert(data.message);
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('ari:celebrate'));
       }
 
       setSelectedPayIds([]);
@@ -338,6 +334,7 @@ export default function DuyetPage() {
         if (!res.ok) throw new Error(data.error || 'Duyệt gộp thất bại.');
 
         alert(data.message || 'Đã duyệt hoàn ứng gộp thành công!');
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('ari:celebrate'));
         setSelectedProposalIds([]);
         fetchData();
       } catch (err) {

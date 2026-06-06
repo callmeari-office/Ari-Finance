@@ -46,6 +46,46 @@
   margin-bottom: 0.25rem;
 }
 
+/* ============ Chế độ Ari: banner couture + con dấu sáp ============ */
+:global([data-theme='pink']) .banner {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 235, 241, 0.75) 0%, rgba(255, 251, 253, 0.92) 100%);
+  border: 1px dashed rgba(115, 72, 94, 0.22);
+  border-bottom: 3px solid var(--primary);
+}
+/* Con dấu sáp rose-gold dập vào góc phải dưới như thư tay boutique */
+:global([data-theme='pink']) .banner::after {
+  content: 'Call Me\A ARI';
+  white-space: pre;
+  text-align: center;
+  line-height: 1.05;
+  position: absolute;
+  bottom: -20px;
+  right: -20px;
+  width: 84px;
+  height: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 14px;
+  font-family: var(--font-quicksand), var(--font-sans);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #FFF6EC;
+  background: radial-gradient(circle at 36% 30%, #F0D9A6 0%, var(--ari-gold, #C9A14A) 62%, #9c7a2c 100%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35), inset 0 0 10px rgba(120, 90, 20, 0.35), 0 4px 12px -3px rgba(120, 90, 20, 0.5);
+  transform: rotate(-10deg);
+  pointer-events: none;
+  opacity: 0.95;
+}
+@media (max-width: 768px) {
+  :global([data-theme='pink']) .banner::after { display: none; }
+}
+
 .bannerText p {
   color: var(--text-muted);
   font-size: 0.95rem;
@@ -84,6 +124,24 @@
   color: var(--text-main);
   margin-bottom: 0.5rem;
   letter-spacing: -0.02em;
+}
+
+/* Chế độ Ari: vạch chỉ vàng hồng (rose-gold) tinh tế dưới con số KPI
+   — như nét khắc ánh kim trên món nữ trang cameo. */
+:global([data-theme='pink']) .statCard h3 {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 7px;
+}
+:global([data-theme='pink']) .statCard h3::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 1.5px;
+  background: var(--ari-gold-line, linear-gradient(90deg, transparent, #C9A14A, transparent));
+  opacity: 0.85;
 }
 
 .cardInfo {
@@ -143,10 +201,22 @@
 }
 
 .emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
   text-align: center;
   padding: 3rem;
   color: var(--text-muted);
   font-size: 0.95rem;
+}
+
+.emptyCameo {
+  color: var(--brand-brown);
+  opacity: 0.35;
+}
+:global([data-theme='pink']) .emptyCameo {
+  opacity: 0.45;
 }
 
 @media (max-width: 1024px) {

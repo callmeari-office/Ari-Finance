@@ -1,12 +1,19 @@
-import { Outfit } from "next/font/google";
+import { Outfit, Quicksand } from "next/font/google";
 import "./globals.css";
 import RegisterSW from "@/components/RegisterSW";
+import PetalsTransition from "@/components/PetalsTransition";
 import Script from "next/script";
 
 const outfit = Outfit({
   variable: "--font-outfit",
   subsets: ["latin", "vietnamese"],
   weight: ["300", "400", "500", "600", "700", "800"],
+});
+
+const quicksand = Quicksand({
+  variable: "--font-quicksand",
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata = {
@@ -34,7 +41,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="vi" className={`${outfit.variable}`} suppressHydrationWarning>
+    <html lang="vi" className={`${outfit.variable} ${quicksand.variable}`} suppressHydrationWarning>
       <head />
       <body suppressHydrationWarning>
         {/* Áp dụng theme đã lưu TRƯỚC khi paint để tránh nhấp nháy (FOUC) */}
@@ -47,6 +54,7 @@ export default function RootLayout({ children }) {
           }}
         />
         {children}
+        <PetalsTransition />
         <RegisterSW />
       </body>
     </html>

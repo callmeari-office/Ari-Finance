@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Sun, Moon, Heart } from 'lucide-react';
+import { Sun, Moon, Flower2 } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 /**
- * Nút chuyển đổi giao diện: Sáng (Light) -> Tối (Dark) -> Hồng ARI (Pink).
+ * Nút chuyển đổi giao diện: Sáng (Light) -> Tối (Dark) -> Ari (Pink).
  * - Lưu lựa chọn vào localStorage('ari-theme') để giữ nguyên sau khi F5.
  */
 export default function ThemeToggle() {
@@ -39,7 +39,7 @@ export default function ThemeToggle() {
     if (theme === 'light') {
       return { label: 'Chế độ Tối', Icon: Moon, title: 'Chuyển sang chế độ Tối' };
     } else if (theme === 'dark') {
-      return { label: 'Chế độ Hồng ARI', Icon: Heart, title: 'Chuyển sang chế độ Hồng ARI' };
+      return { label: 'Chế độ Ari', Icon: Flower2, title: 'Chuyển sang chế độ Ari' };
     } else {
       return { label: 'Chế độ Sáng', Icon: Sun, title: 'Chuyển sang chế độ Sáng' };
     }

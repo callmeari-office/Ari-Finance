@@ -294,6 +294,55 @@
 }
 
 /* Overrides for ARI Pink Theme in Sidebar */
+:global([data-theme='pink']) .sidebar {
+  background: rgba(255, 235, 241, 0.76) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-right: 1px solid rgba(230, 162, 197, 0.28) !important;
+  position: relative !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+/* Glowing orbs under the glass sidebar */
+:global([data-theme='pink']) .sidebar::before,
+:global([data-theme='pink']) .sidebar::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(35px);
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+:global([data-theme='pink']) .sidebar::before {
+  top: 10%;
+  left: -20px;
+  width: 130px;
+  height: 130px;
+  background: radial-gradient(circle, #E6A2C5 0%, rgba(230, 162, 197, 0) 70%);
+  animation: orbFloatOne 10s infinite ease-in-out;
+}
+
+:global([data-theme='pink']) .sidebar::after {
+  bottom: 25%;
+  right: -30px;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, #DBA785 0%, rgba(219, 167, 133, 0) 70%);
+  animation: orbFloatTwo 14s infinite ease-in-out;
+}
+
+@keyframes orbFloatOne {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(25px, 35px) scale(1.18); }
+}
+
+@keyframes orbFloatTwo {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-30px, -25px) scale(1.22); }
+}
 :global([data-theme='pink']) .themeToggle {
   background: rgba(230, 162, 197, 0.08);
   border: 1px solid rgba(230, 162, 197, 0.22);
@@ -308,11 +357,25 @@
   color: #73485E;
 }
 :global([data-theme='pink']) .navItem.active {
-  background: rgba(230, 162, 197, 0.18);
-  color: #73485E;
-  border-left-color: #E6A2C5;
+  background: linear-gradient(90deg, rgba(230, 162, 197, 0.22) 0%, rgba(230, 162, 197, 0.05) 100%) !important;
+  color: #73485E !important;
+  border-left: 3px solid #E6A2C5 !important;
   padding-left: calc(1rem - 3px);
+  box-shadow: 2px 2px 8px rgba(115, 72, 94, 0.04);
 }
+/* Logo cameo "thở sáng" ánh rose-gold dịu — gợi món nữ trang quý giá */
+:global([data-theme='pink']) .logoImg {
+  border-color: rgba(201, 161, 74, 0.4);
+  animation: ariLogoGlow 5s ease-in-out infinite;
+}
+@keyframes ariLogoGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(230, 162, 197, 0); }
+  50%      { box-shadow: 0 0 12px -1px rgba(231, 201, 143, 0.65); }
+}
+@media (prefers-reduced-motion: reduce) {
+  :global([data-theme='pink']) .logoImg { animation: none; }
+}
+
 :global([data-theme='pink']) .userCard {
   background: rgba(230, 162, 197, 0.08);
   border-color: rgba(230, 162, 197, 0.22);
@@ -328,4 +391,5 @@
 :global([data-theme='pink']) .logoutBtn:hover {
   background: rgba(239, 68, 68, 0.08);
 }
+
 

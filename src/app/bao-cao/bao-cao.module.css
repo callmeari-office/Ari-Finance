@@ -200,6 +200,83 @@
   }
 }
 
+/* Trend chart */
+.trendChart {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  height: 140px;
+  padding-bottom: 28px;
+  position: relative;
+  overflow-x: auto;
+}
+
+.trendCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 28px;
+  gap: 2px;
+}
+
+.trendBars {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  height: 100px;
+  width: 100%;
+  justify-content: center;
+}
+
+.trendBarDt {
+  flex: 1;
+  max-width: 12px;
+  background: #10b981;
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+  transition: height 0.4s ease;
+}
+
+.trendBarCp {
+  flex: 1;
+  max-width: 12px;
+  background: #f87171;
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+  transition: height 0.4s ease;
+}
+
+.trendLabel {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 3px;
+}
+
+.trendNet {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 1rem 0.85rem 2rem;
+  }
+
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .sumCard h3 {
+    font-size: 1.3rem;
+  }
+}
+
 .cardHeader {
   display: flex;
   align-items: center;

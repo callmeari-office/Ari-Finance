@@ -28,6 +28,7 @@ export async function GET(request) {
     const nhomChiPhiId = searchParams.get('nhomChiPhiId');
     const nam = searchParams.get('nam');
     const thang = searchParams.get('thang');
+    const search = searchParams.get('search');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(5000, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10)));
     const skip = (page - 1) * limit;
@@ -93,6 +94,21 @@ export async function GET(request) {
           gte: new Date(Date.UTC(year, 0, 1)),
           lt: new Date(Date.UTC(year + 1, 0, 1))
         };
+      }
+    }
+
+    // Tìm kiếm theo mã phiếu / nội dung
+    if (search && search.trim()) {
+      const s = search.trim();
+      const searchOR = [
+        { maPhieu: { contains: s, mode: 'insensitive' } },
+        { noiDung: { contains: s, mode: 'insensitive' } },
+      ];
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchOR }];
+        delete where.OR;
+      } else {
+        where.OR = searchOR;
       }
     }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BarChart3,
@@ -12,7 +12,8 @@ import {
   PieChart,
   SlidersHorizontal,
   FileSpreadsheet,
-  Download
+  Download,
+  Scale
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
@@ -48,6 +49,9 @@ export default function BaoCaoThuChiPage() {
   const [sortedThuGroups, setSortedThuGroups] = useState([]);
   const [sortedChiCats, setSortedChiCats] = useState([]);
   const [sortedThuCats, setSortedThuCats] = useState([]);
+
+  const [loiNhuanData, setLoiNhuanData] = useState(null);
+  const [loiNhuanLoading, setLoiNhuanLoading] = useState(false);
 
   useEffect(() => {
     // 1. Kiểm tra session & vai trò (Chỉ OWNER/MANAGER được vào dựa trên permissions)
@@ -85,7 +89,7 @@ export default function BaoCaoThuChiPage() {
       const params = new URLSearchParams();
       params.append('includeHistory', 'true');
       params.append('page', String(page));
-      params.append('limit', '50');
+      params.append('limit', '20');
       if (filterNam) params.append('nam', filterNam);
       if (filterThang.length > 0) params.append('thang', filterThang.join(','));
       if (filterNhom.length > 0) params.append('nhomChiPhiId', filterNhom.join(','));
@@ -114,6 +118,22 @@ export default function BaoCaoThuChiPage() {
       console.error('Error fetching report data:', e);
     } finally {
       setDataLoading(false);
+    }
+  };
+
+  const fetchLoiNhuan = async (nam) => {
+    if (!nam) return;
+    setLoiNhuanLoading(true);
+    try {
+      const res = await fetch(`/api/loi-nhuan?nam=${nam}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLoiNhuanData(data);
+      }
+    } catch (e) {
+      console.error('Error fetching loi-nhuan:', e);
+    } finally {
+      setLoiNhuanLoading(false);
     }
   };
 
@@ -147,6 +167,32 @@ export default function BaoCaoThuChiPage() {
       }
     }
   }, [filterNam, filterThang, filterNhom, filterDanhMuc]);
+
+  // Fetch lợi nhuận khi năm thay đổi
+  useEffect(() => {
+    if (user && filterNam) {
+      fetchLoiNhuan(filterNam);
+    } else if (user && !filterNam) {
+      setLoiNhuanData(null);
+    }
+  }, [filterNam, user]);
+
+  const loiNhuanKy = useMemo(() => {
+    if (!loiNhuanData) return null;
+    const selectedMonths = filterThang.length > 0
+      ? filterThang.map(Number)
+      : Array.from({ length: 12 }, (_, i) => i + 1);
+    const filtered = loiNhuanData.months.filter(m => selectedMonths.includes(m.thang));
+    const result = filtered.reduce((acc, m) => ({
+      doanhThuThucTe: acc.doanhThuThucTe + m.doanhThuThucTe,
+      chiPhiThucTe: acc.chiPhiThucTe + m.chiPhiThucTe,
+      loiNhuanThucTe: acc.loiNhuanThucTe + m.loiNhuanThucTe,
+    }), { doanhThuThucTe: 0, chiPhiThucTe: 0, loiNhuanThucTe: 0 });
+    result.bienLoiNhuan = result.doanhThuThucTe > 0
+      ? Math.round((result.loiNhuanThucTe / result.doanhThuThucTe) * 100)
+      : 0;
+    return result;
+  }, [loiNhuanData, filterThang]);
 
   if (loading) {
     return (
@@ -261,8 +307,9 @@ export default function BaoCaoThuChiPage() {
               <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>Năm</label>
               <select className="form-control" style={{ minWidth: '110px' }} value={filterNam} onChange={(e) => setFilterNam(e.target.value)}>
                 <option value="">Tất cả</option>
-                <option value="2026">2026</option>
-                <option value="2025">2025</option>
+                {Array.from({ length: new Date().getFullYear() - 2023 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                  <option key={y} value={String(y)}>{y}</option>
+                ))}
               </select>
             </div>
 
@@ -288,6 +335,95 @@ export default function BaoCaoThuChiPage() {
             />
           </div>
         </div>
+
+        {/* SECTION 1.5: LỢI NHUẬN KINH DOANH */}
+        {filterNam && (
+          <div className="glass-card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
+            <div className={styles.cardHeader} style={{ marginBottom: '1rem' }}>
+              <Scale size={18} style={{ color: 'var(--brand-accent)' }} />
+              <h2 style={{ fontSize: '1rem', margin: 0 }}>
+                Lợi nhuận kinh doanh
+                {filterThang.length > 0 ? ` — T${filterThang.sort((a,b)=>Number(a)-Number(b)).join(', T')}` : ''} Năm {filterNam}
+              </h2>
+            </div>
+            {loiNhuanLoading ? (
+              <div className={styles.loaderSmall}>Đang tải...</div>
+            ) : loiNhuanKy ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '1.25rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Doanh thu thực tế</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#10b981' }}>+{formatVND(loiNhuanKy.doanhThuThucTe)}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Từ kênh bán hàng</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Chi phí vận hành</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444' }}>-{formatVND(loiNhuanKy.chiPhiThucTe)}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>ThuChi + lịch sử</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Lãi / Lỗ</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: loiNhuanKy.loiNhuanThucTe >= 0 ? '#10b981' : '#ef4444' }}>
+                    {loiNhuanKy.loiNhuanThucTe >= 0 ? '+' : ''}{formatVND(loiNhuanKy.loiNhuanThucTe)}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Doanh thu − Chi phí</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Biên lợi nhuận</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: loiNhuanKy.bienLoiNhuan >= 20 ? '#10b981' : loiNhuanKy.bienLoiNhuan >= 0 ? '#f59e0b' : '#ef4444' }}>
+                    {loiNhuanKy.bienLoiNhuan}%
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>&gt;20% tốt · &lt;0% lỗ</div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {/* SECTION 1.7: BIỂU ĐỒ XU HƯỚNG THÁNG — luôn hiện cả năm, dim tháng ngoài filter */}
+        {filterNam && loiNhuanData && (() => {
+          const allMonths = loiNhuanData.months; // luôn 12 tháng
+          const maxVal = Math.max(...allMonths.map(m => Math.max(m.doanhThuThucTe, m.chiPhiThucTe)), 1);
+          const selectedSet = new Set(filterThang.length > 0 ? filterThang.map(Number) : []);
+          return (
+            <div className="glass-card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
+              <div className={styles.cardHeader} style={{ marginBottom: '1rem' }}>
+                <BarChart3 size={18} style={{ color: 'var(--brand-accent)' }} />
+                <h2 style={{ fontSize: '1rem', margin: 0 }}>
+                  Xu hướng Doanh thu &amp; Chi phí — Năm {filterNam}
+                  {filterThang.length > 0 && <span style={{ fontWeight: 400, color: 'var(--text-muted)', fontSize: '0.85rem', marginLeft: '0.5rem' }}>(tô đậm tháng đang lọc)</span>}
+                </h2>
+              </div>
+              <div className={styles.trendChart}>
+                {allMonths.map(m => {
+                  const dtH = Math.round((m.doanhThuThucTe / maxVal) * 100);
+                  const cpH = Math.round((m.chiPhiThucTe / maxVal) * 100);
+                  const isActive = selectedSet.size === 0 || selectedSet.has(m.thang);
+                  return (
+                    <div key={m.thang} className={styles.trendCol} style={{ opacity: isActive ? 1 : 0.28 }}>
+                      <div className={styles.trendBars}>
+                        <div className={styles.trendBarDt} style={{ height: `${dtH}%` }} title={`Doanh thu T${m.thang}: ${m.doanhThuThucTe.toLocaleString('vi-VN')}đ`} />
+                        <div className={styles.trendBarCp} style={{ height: `${cpH}%` }} title={`Chi phí T${m.thang}: ${m.chiPhiThucTe.toLocaleString('vi-VN')}đ`} />
+                      </div>
+                      <div className={styles.trendLabel} style={{ fontWeight: isActive && selectedSet.size > 0 ? 700 : 400 }}>T{m.thang}</div>
+                      {m.loiNhuanThucTe !== 0 && isActive && (
+                        <div className={styles.trendNet} style={{ color: m.loiNhuanThucTe >= 0 ? '#10b981' : '#ef4444' }}>
+                          {m.loiNhuanThucTe >= 0 ? '+' : ''}{Math.abs(m.loiNhuanThucTe) >= 1000000
+                            ? Math.round(m.loiNhuanThucTe / 1000000) + 'tr'
+                            : Math.round(m.loiNhuanThucTe / 1000) + 'k'}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.75rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#10b981', borderRadius: 2, marginRight: 4 }} />Doanh thu</span>
+                <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#f87171', borderRadius: 2, marginRight: 4 }} />Chi phí</span>
+                <span style={{ marginLeft: 'auto', fontStyle: 'italic' }}>Số nhỏ = Lãi/Lỗ từng tháng</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* SECTION 2: STATS SUMMARY WIDGET */}
         <div className={styles.summaryGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
@@ -498,9 +634,9 @@ export default function BaoCaoThuChiPage() {
             <div className={styles.emptyState}>Không tìm thấy giao dịch dòng tiền nào phù hợp với bộ lọc đã chọn.</div>
           ) : (
             <>
-              <div className="table-responsive">
+              <div className="table-responsive" style={{ maxHeight: '480px', overflowY: 'auto' }}>
                 <table className="custom-table" style={{ fontSize: '0.9rem' }}>
-                  <thead>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface)' }}>
                     <tr>
                       <th>Mã Giao Dịch</th>
                       <th>Ngày giao dịch</th>

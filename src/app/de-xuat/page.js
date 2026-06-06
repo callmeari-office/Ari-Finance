@@ -162,19 +162,8 @@ export default function DeXuatPage() {
   // Lấy thông tin danh mục đang chọn
   const currentCategory = categories.find(c => c.id === danhMucId);
 
-  // Tính tổng chi tháng hiện tại cho danh mục đang chọn
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
-  const monthlySpentForCategory = danhMucId
-    ? proposals
-        .filter((p) => {
-          if (p.danhMucId !== danhMucId) return false;
-          if (p.trangThai === 'HUY') return false;
-          const d = new Date(p.ngayPhatSinh);
-          return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-        })
-        .reduce((sum, p) => sum + p.soTien, 0)
-    : 0;
+  // Dùng soTienDaThuong từ /api/danh-muc (tính trên toàn DB — đúng ngay cả khi phân trang)
+  const monthlySpentForCategory = currentCategory?.soTienDaThuong || 0;
 
   const hanMucWarning = currentCategory?.hanMucThang
     ? monthlySpentForCategory >= currentCategory.hanMucThang * 0.8

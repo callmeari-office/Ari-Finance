@@ -390,7 +390,7 @@ button, input, select, textarea {
   --info-bg: rgba(149, 178, 196, 0.15);
 
   --background: #FFF5F8; /* Nền hồng phấn cực nhạt */
-  --bg-gradient: linear-gradient(135deg, #FFF9FA 0%, #FFF5F8 100%);
+  --bg-gradient: url('/ari-bg.jpg');
 
   --surface: #FFFBFD; /* Khối thông tin nền hồng-kem nhạt */
   --surface-hover: #FFFDFE;
@@ -417,7 +417,182 @@ button, input, select, textarea {
   --chart-5: #A2C5E6;
   --chart-6: #D5A2E6;
   --chart-7: #BBE6A2;
+
+  --chart-thu-gradient: linear-gradient(180deg, #A8E6CF 0%, #7EB899 100%);
+  --chart-chi-gradient: linear-gradient(180deg, #FFD3B6 0%, #E89BB0 100%);
+
+  /* Rose-gold (vàng hồng) — ánh kim nữ trang đặc trưng khung cameo */
+  --ari-gold: #C9A14A;
+  --ari-gold-soft: #E7C98F;
+  --ari-gold-line: linear-gradient(90deg, transparent 0%, rgba(201, 161, 74, 0.55) 20%, rgba(231, 201, 143, 0.9) 50%, rgba(201, 161, 74, 0.55) 80%, transparent 100%);
+
+  /* ADN Phông chữ - Đồng bộ font Quicksand mềm mại của website */
+  --font-sans: var(--font-quicksand), 'Outfit', 'Inter', sans-serif;
 }
+
+/* Tinh chỉnh riêng cho Chế độ Ari */
+[data-theme="pink"] body {
+  /* Phủ lớp "lụa kem" mờ lên hoa văn cameo -> chỉ còn thấp thoáng như
+     watermark sang trọng, dịu mắt, hết bị rối và hết vệt nếp gấp gắt.
+     3 lớp: ánh sáng nhẹ từ trên + màn kem mờ ~92% + ảnh cameo nền. */
+  background-image:
+    radial-gradient(120% 80% at 50% -10%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 245, 248, 0) 60%),
+    linear-gradient(rgba(255, 248, 251, 0.93), rgba(255, 244, 248, 0.94)),
+    var(--bg-gradient) !important;
+  background-repeat: no-repeat, no-repeat, repeat !important;
+  background-size: cover, cover, 300px !important;
+  background-position: center top, center, center !important;
+  background-attachment: fixed !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(230, 162, 197, 0.5) rgba(255, 235, 241, 0.4);
+}
+
+[data-theme="pink"] body::after {
+  content: '';
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 160px;
+  height: 160px;
+  background-image: url('/logo.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.022; /* Barely visible, premium luxury brand watermark */
+  pointer-events: none;
+  z-index: -1; /* Place it behind all contents */
+}
+
+/* Banner phong cách tạp chí thời trang (Lookbook Welcome Banner) */
+[data-theme="pink"] .banner {
+  background: linear-gradient(135deg, rgba(255, 235, 241, 0.7) 0%, rgba(255, 251, 253, 0.9) 100%) !important;
+  border: 1px dashed rgba(115, 72, 94, 0.22) !important;
+  border-bottom: 3px solid #E6A2C5 !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+[data-theme="pink"] .banner::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 6%;
+  transform: translateY(-50%);
+  width: 90px;
+  height: 90px;
+  background-image: url('/logo.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.045;
+  pointer-events: none;
+}
+
+[data-theme="pink"] .brand-motto {
+  display: block !important;
+  font-family: var(--font-quicksand), var(--font-sans);
+  font-style: italic !important;
+  font-weight: 600 !important;
+  color: #73485E !important;
+  margin-top: 0.5rem !important;
+  font-size: 0.88rem !important;
+  opacity: 0.8 !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Scrollbar webkit overrides */
+[data-theme="pink"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+[data-theme="pink"] ::-webkit-scrollbar-track {
+  background: rgba(255, 235, 241, 0.4);
+}
+[data-theme="pink"] ::-webkit-scrollbar-thumb {
+  background: rgba(230, 162, 197, 0.5);
+  border-radius: 4px;
+}
+[data-theme="pink"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(115, 72, 94, 0.4);
+}
+
+/* 1. Mác quần áo thời trang thiết kế (Couture Clothing Tag) */
+[data-theme="pink"] .glass-card {
+  background: rgba(255, 251, 253, 0.86) !important;
+  border: 1px dashed rgba(115, 72, 94, 0.22) !important; /* Viền nét đứt chỉ khâu couture */
+  box-shadow: 0 8px 32px -4px rgba(115, 72, 94, 0.04) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  position: relative !important;
+}
+
+/* Khuyên đính tag quần áo tinh xảo — viền rose-gold (vàng hồng) ánh kim */
+[data-theme="pink"] .glass-card::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #FFF8EC 0%, var(--ari-gold-soft) 55%, var(--ari-gold) 100%);
+  border: 1px solid rgba(201, 161, 74, 0.55);
+  box-shadow: 0 0 6px -1px rgba(201, 161, 74, 0.5);
+  pointer-events: none;
+  z-index: 10;
+}
+
+[data-theme="pink"] .glass-card:hover {
+  border-color: rgba(230, 162, 197, 0.55) !important;
+  box-shadow: 0 12px 36px -4px rgba(115, 72, 94, 0.12) !important;
+  transform: translateY(-3px) !important;
+}
+
+/* 2. Hiệu ứng ánh kim lụa Satin (Satin Silk Glow Shimmer) */
+[data-theme="pink"] .btn-primary {
+  background: linear-gradient(135deg, #E6A2C5 0%, #D88CB3 100%) !important;
+  background-size: 200% 100% !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px -2px rgba(230, 162, 197, 0.45) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-theme="pink"] .btn-primary:hover {
+  background: linear-gradient(120deg, #E6A2C5 0%, #F5D3E3 25%, #E6A2C5 50%, #D88CB3 75%, #E6A2C5 100%) !important;
+  background-size: 200% 100% !important;
+  animation: ariShimmer 1.5s infinite linear !important;
+  box-shadow: 0 6px 20px -2px rgba(230, 162, 197, 0.65) !important;
+  transform: translateY(-2px) !important;
+}
+
+@keyframes ariShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+[data-theme="pink"] .btn-secondary {
+  background: rgba(255, 251, 253, 0.65) !important;
+  border: 1px solid rgba(230, 162, 197, 0.3) !important;
+  color: #73485E !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+[data-theme="pink"] .btn-secondary:hover {
+  background: rgba(230, 162, 197, 0.12) !important;
+  border-color: rgba(230, 162, 197, 0.5) !important;
+}
+
+[data-theme="pink"] .form-control {
+  background: rgba(255, 251, 253, 0.65) !important;
+  border: 1px solid rgba(230, 162, 197, 0.28) !important;
+  color: #4A3F45 !important;
+}
+
+[data-theme="pink"] .form-control:focus {
+  background: #FFFBFD !important;
+  border-color: #E6A2C5 !important;
+  box-shadow: 0 0 0 3px rgba(230, 162, 197, 0.25) !important;
+}
+
 
 [data-theme="pink"] select.form-control,
 [data-theme="pink"] select {

@@ -42,6 +42,8 @@ export default function ThuChiPage() {
   const [filterQuy, setFilterQuy] = useState([]);
   const [filterThang, setFilterThang] = useState([String(new Date().getMonth() + 1)]);
   const [filterDanhMuc, setFilterDanhMuc] = useState([]);
+  const [filterNam, setFilterNam] = useState(String(new Date().getFullYear()));
+  const [filterSearch, setFilterSearch] = useState('');
 
   // Modal: TẠO PHIẾU THU TRỰC TIẾP (TH4)
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -109,9 +111,8 @@ export default function ThuChiPage() {
       if (filterQuy.length > 0) params.append('quyId', filterQuy.join(','));
       if (filterThang.length > 0) params.append('thang', filterThang.join(','));
       if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
-      
-      const currentYear = new Date().getFullYear();
-      params.append('nam', String(currentYear));
+      if (filterNam) params.append('nam', filterNam);
+      if (filterSearch.trim()) params.append('search', filterSearch.trim());
 
       const txRes = await fetch(`/api/thu-chi?${params.toString()}`);
       if (txRes.ok) {
@@ -183,7 +184,7 @@ export default function ThuChiPage() {
         fetchData(1);
       }
     }
-  }, [filterLoai, filterQuy, filterThang, filterDanhMuc]);
+  }, [filterLoai, filterQuy, filterThang, filterDanhMuc, filterNam, filterSearch]);
 
   const handleCreateReceipt = async (e) => {
     e.preventDefault();
@@ -273,6 +274,30 @@ export default function ThuChiPage() {
 
         {/* Filter Bar */}
         <div className={`${styles.filterCard} glass-card`}>
+          {/* Hàng 1: Tìm kiếm + Năm */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'flex-end', marginBottom: '0.6rem' }}>
+            <div style={{ position: 'relative', flex: '1', minWidth: '200px', maxWidth: '320px' }}>
+              <Search size={15} style={{ position: 'absolute', left: '0.65rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Tìm mã phiếu, nội dung..."
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+                style={{ paddingLeft: '2rem' }}
+              />
+            </div>
+            <div>
+              <label className="form-label" style={{ display: 'block', marginBottom: '0.3rem', fontSize: '0.82rem' }}>Năm</label>
+              <select className="form-control" style={{ minWidth: '100px' }} value={filterNam} onChange={(e) => setFilterNam(e.target.value)}>
+                <option value="">Tất cả</option>
+                {Array.from({ length: new Date().getFullYear() - 2023 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                  <option key={y} value={String(y)}>{y}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {/* Hàng 2: Dropdown filters */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'flex-end' }}>
             <FilterDropdown
               label="Loại giao dịch"

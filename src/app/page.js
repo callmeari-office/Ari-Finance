@@ -18,6 +18,9 @@ import {
   Banknote
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import AriLoader from '@/components/AriLoader';
+import AriCameo from '@/components/AriCameo';
+import AnimatedNumber from '@/components/AnimatedNumber';
 import { isRestrictedToOwnProposals, canViewMenu } from '@/lib/roles';
 import styles from './dashboard.module.css';
 
@@ -139,8 +142,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className={styles.loaderContainer}>
-        <div className={styles.spinner}></div>
-        <p>Đang tải dữ liệu tài chính...</p>
+        <AriLoader text="Đang tải dữ liệu tài chính..." />
       </div>
     );
   }
@@ -148,6 +150,37 @@ export default function Dashboard() {
   const formatVND = (num) => (num || 0).toLocaleString('vi-VN') + ' ₫';
   const currentYear = new Date().getFullYear();
   const thisMonth = new Date().getMonth() + 1;
+
+  // Lời nhắn ấm áp giọng "Call Me Ari" — đổi theo buổi trong ngày, xoay theo ngày.
+  const getAriMotto = () => {
+    const now = new Date();
+    const h = now.getHours();
+    const day = now.getDate();
+    let pool;
+    if (h < 11) {
+      pool = [
+        'Chào buổi sáng — năng lượng hồng cho một ngày rực rỡ ✿',
+        'Một ngày mới của Ari bắt đầu, nhẹ nhàng mà bừng sáng ✿',
+        'Cà phê thơm, sổ sách gọn gàng, ngày mới thật xinh ✿',
+      ];
+    } else if (h < 14) {
+      pool = [
+        'Giữa ngày bận rộn, đừng quên mỉm cười nhé ✿',
+        'Trưa rồi — nghỉ tay một chút cho lại sức nha ✿',
+      ];
+    } else if (h < 18) {
+      pool = [
+        'Buổi chiều dịu dàng, từng con số đang vào nếp ✿',
+        'Chiều nay tài chính của shop vẫn xinh đẹp lắm đó ✿',
+      ];
+    } else {
+      pool = [
+        'Tối an lành — khép lại một ngày thật trọn vẹn ✿',
+        'Đêm về, để Ari trông sổ sách giúp, bạn nghỉ ngơi nhé ✿',
+      ];
+    }
+    return pool[day % pool.length];
+  };
 
   // ===== Quyền hiển thị từng khối Dashboard (widget con tq*) =====
   const canKPI = canViewMenu(user, 'tqKPITaiChinh');
@@ -234,6 +267,7 @@ export default function Dashboard() {
           <div className={styles.bannerText}>
             <h1>Xin chào, {user.hoTen}!</h1>
             <p>Hôm nay là ngày {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p className="brand-motto" style={{ display: 'none' }}>{getAriMotto()}</p>
           </div>
           <div className={styles.actions}>
             <button onClick={() => router.push('/de-xuat')} className="btn btn-primary">
@@ -256,7 +290,7 @@ export default function Dashboard() {
                   <span>Doanh thu tháng này</span>
                   <Target className={styles.cardIcon} style={{ color: tileColor }} />
                 </div>
-                <h3 style={{ color: tileColor }}>{insightsLoading ? '...' : formatVND(doanhThuThang)}</h3>
+                <h3 style={{ color: tileColor }}>{insightsLoading ? '...' : <AnimatedNumber value={doanhThuThang} format={formatVND} />}</h3>
                 <p className={styles.cardInfo}>Đạt {tileChiTieu}% chỉ tiêu ({formatVND(chiTieuThang)})</p>
               </div>
 
@@ -266,7 +300,7 @@ export default function Dashboard() {
                   <span>Chi phí tháng này</span>
                   <TrendingDown className={styles.cardIcon} style={{ color: '#ef4444' }} />
                 </div>
-                <h3 style={{ color: '#ef4444' }}>{insightsLoading ? '...' : formatVND(chiPhiThang)}</h3>
+                <h3 style={{ color: '#ef4444' }}>{insightsLoading ? '...' : <AnimatedNumber value={chiPhiThang} format={formatVND} />}</h3>
                 <p className={styles.cardInfo}>
                   {chiPhiKeHoachThang > 0 ? `${tileChiPhi}% kế hoạch (${formatVND(chiPhiKeHoachThang)})` : 'Chưa đặt kế hoạch chi tháng'}
                 </p>
@@ -279,7 +313,7 @@ export default function Dashboard() {
                   <Scale className={styles.cardIcon} style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }} />
                 </div>
                 <h3 style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }}>
-                  {insightsLoading ? '...' : formatVND(laiLoThang)}
+                  {insightsLoading ? '...' : <AnimatedNumber value={laiLoThang} format={formatVND} />}
                 </h3>
                 <p className={styles.cardInfo}>Biên lợi nhuận {bienLoiNhuan}% · <span style={{ cursor: 'pointer', color: 'var(--info)' }} onClick={() => router.push('/loi-nhuan')}>Xem 12 tháng →</span></p>
               </div>
@@ -290,7 +324,7 @@ export default function Dashboard() {
                   <span>Tiền đang có</span>
                   <Banknote className={styles.cardIcon} style={{ color: 'var(--info)' }} />
                 </div>
-                <h3>{fundsLoading ? '...' : formatVND(tongSoDuQuy)}</h3>
+                <h3>{fundsLoading ? '...' : <AnimatedNumber value={tongSoDuQuy} format={formatVND} />}</h3>
                 <p className={styles.cardInfo}>Tổng số dư {funds.length} quỹ (thực tế dùng thanh toán)</p>
               </div>
             </div>
@@ -394,10 +428,10 @@ export default function Dashboard() {
                   <div key={`${m.year}-${m.month}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', height: '100%', justifyContent: 'flex-end' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', width: '100%', height: '140px', justifyContent: 'center' }}>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                        <div title={`Thu: ${formatVND(m.thu)}`} style={{ width: '100%', height: `${Math.round((m.thu / maxMonthly) * 100)}%`, minHeight: m.thu > 0 ? '4px' : '0', background: 'linear-gradient(180deg, #34d399 0%, #10b981 100%)', borderRadius: '4px 4px 0 0', transition: 'height 0.3s ease' }} />
+                        <div title={`Thu: ${formatVND(m.thu)}`} style={{ width: '100%', height: `${Math.round((m.thu / maxMonthly) * 100)}%`, minHeight: m.thu > 0 ? '4px' : '0', background: 'var(--chart-thu-gradient, linear-gradient(180deg, #34d399 0%, #10b981 100%))', borderRadius: '4px 4px 0 0', transition: 'height 0.3s ease' }} />
                       </div>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                        <div title={`Chi: ${formatVND(m.chi)}`} style={{ width: '100%', height: `${Math.round((m.chi / maxMonthly) * 100)}%`, minHeight: m.chi > 0 ? '4px' : '0', background: 'linear-gradient(180deg, #fca5a5 0%, #ef4444 100%)', borderRadius: '4px 4px 0 0', transition: 'height 0.3s ease' }} />
+                        <div title={`Chi: ${formatVND(m.chi)}`} style={{ width: '100%', height: `${Math.round((m.chi / maxMonthly) * 100)}%`, minHeight: m.chi > 0 ? '4px' : '0', background: 'var(--chart-chi-gradient, linear-gradient(180deg, #fca5a5 0%, #ef4444 100%))', borderRadius: '4px 4px 0 0', transition: 'height 0.3s ease' }} />
                       </div>
                     </div>
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>T{m.month}/{String(m.year).slice(-2)}</span>
@@ -563,7 +597,10 @@ export default function Dashboard() {
           {proposalsLoading ? (
             <div className={styles.loaderSmall}>Đang tải danh sách...</div>
           ) : proposals.length === 0 ? (
-            <div className={styles.emptyState}>Chưa có đề xuất chi phí nào được lập.</div>
+            <div className={styles.emptyState}>
+              <AriCameo size={64} className={styles.emptyCameo} />
+              <p>Chưa có đề xuất chi phí nào được lập.</p>
+            </div>
           ) : (
             <div className="table-responsive">
               <table className="custom-table">
