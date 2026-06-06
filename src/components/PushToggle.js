@@ -14,7 +14,11 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
-export default function PushToggle() {
+/**
+ * compact=true  → dạng hàng sidebar (icon + label + nút nhỏ, không có border card, không có note iOS)
+ * compact=false → dạng card đầy đủ (dùng trong /cau-hinh)
+ */
+export default function PushToggle({ compact = false }) {
   const [supported, setSupported] = useState(false);
   const [status, setStatus] = useState('loading'); // loading | granted | denied | default | subscribed | unsubscribed
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -106,6 +110,33 @@ export default function PushToggle() {
     }
   }
 
+  if (status === 'loading') return null;
+
+  // ── Dạng compact trong Sidebar ────────────────────────────────────────────
+  if (compact) {
+    if (status === 'unsupported') return null; // Sidebar không cần hiện cảnh báo unsupported
+
+    const Icon = isSubscribed ? Bell : BellOff;
+    return (
+      <div className={styles.compactWrap}>
+        <div className={styles.compactRow}>
+          <Icon size={20} className={isSubscribed ? styles.iconOn : styles.iconOff} />
+          <span className={styles.compactLabel}>Thông báo đẩy</span>
+          <button
+            className={`${styles.compactBtn} ${isSubscribed ? styles.compactBtnOff : styles.compactBtnOn}`}
+            onClick={handleToggle}
+            disabled={loading || status === 'denied'}
+            title={status === 'denied' ? 'Trình duyệt đang chặn thông báo' : undefined}
+          >
+            {loading ? <Loader size={12} className={styles.spin} /> : isSubscribed ? 'Tắt' : 'Bật'}
+          </button>
+        </div>
+        {msg && <p className={isSubscribed ? styles.success : styles.info} style={{ margin: '0 0 0 28px', fontSize: '0.75rem' }}>{msg}</p>}
+      </div>
+    );
+  }
+
+  // ── Dạng card đầy đủ trong /cau-hinh ────────────────────────────────────
   if (status === 'unsupported') {
     return (
       <div className={styles.note}>
@@ -114,8 +145,6 @@ export default function PushToggle() {
       </div>
     );
   }
-
-  if (status === 'loading') return null;
 
   return (
     <div className={styles.wrap}>

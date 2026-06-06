@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
+import PushToggle from './PushToggle';
 import { canViewMenu } from '@/lib/roles';
 import styles from './Sidebar.module.css';
 
@@ -181,6 +182,7 @@ export default function Sidebar({ user }) {
             <span>Đổi mật khẩu</span>
           </Link>
           <ThemeToggle />
+          {(user?.role === 'OWNER' || user?.role === 'MANAGER') && <PushToggle compact />}
           <button onClick={handleLogout} className={styles.logoutBtn}>
             <LogOut size={20} />
             <span>Đăng xuất</span>

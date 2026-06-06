@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Lock, ShieldAlert, ArrowRight, Check } from 'lucide-react';
+import { User, Lock, ShieldAlert, ArrowRight, Check, Loader2 } from 'lucide-react';
+import AriCameo from '@/components/AriCameo';
 import styles from './login.module.css';
 
 export default function LoginPage() {
@@ -74,6 +75,28 @@ export default function LoginPage() {
 
   return (
     <div className={styles.loginContainer}>
+      {/* Ảnh nền cameo mờ — chỉ hiện ở Chế độ Ari */}
+      <div className={styles.bgOverlay} aria-hidden="true" />
+
+      {/* Blob ánh sáng nền hồng phấn */}
+      <div className={styles.bgBlob1} aria-hidden="true" />
+      <div className={styles.bgBlob2} aria-hidden="true" />
+      <div className={styles.bgBlob3} aria-hidden="true" />
+
+      {/* Sparkle ✦ lơ lửng — chỉ hiện ở Chế độ Ari */}
+      <div className={styles.sparkles} aria-hidden="true">
+        <span className={styles.sp1}>✦</span>
+        <span className={styles.sp2}>✦</span>
+        <span className={styles.sp3}>✦</span>
+        <span className={styles.sp4}>✦</span>
+        <span className={styles.sp5}>✦</span>
+      </div>
+
+      {/* Cameo watermark lớn — bóng mờ sang trọng phía sau */}
+      <div className={styles.ariWatermark} aria-hidden="true">
+        <AriCameo size={240} color="currentColor" />
+      </div>
+
       <div className={styles.loginBox}>
         {/* Brand Header */}
         <div className={styles.header}>
@@ -81,8 +104,17 @@ export default function LoginPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo-hover.png" alt="Logo" className={styles.logoImg} />
           </div>
+
+          {/* Vòng ánh kim quanh logo — chỉ ở Chế độ Ari */}
+          <div className={styles.logoRing} aria-hidden="true" />
+
           <h1>ARI Finance</h1>
+
+          {/* Vạch vàng hồng shimmer — chỉ ở Chế độ Ari */}
+          <div className={styles.goldDivider} aria-hidden="true" />
+
           <p className={styles.subtitle}>Hệ thống Quản lý Tài chính Nội bộ</p>
+
         </div>
 
         {/* Login Card */}
@@ -139,8 +171,23 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '0.5rem' }} disabled={loading}>
-              {loading ? 'Đang xử lý...' : (
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: '100%', marginTop: '0.5rem' }}
+              disabled={loading || success}
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={18} className={styles.spinnerIcon} />
+                  <span>Đang xác thực...</span>
+                </>
+              ) : success ? (
+                <>
+                  <Check size={18} />
+                  <span>Thành công!</span>
+                </>
+              ) : (
                 <>
                   <span>Đăng Nhập</span>
                   <ArrowRight size={18} />
@@ -148,6 +195,12 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+        </div>
+
+        {/* Chữ ký thương hiệu — chỉ hiện ở Chế độ Ari */}
+        <div className={styles.footerBrand} aria-hidden="true">
+          <AriCameo size={14} color="currentColor" />
+          <span>Call Me ARI</span>
         </div>
 
         {/* Quick Login Section (Hidden for Production) */}

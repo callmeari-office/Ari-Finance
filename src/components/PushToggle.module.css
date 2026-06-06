@@ -82,6 +82,64 @@
   gap: 4px;
 }
 
+/* ── Compact: dùng trong Sidebar footer ── */
+.compactWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.compactRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border-radius: 10px;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.compactRow:hover {
+  background: rgba(214, 168, 168, 0.12);
+}
+
+.compactLabel {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.compactBtn {
+  padding: 3px 12px;
+  border-radius: 5px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+.compactBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.compactBtnOn {
+  background: var(--brand-brown);
+  color: #fff;
+}
+.compactBtnOn:hover:not(:disabled) { opacity: 0.85; }
+
+.compactBtnOff {
+  background: var(--surface-alt, #e5e7eb);
+  color: var(--text-main);
+}
+.compactBtnOff:hover:not(:disabled) { opacity: 0.75; }
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
