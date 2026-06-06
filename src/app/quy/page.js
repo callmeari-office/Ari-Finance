@@ -15,6 +15,7 @@ import {
   ArrowRight,
   UserCheck,
   X,
+  Activity,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import styles from './quy.module.css';
@@ -43,6 +44,9 @@ export default function QuyReportPage() {
   const [ky, setKy] = useState('thang');
   const [cashflow, setCashflow] = useState({ kyThu: 0, kyChi: 0, netCashflow: 0, tienDangUng: 0, soPhieuDangUng: 0 });
 
+  // Dự báo dòng tiền 30 ngày
+  const [forecast, setForecast] = useState(null);
+
   // Modal điều chỉnh số dư (OWNER)
   const [adjustFund, setAdjustFund] = useState(null);
   const [adjustTarget, setAdjustTarget] = useState('');
@@ -69,6 +73,10 @@ export default function QuyReportPage() {
           setUser(data.user);
           setLoading(false);
           fetchFunds();
+          fetch('/api/du-bao-dong-tien?days=30')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => { if (d) setForecast(d); })
+            .catch(() => {});
         }
       })
       .catch(() => {
@@ -278,6 +286,34 @@ export default function QuyReportPage() {
               {cashflow.soPhieuDangUng ? ` (${cashflow.soPhieuDangUng} phiếu)` : ''}.{' '}
               <a href="/de-xuat/duyet" className={styles.ungLink}>Xử lý hoàn ứng →</a>
             </span>
+          </div>
+        )}
+
+        {/* Mini card: Dự báo 30 ngày */}
+        {forecast && (
+          <div className="glass-card" style={{ marginBottom: '1.5rem', borderLeft: `4px solid ${forecast.canhBaoAm ? '#ef4444' : 'var(--info)'}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <Activity size={16} style={{ color: forecast.canhBaoAm ? '#ef4444' : 'var(--info)' }} />
+              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>Dự báo 30 ngày tới</span>
+            </div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 800, color: forecast.soDuDuBaoCuoiKy >= 0 ? '#10b981' : '#ef4444', marginBottom: '0.25rem' }}>
+              ~{formatVND(Math.abs(forecast.soDuDuBaoCuoiKy))}{forecast.soDuDuBaoCuoiKy < 0 ? ' (âm)' : ''}
+            </div>
+            {forecast.canhBaoAm ? (
+              <p style={{ fontSize: '0.82rem', color: '#ef4444', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <AlertTriangle size={13} />
+                Quỹ có thể âm khoảng ngày{' '}
+                {new Date(forecast.ngayCoTheAm + 'T00:00:00').toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric' })}
+                {' '}— cần kiểm tra chi tiêu
+              </p>
+            ) : (
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                Xu hướng chi {formatVND(forecast.giaDinh.avgChiNgay)}/ngày ·{' '}
+                Thu {forecast.giaDinh.nguonThu === 'ke-hoach' ? 'theo chỉ tiêu' : 'theo xu hướng'}{' '}
+                {formatVND(forecast.giaDinh.avgThuNgay)}/ngày
+                {forecast.giaDinh.soPhieuSapToi > 0 && ` · ${forecast.giaDinh.soPhieuSapToi} phiếu cam kết`}
+              </p>
+            )}
           </div>
         )}
 

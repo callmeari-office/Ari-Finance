@@ -15,9 +15,11 @@ import {
   Layers,
   Info,
   Wallet,
-  DatabaseBackup
+  DatabaseBackup,
+  Bell
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import PushToggle from '@/components/PushToggle';
 import styles from './cau-hinh.module.css';
 
 export default function CauHinhPage() {
@@ -866,6 +868,17 @@ export default function CauHinhPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* PHẦN THÔNG BÁO ĐẨY */}
+            <div className={styles.panel} style={{ marginTop: '2rem' }}>
+              <div className={styles.panelHeader} style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+                <div className={styles.panelTitle}>
+                  <Bell className={styles.panelIcon} size={20} style={{ color: 'var(--brand-brown)' }} />
+                  <h2 style={{ fontSize: '1.1rem', margin: 0 }}>Thông Báo Đẩy (Push)</h2>
+                </div>
+              </div>
+              <PushToggle />
             </div>
           </>
         )}

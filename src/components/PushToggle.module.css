@@ -1,0 +1,88 @@
+.wrap {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.iconOn { color: var(--brand-brown); }
+.iconOff { color: var(--text-muted); }
+
+.btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity 0.2s;
+  min-width: 60px;
+  justify-content: center;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnOn {
+  background: var(--brand-brown);
+  color: #fff;
+}
+.btnOn:hover:not(:disabled) { opacity: 0.85; }
+
+.btnOff {
+  background: var(--surface-alt, #e5e7eb);
+  color: var(--text-main);
+}
+.btnOff:hover:not(:disabled) { opacity: 0.75; }
+
+.warn {
+  font-size: 0.8rem;
+  color: #ef4444;
+  margin: 0;
+}
+
+.success {
+  font-size: 0.8rem;
+  color: #22c55e;
+  margin: 0;
+}
+
+.info {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spin { animation: spin 0.8s linear infinite; }

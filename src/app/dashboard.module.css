@@ -219,6 +219,106 @@
   opacity: 0.45;
 }
 
+/* ============ Dự báo dòng tiền ============ */
+.forecastCard {
+  margin-bottom: 1.5rem;
+}
+
+.forecastHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.forecastTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.forecastKpi {
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.02em;
+  margin: 0.25rem 0 0.15rem;
+}
+
+.forecastSub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+/* Cảnh báo âm — nền đỏ nhạt, chạy cả 3 theme */
+.forecastWarning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.08);
+  border-left: 3px solid #ef4444;
+  color: #ef4444;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  line-height: 1.45;
+}
+:global([data-theme='dark']) .forecastWarning {
+  background: rgba(239, 68, 68, 0.12);
+}
+:global([data-theme='pink']) .forecastWarning {
+  background: rgba(239, 68, 68, 0.07);
+}
+
+/* Timeline theo tuần */
+.forecastTimeline {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  scrollbar-width: thin;
+}
+
+.forecastWeek {
+  flex: 1;
+  min-width: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.35rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border);
+}
+:global([data-theme='dark']) .forecastWeek {
+  background: rgba(255, 255, 255, 0.03);
+}
+:global([data-theme='pink']) .forecastWeek {
+  background: rgba(255, 235, 241, 0.35);
+}
+
+.forecastWeekLabel {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.forecastWeekVal {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+}
+
 @media (max-width: 1024px) {
   .dashboardGrid {
     grid-template-columns: repeat(2, 1fr);

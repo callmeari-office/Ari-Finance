@@ -1,8 +1,8 @@
-/* Service worker tối giản cho ARI Finance PWA.
+/* Service worker cho ARI Finance PWA.
  * Nguyên tắc: KHÔNG bao giờ cache dữ liệu API (/api/*) để số liệu tài chính luôn mới.
  * Chỉ cache "vỏ" trang để mở nhanh & có màn hình chờ khi mất mạng.
  */
-const CACHE = 'ari-finance-v1';
+const CACHE = 'ari-finance-v2';
 const OFFLINE_URLS = ['/login', '/icons/icon-192.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -26,10 +26,8 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
-  // Bỏ qua hoàn toàn API và request khác origin — luôn lấy từ mạng.
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
-  // Điều hướng trang (HTML): ưu tiên mạng, mất mạng thì trả trang đã cache.
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request).catch(() => caches.match(request).then((r) => r || caches.match('/login')))
@@ -37,7 +35,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Tài nguyên tĩnh (icon, ảnh, font, _next/static): cache-first, nền cập nhật.
   if (
     url.pathname.startsWith('/_next/static/') ||
     url.pathname.startsWith('/icons/') ||
@@ -58,4 +55,54 @@ self.addEventListener('fetch', (event) => {
       })
     );
   }
+});
+
+// ─── Web Push Notifications ───────────────────────────────────────────────
+
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  let data = {};
+  try {
+    data = event.data.json();
+  } catch {
+    data = { title: 'ARI Finance', body: event.data.text(), url: '/' };
+  }
+
+  const title = data.title || 'ARI Finance';
+  const options = {
+    body: data.body || '',
+    icon: data.icon || '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    data: { url: data.url || '/' },
+    vibrate: [200, 100, 200],
+    // Gộp các thông báo cùng tag (tránh spam nhiều phiếu)
+    tag: data.tag || 'ari-finance',
+    renotify: true,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Nếu đang mở tab ari-finance thì focus và điều hướng
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            client.focus();
+            client.navigate(targetUrl);
+            return;
+          }
+        }
+        // Chưa có tab nào → mở tab mới
+        if (clients.openWindow) return clients.openWindow(targetUrl);
+      })
+  );
 });

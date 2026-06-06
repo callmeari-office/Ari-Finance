@@ -60,6 +60,7 @@ export const DEFAULT_MENU_ROLES = {
   tqQuy:           ['OWNER', 'MANAGER'],
   tqXuHuong:       ['OWNER', 'MANAGER'],
   tqDeXuatCuaToi:  ['LEADER', 'STAFF'],
+  tqDuBao:         ['OWNER', 'MANAGER'],
   deXuat:          ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
   duyet:           ['OWNER'],
   thuChi:          ['OWNER', 'MANAGER'],

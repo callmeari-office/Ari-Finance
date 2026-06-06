@@ -5,6 +5,7 @@ const PUBLIC_PATHS = [
   '/api/auth/login',
   '/dat-lai-mat-khau',
   '/api/auth/dat-lai-mat-khau/xac-nhan',
+  '/api/cron/', // Cron jobs xác thực bằng CRON_SECRET header, không cần session
 ];
 
 export function middleware(request) {

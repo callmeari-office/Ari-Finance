@@ -41,6 +41,13 @@ export async function getSession() {
       return null;
     }
 
+    // Chặn tài khoản đã bị vô hiệu hóa (khóa/ngừng hoạt động): kể cả khi session
+    // còn hạn, nếu nhân viên không còn ACTIVE thì coi như chưa đăng nhập và dọn phiên.
+    if (!session.nhanVien || session.nhanVien.trangThai !== 'ACTIVE') {
+      await prisma.session.deleteMany({ where: { userId: session.userId } }).catch(() => {});
+      return null;
+    }
+
     // Sliding renewal: nếu phiên đã trôi qua >1 ngày, gia hạn về đủ 30 ngày + làm mới cookie.
     // Throttle ~1 lần/ngày để tránh ghi DB mỗi request.
     const remaining = session.expiresAt.getTime() - now.getTime();

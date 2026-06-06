@@ -63,6 +63,13 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
+    if (!['OWNER', 'MANAGER'].includes(user.role)) {
+      return NextResponse.json(
+        { error: 'Bạn không có quyền thêm ngân hàng vào danh mục.' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { tenVietTat, tenDayDu } = body;
 

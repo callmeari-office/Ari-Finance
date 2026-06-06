@@ -72,8 +72,18 @@ export async function PUT(request, { params }) {
     if (phone !== undefined) updateData.phone = phone;
     if (phongBan !== undefined) updateData.phongBan = phongBan;
     if (viTri !== undefined) updateData.viTri = viTri;
-    if (role) updateData.role = role;
-    if (trangThai) updateData.trangThai = trangThai;
+    if (role) {
+      if (!['OWNER', 'MANAGER', 'LEADER', 'STAFF'].includes(role)) {
+        return NextResponse.json({ error: 'Vai trò không hợp lệ.' }, { status: 400 });
+      }
+      updateData.role = role;
+    }
+    if (trangThai) {
+      if (!['ACTIVE', 'INACTIVE'].includes(trangThai)) {
+        return NextResponse.json({ error: 'Trạng thái không hợp lệ.' }, { status: 400 });
+      }
+      updateData.trangThai = trangThai;
+    }
 
 
     // Reset mật khẩu nếu có

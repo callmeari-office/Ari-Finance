@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   CalendarClock,
   Gauge,
-  Banknote
+  Banknote,
+  Activity,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import AriLoader from '@/components/AriLoader';
@@ -31,7 +32,10 @@ export default function Dashboard() {
 
   // Dashboard states
   const [funds, setFunds] = useState([]);
-  const [proposals, setProposals] = useState([]);
+  const [proposals, setProposals] = useState([]); // chỉ dùng cho thống kê cá nhân (STAFF/LEADER)
+  const [recentProposals, setRecentProposals] = useState([]); // 5 phiếu gần đây (mọi vai trò)
+  const [pendingPayment, setPendingPayment] = useState(0); // OWNER/MANAGER: đếm nhẹ
+  const [pendingReimburse, setPendingReimburse] = useState(0); // OWNER/MANAGER: đếm nhẹ
   const [proposalsLoading, setProposalsLoading] = useState(true);
   const [fundsLoading, setFundsLoading] = useState(true);
   const [transactions, setTransactions] = useState([]);
@@ -40,6 +44,9 @@ export default function Dashboard() {
   const [profitMonths, setProfitMonths] = useState([]);
   const [canhBao, setCanhBao] = useState(null);
   const [insightsLoading, setInsightsLoading] = useState(true);
+  // Dự báo dòng tiền
+  const [duBao, setDuBao] = useState(null);
+  const [duBaoLoading, setDuBaoLoading] = useState(true);
 
   useEffect(() => {
     // 1. Kiểm tra session
@@ -61,13 +68,15 @@ export default function Dashboard() {
           //    Các API tài chính (/quy, /thu-chi, /loi-nhuan, /canh-bao) chỉ phục vụ
           //    OWNER/MANAGER ở server; nếu cấp quyền widget cho vai trò khác thì cần
           //    mở thêm quyền ở API tương ứng (ngoài phạm vi trang này).
-          fetchProposals();
+          fetchProposals(u);
           const seeFunds = canViewMenu(u, 'tqQuy') || canViewMenu(u, 'tqKPITaiChinh');
           const seeTx = canViewMenu(u, 'tqXuHuong') || canViewMenu(u, 'tqKPITaiChinh');
           const seeInsights = canViewMenu(u, 'tqKPITaiChinh') || canViewMenu(u, 'tqCanXuLy');
+          const seeDuBao = canViewMenu(u, 'tqDuBao');
           if (seeFunds) fetchFunds(); else setFundsLoading(false);
           if (seeTx) fetchTransactions(); else setTxLoading(false);
           if (seeInsights) fetchInsights(); else setInsightsLoading(false);
+          if (seeDuBao) fetchDuBao(); else setDuBaoLoading(false);
         }
       })
       .catch((err) => {
@@ -76,12 +85,38 @@ export default function Dashboard() {
       });
   }, [router]);
 
-  const fetchProposals = async () => {
+  const fetchProposals = async (u) => {
     try {
-      const res = await fetch('/api/de-xuat?limit=1000');
-      if (res.ok) {
-        const data = await res.json();
-        setProposals(data.data || []);
+      if (isRestrictedToOwnProposals(u.role)) {
+        // STAFF/LEADER: chỉ có đề xuất của mình (số lượng nhỏ) → tải về để tính thống kê
+        // cá nhân + danh sách gần đây, giữ nguyên 100% cách tính cũ.
+        const res = await fetch('/api/de-xuat?limit=1000');
+        if (res.ok) {
+          const data = await res.json();
+          const list = data.data || [];
+          setProposals(list);
+          setRecentProposals(list.slice(0, 5));
+        }
+      } else {
+        // OWNER/MANAGER: KHÔNG kéo toàn bộ phiếu nữa. Chỉ tải 5 phiếu gần đây + đếm nhẹ
+        // số phiếu chờ thanh toán / chờ hoàn ứng qua pagination.total (truy vấn count ở server).
+        const [recentRes, payRes, reimRes] = await Promise.all([
+          fetch('/api/de-xuat?limit=5'),
+          fetch('/api/de-xuat?trangThai=CHO_THANH_TOAN&limit=1'),
+          fetch('/api/de-xuat?trangThai=CHO_HOAN_UNG&limit=1'),
+        ]);
+        if (recentRes.ok) {
+          const d = await recentRes.json();
+          setRecentProposals(d.data || []);
+        }
+        if (payRes.ok) {
+          const d = await payRes.json();
+          setPendingPayment(d.pagination?.total || 0);
+        }
+        if (reimRes.ok) {
+          const d = await reimRes.json();
+          setPendingReimburse(d.pagination?.total || 0);
+        }
       }
     } catch (e) {
       console.error('Error fetching proposals:', e);
@@ -115,6 +150,17 @@ export default function Dashboard() {
       console.error('Error fetching transactions:', e);
     } finally {
       setTxLoading(false);
+    }
+  };
+
+  const fetchDuBao = async () => {
+    try {
+      const res = await fetch('/api/du-bao-dong-tien?days=thang');
+      if (res.ok) setDuBao(await res.json());
+    } catch (e) {
+      console.error('Error fetching duBao:', e);
+    } finally {
+      setDuBaoLoading(false);
     }
   };
 
@@ -187,14 +233,14 @@ export default function Dashboard() {
   const canXuLy = canViewMenu(user, 'tqCanXuLy');
   const canQuy = canViewMenu(user, 'tqQuy');
   const canXuHuong = canViewMenu(user, 'tqXuHuong');
+  const canDuBao = canViewMenu(user, 'tqDuBao');
   // Khối cá nhân chỉ dành cho vai trò bị giới hạn xem đề xuất của chính mình.
   const canPersonal = isRestrictedToOwnProposals(user.role) && canViewMenu(user, 'tqDeXuatCuaToi');
 
   // ===== Thống kê đề xuất =====
-  const pendingPayment = proposals.filter((p) => p.trangThai === 'CHO_THANH_TOAN').length;
-  const pendingReimburse = proposals.filter((p) => p.trangThai === 'CHO_HOAN_UNG').length;
+  // pendingPayment / pendingReimburse: nay là STATE (đếm nhẹ ở server cho OWNER/MANAGER).
 
-  // Cá nhân (LEADER/STAFF)
+  // Cá nhân (LEADER/STAFF) — tính từ proposals (chỉ STAFF/LEADER mới tải về list này)
   const myTotalAmount = proposals.reduce((sum, p) => sum + p.soTien, 0);
   const myPending = proposals.filter((p) => p.trangThai === 'CHO_THANH_TOAN' || p.trangThai === 'CHO_HOAN_UNG').length;
   const myPaid = proposals.filter((p) => p.trangThai === 'DA_THANH_TOAN').length;
@@ -410,6 +456,83 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* ❷.5 ================= DỰ BÁO DÒNG TIỀN ================= */}
+        {canDuBao && (
+          <div className={`glass-card ${styles.forecastCard}`}>
+            <div className={styles.forecastHead}>
+              <h2 className={styles.forecastTitle}>
+                <Activity size={18} style={{ color: 'var(--info)' }} />
+                Dự báo dòng tiền — cuối tháng
+              </h2>
+              <button
+                onClick={() => router.push('/quy')}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+              >
+                <span>Chi tiết quỹ</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+
+            {duBaoLoading ? (
+              <div className={styles.loaderSmall}>Đang tính dự báo...</div>
+            ) : !duBao ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Không tải được dữ liệu dự báo.</p>
+            ) : (
+              <>
+                <p className={styles.forecastKpi} style={{ color: duBao.soDuDuBaoCuoiKy >= 0 ? '#10b981' : '#ef4444' }}>
+                  ~{formatVND(Math.abs(duBao.soDuDuBaoCuoiKy))}
+                  {duBao.soDuDuBaoCuoiKy < 0 && <span style={{ fontSize: '0.85rem', fontWeight: 600, marginLeft: '0.4rem' }}>(âm)</span>}
+                </p>
+                <p className={styles.forecastSub}>
+                  Còn {duBao.soNgayForecast} ngày đến cuối tháng · Số dư hiện tại {formatVND(duBao.soDuHomNay)}
+                  {duBao.giaDinh.soPhieuSapToi > 0 && ` · ${duBao.giaDinh.soPhieuSapToi} phiếu cam kết sắp tới`}
+                  {duBao.giaDinh.nguonThu === 'ke-hoach' ? ' · Thu theo chỉ tiêu tháng' : ' · Thu theo xu hướng 30 ngày'}
+                </p>
+
+                {duBao.canhBaoAm && (
+                  <div className={styles.forecastWarning}>
+                    <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+                    <span>
+                      Quỹ có thể âm khoảng ngày{' '}
+                      <strong>
+                        {new Date(duBao.ngayCoTheAm + 'T00:00:00').toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric' })}
+                      </strong>{' '}
+                      nếu chi theo xu hướng hiện tại — cần bổ sung thu hoặc cắt giảm chi.
+                    </span>
+                  </div>
+                )}
+
+                {duBao.timeline.length > 0 && (
+                  <div className={styles.forecastTimeline}>
+                    {duBao.timeline.map((w, i) => (
+                      <div key={i} className={styles.forecastWeek}>
+                        <span className={styles.forecastWeekLabel}>{w.nhan}</span>
+                        <span
+                          className={styles.forecastWeekVal}
+                          style={{ color: w.soDuCuoiTuan >= 0 ? '#10b981' : '#ef4444' }}
+                        >
+                          {w.soDuCuoiTuan >= 0 ? '' : '-'}
+                          {Math.abs(w.soDuCuoiTuan) >= 1_000_000
+                            ? `${Math.round(Math.abs(w.soDuCuoiTuan) / 1_000_000)}tr`
+                            : Math.abs(w.soDuCuoiTuan) >= 1_000
+                            ? `${Math.round(Math.abs(w.soDuCuoiTuan) / 1_000)}k`
+                            : formatVND(Math.abs(w.soDuCuoiTuan))}
+                        </span>
+                        {w.chiCommitted > 0 && (
+                          <span style={{ fontSize: '0.65rem', color: '#f59e0b', textAlign: 'center' }} title={`Cam kết: ${formatVND(w.chiCommitted)}`}>
+                            📌
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         {/* ❸ ================= BIỂU ĐỒ XU HƯỚNG (Thu-Chi + Lãi/Lỗ) ================= */}
         {canXuHuong && (
           <div className={`glass-card ${styles.largeCard}`} style={{ marginBottom: '1.5rem' }}>
@@ -450,7 +573,7 @@ export default function Dashboard() {
                       <div
                         key={i}
                         title={`Lãi/Lỗ T${mk.month}: ${formatVND(mk.v)}`}
-                        style={{ position: 'absolute', left: `${mk.x}%`, top: `${mk.y}%`, transform: 'translate(-50%,-50%)', width: '9px', height: '9px', borderRadius: '50%', background: '#f59e0b', border: '2px solid var(--bg-card, #1f2937)', pointerEvents: 'auto', cursor: 'help' }}
+                        style={{ position: 'absolute', left: `${mk.x}%`, top: `${mk.y}%`, transform: 'translate(-50%,-50%)', width: '9px', height: '9px', borderRadius: '50%', background: '#f59e0b', border: '2px solid var(--surface)', pointerEvents: 'auto', cursor: 'help' }}
                       />
                     ))}
                   </div>
@@ -596,7 +719,7 @@ export default function Dashboard() {
           </div>
           {proposalsLoading ? (
             <div className={styles.loaderSmall}>Đang tải danh sách...</div>
-          ) : proposals.length === 0 ? (
+          ) : recentProposals.length === 0 ? (
             <div className={styles.emptyState}>
               <AriCameo size={64} className={styles.emptyCameo} />
               <p>Chưa có đề xuất chi phí nào được lập.</p>
@@ -616,7 +739,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {proposals.slice(0, 5).map((prop) => (
+                  {recentProposals.slice(0, 5).map((prop) => (
                     <tr key={prop.id}>
                       <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{prop.maPhieu}</td>
                       <td>{new Date(prop.ngayPhatSinh).toLocaleDateString('vi-VN')}</td>

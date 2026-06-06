@@ -13,7 +13,10 @@ import {
   SlidersHorizontal,
   FileSpreadsheet,
   Download,
-  Scale
+  Scale,
+  Mail,
+  Eye,
+  Send,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
@@ -52,6 +55,20 @@ export default function BaoCaoThuChiPage() {
 
   const [loiNhuanData, setLoiNhuanData] = useState(null);
   const [loiNhuanLoading, setLoiNhuanLoading] = useState(false);
+
+  // Lá thư ARI — state gửi thư tháng (chỉ OWNER)
+  const [letterThang, setLetterThang] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.getMonth() + 1; // tháng trước
+  });
+  const [letterNam, setLetterNam] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.getFullYear();
+  });
+  const [letterSending, setLetterSending] = useState(false);
+  const [letterResult, setLetterResult] = useState(null);
 
   useEffect(() => {
     // 1. Kiểm tra session & vai trò (Chỉ OWNER/MANAGER được vào dựa trên permissions)
@@ -193,6 +210,21 @@ export default function BaoCaoThuChiPage() {
       : 0;
     return result;
   }, [loiNhuanData, filterThang]);
+
+  const handleGuiThuThang = async () => {
+    if (!confirm(`Gửi Lá thư ARI tổng kết tháng ${letterThang}/${letterNam} tới tất cả quản lý?`)) return;
+    setLetterSending(true);
+    setLetterResult(null);
+    try {
+      const res = await fetch(`/api/cron/thu-thang?thang=${letterThang}&nam=${letterNam}`);
+      const data = await res.json();
+      setLetterResult(data);
+    } catch {
+      setLetterResult({ ok: false, error: 'Lỗi kết nối.' });
+    } finally {
+      setLetterSending(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -723,6 +755,95 @@ export default function BaoCaoThuChiPage() {
             </>
           )}
         </div>
+        {/* LÁ THƯ ARI — chỉ OWNER */}
+        {user?.role === 'OWNER' && (
+          <div className="glass-card" style={{ padding: '1.25rem 1.5rem', marginTop: '2rem' }}>
+            <div className={styles.cardHeader} style={{ marginBottom: '0.75rem' }}>
+              <Mail size={18} style={{ color: '#E6A2C5' }} />
+              <h2 style={{ fontSize: '1rem', margin: 0 }}>Lá thư ARI — Tổng kết tháng</h2>
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.855rem', margin: '0 0 1rem', lineHeight: 1.6 }}>
+              Gửi email tổng kết tài chính (doanh thu, chi phí, lãi/lỗ, top danh mục) cho tất cả quản lý.
+              Nút <strong>Xem trước</strong> mở email mẫu trong tab mới — <strong>Gửi ngay</strong> gửi email thật.
+            </p>
+
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              {/* Chọn tháng */}
+              <div>
+                <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem' }}>Tháng</label>
+                <select
+                  className="form-control"
+                  style={{ minWidth: '90px' }}
+                  value={letterThang}
+                  onChange={(e) => { setLetterThang(Number(e.target.value)); setLetterResult(null); }}
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((t) => (
+                    <option key={t} value={t}>Tháng {t}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Chọn năm */}
+              <div>
+                <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem' }}>Năm</label>
+                <select
+                  className="form-control"
+                  style={{ minWidth: '90px' }}
+                  value={letterNam}
+                  onChange={(e) => { setLetterNam(Number(e.target.value)); setLetterResult(null); }}
+                >
+                  {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Xem trước — mở tab mới trả text/html */}
+              <button
+                className="btn btn-secondary"
+                onClick={() =>
+                  window.open(
+                    `/api/cron/thu-thang?preview=true&thang=${letterThang}&nam=${letterNam}`,
+                    '_blank'
+                  )
+                }
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', whiteSpace: 'nowrap' }}
+              >
+                <Eye size={15} /> Xem trước
+              </button>
+
+              {/* Gửi ngay */}
+              <button
+                className="btn btn-primary"
+                onClick={handleGuiThuThang}
+                disabled={letterSending}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.4rem',
+                  background: 'linear-gradient(135deg,#73485E,#C4778A)',
+                  border: 'none', whiteSpace: 'nowrap',
+                  opacity: letterSending ? 0.7 : 1,
+                }}
+              >
+                <Send size={15} />
+                {letterSending ? 'Đang gửi...' : 'Gửi ngay'}
+              </button>
+            </div>
+
+            {/* Kết quả gửi */}
+            {letterResult && (
+              <div style={{
+                marginTop: '0.85rem', padding: '0.6rem 0.9rem', borderRadius: '8px',
+                background: letterResult.ok ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)',
+                color: letterResult.ok ? '#065f46' : '#991b1b',
+                fontSize: '0.855rem', fontWeight: 500,
+              }}>
+                {letterResult.ok
+                  ? `✅ Đã gửi Lá thư ARI tháng ${letterResult.thang}/${letterResult.nam} tới ${letterResult.recipients} người.`
+                  : `❌ ${letterResult.error || 'Không gửi được email.'}`}
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

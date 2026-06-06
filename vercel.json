@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/thu-thang",
+      "schedule": "0 1 1 * *"
+    },
+    {
+      "path": "/api/cron/thong-bao",
+      "schedule": "0 13 * * *"
+    }
+  ]
+}

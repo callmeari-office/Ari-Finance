@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { prisma } from './prisma';
 import { logger } from './logger';
+import { ghiNhatKy } from './audit';
 
 /**
  * Gửi email qua Gmail SMTP (nodemailer).
@@ -470,6 +471,313 @@ export async function notifyManagersBulkChoThanhToan(proposalIds) {
     logger.error('notifyManagersBulkChoThanhToan', error);
   }
 }
+
+// ─── LÁ THƯ ARI — TỔNG KẾT THÁNG ────────────────────────────────────────────
+
+/** Lấy số liệu tài chính 1 tháng (doanh thu, chi phí, lãi/lỗ). */
+async function getMonthlyFinancials(thang, nam) {
+  const startOfMonth = new Date(nam, thang - 1, 1);
+  const endOfMonth = new Date(nam, thang, 1);
+
+  const [doanhThuRows, chiThuChiRows, chiLichSuRows] = await Promise.all([
+    prisma.keHoachDoanhThu.groupBy({
+      by: ['thang'],
+      where: { nam, thang },
+      _sum: { thucTe: true },
+    }),
+    prisma.$queryRaw`
+      SELECT COALESCE(SUM("soTien"), 0) AS total FROM "ThuChi"
+      WHERE "ngayGiaoDich" >= ${startOfMonth} AND "ngayGiaoDich" < ${endOfMonth}
+        AND "loaiGiaoDich" = 'CHI'
+    `,
+    prisma.$queryRaw`
+      SELECT COALESCE(SUM("soTien"), 0) AS total FROM "DeXuatChiPhi"
+      WHERE COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startOfMonth}
+        AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endOfMonth}
+        AND "laLichSu" = true
+    `,
+  ]);
+
+  const doanhThuThucTe = Number(doanhThuRows[0]?._sum?.thucTe || 0);
+  const chiPhiThucTe =
+    Number(chiThuChiRows[0]?.total || 0) + Number(chiLichSuRows[0]?.total || 0);
+  const loiNhuanThucTe = doanhThuThucTe - chiPhiThucTe;
+  const bienLoiNhuan =
+    doanhThuThucTe > 0 ? Math.round((loiNhuanThucTe / doanhThuThucTe) * 100) : 0;
+
+  return { doanhThuThucTe, chiPhiThucTe, loiNhuanThucTe, bienLoiNhuan };
+}
+
+/** Top 3 danh mục chi trong tháng (từ sổ ThuChi). */
+async function getTop3ChiDanhMuc(thang, nam) {
+  const startOfMonth = new Date(nam, thang - 1, 1);
+  const endOfMonth = new Date(nam, thang, 1);
+
+  const rows = await prisma.$queryRaw`
+    SELECT d."tenDanhMuc", COALESCE(SUM(tc."soTien"), 0) AS total
+    FROM "ThuChi" tc
+    JOIN "DanhMuc" d ON d.id = tc."danhMucId"
+    WHERE tc."ngayGiaoDich" >= ${startOfMonth}
+      AND tc."ngayGiaoDich" < ${endOfMonth}
+      AND tc."loaiGiaoDich" = 'CHI'
+    GROUP BY d.id, d."tenDanhMuc"
+    ORDER BY total DESC
+    LIMIT 3
+  `;
+
+  return rows.map((r) => ({ tenDanhMuc: r.tenDanhMuc, total: Number(r.total || 0) }));
+}
+
+/**
+ * Dựng HTML email "Lá thư ARI" — tông kem-hồng cameo, responsive.
+ * Không dùng flexbox/grid (email client compat) — layout bằng table.
+ */
+function buildMonthlyReportHtml({ thang, nam, prevThang, prevNam, hienTai, truoc, top3Chi, appUrl }) {
+  const logoUrl = `${appUrl}/logo-hover.png`;
+  const link = `${appUrl}/bao-cao`;
+
+  // % thay đổi so tháng trước
+  const pctChange = (curr, prev) => {
+    if (prev === 0) return null;
+    return Math.round(((curr - prev) / Math.abs(prev)) * 100);
+  };
+  const dtPct = pctChange(hienTai.doanhThuThucTe, truoc.doanhThuThucTe);
+  const cpPct = pctChange(hienTai.chiPhiThucTe, truoc.chiPhiThucTe);
+  const lnPct = pctChange(hienTai.loiNhuanThucTe, truoc.loiNhuanThucTe);
+  const bienLN = hienTai.bienLoiNhuan;
+
+  // Lời nhắn ấm theo biên lợi nhuận
+  const loiNhan =
+    bienLN >= 20
+      ? `Tháng vừa rồi thật rực rỡ! Shop <strong>Call Me Ari</strong> đang trên đà tăng trưởng tốt — biên lợi nhuận <strong>${bienLN}%</strong> là con số đáng tự hào. Hãy tiếp tục phát huy nhé, mọi nỗ lực đều đang được đền đáp xứng đáng. 🌸`
+      : bienLN >= 0
+      ? `Shop <strong>Call Me Ari</strong> vẫn đang sinh lời trong tháng này — dù chưa phải tháng bứt phá nhất, mỗi bước đi ổn định đều rất quý giá. Hãy tiếp tục duy trì và tìm cơ hội tối ưu chi phí để tăng biên lợi nhuận nhé. 💪`
+      : `Tháng này có phần vất vả với shop <strong>Call Me Ari</strong>, nhưng đừng lo — mọi con số đều là bài học quý. Hãy xem lại cơ cấu chi phí và tìm cơ hội tăng doanh thu cho tháng tới. Chúng ta sẽ làm tốt hơn! 🌺`;
+
+  // KPI card 50% width
+  const kpiCard = (icon, label, value, color) => `
+    <td style="padding:5px;width:50%;vertical-align:top;">
+      <div style="background:#FFFFFF;border:1px solid #F0E4D7;border-radius:12px;padding:14px 10px;text-align:center;">
+        <div style="font-size:20px;margin-bottom:5px;">${icon}</div>
+        <div style="color:#8A7068;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px;">${label}</div>
+        <div style="color:${color};font-size:14px;font-weight:800;word-break:break-word;">${value}</div>
+      </div>
+    </td>`;
+
+  // Badge so sánh — invertColor: chi phí giảm = tốt
+  const badgeCell = (pct, label, invertColor) => {
+    if (pct === null) {
+      return `<td style="width:33%;text-align:center;padding:5px;">
+        <div style="color:#A07888;font-size:11px;margin-bottom:4px;">${label}</div>
+        <span style="color:#C4A4B0;font-size:13px;font-weight:700;">—</span>
+      </td>`;
+    }
+    const up = pct >= 0;
+    const isGood = invertColor ? !up : up;
+    const color = isGood ? '#10b981' : '#ef4444';
+    const arrow = up ? '▲' : '▼';
+    return `<td style="width:33%;text-align:center;padding:5px;">
+      <div style="color:#A07888;font-size:11px;margin-bottom:4px;">${label}</div>
+      <span style="color:${color};font-size:14px;font-weight:800;">${arrow} ${Math.abs(pct)}%</span>
+    </td>`;
+  };
+
+  // Top 3 chi
+  const medals = ['🥇', '🥈', '🥉'];
+  const maxTop = top3Chi.length > 0 ? top3Chi[0].total : 1;
+  const top3Section =
+    top3Chi.length === 0
+      ? ''
+      : `
+        <tr>
+          <td style="padding:14px 18px 4px;">
+            <div style="color:#73485E;font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:12px;">🏆 Top 3 danh mục chi nhiều nhất</div>
+            ${top3Chi
+              .map((cat, i) => {
+                const barW = Math.round((cat.total / maxTop) * 100);
+                return `
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+                  <tr>
+                    <td style="font-size:13px;padding-bottom:5px;color:#3D2B2B;">
+                      ${medals[i]} <strong>${esc(cat.tenDanhMuc)}</strong>
+                      <span style="float:right;color:#73485E;font-weight:800;">${formatVND(cat.total)}</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <div style="background:#F0E4D7;border-radius:99px;height:7px;overflow:hidden;">
+                        <div style="background:linear-gradient(90deg,#E6A2C5 0%,#73485E 100%);height:7px;width:${barW}%;border-radius:99px;"></div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>`;
+              })
+              .join('')}
+          </td>
+        </tr>`;
+
+  const lnColor = hienTai.loiNhuanThucTe >= 0 ? '#10b981' : '#ef4444';
+  const lnSign = hienTai.loiNhuanThucTe >= 0 ? '+' : '';
+  const bienColor = bienLN >= 20 ? '#10b981' : bienLN >= 0 ? '#f59e0b' : '#ef4444';
+
+  return `<!DOCTYPE html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#FAF0E8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Georgia,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAF0E8;padding:24px 10px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+             style="max-width:520px;background:#FFF8F2;border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(115,72,94,0.13);">
+
+        <!-- HEADER -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#5C3347 0%,#C4778A 100%);padding:30px 24px 26px;text-align:center;">
+            <div style="color:rgba(255,255,255,0.68);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">ARI Finance · Thư tổng kết</div>
+            <div style="color:#FFFFFF;font-size:26px;font-weight:800;letter-spacing:-0.5px;">🌸 Tháng ${thang} · ${nam}</div>
+            <div style="color:rgba(255,255,255,0.60);font-size:13px;margin-top:6px;">Tổng kết tài chính · Call Me Ari</div>
+          </td>
+        </tr>
+
+        <!-- KPI GRID 2×2 -->
+        <tr>
+          <td style="padding:20px 14px 6px;">
+            <div style="color:#73485E;font-size:11px;font-weight:700;letter-spacing:0.9px;text-transform:uppercase;margin-bottom:10px;">📊 Kết quả tháng này</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                ${kpiCard('💰', 'Doanh thu', formatVND(hienTai.doanhThuThucTe), '#059669')}
+                ${kpiCard('🧾', 'Chi phí', formatVND(hienTai.chiPhiThucTe), '#dc2626')}
+              </tr>
+              <tr>
+                ${kpiCard('📈', 'Lãi / Lỗ', lnSign + formatVND(hienTai.loiNhuanThucTe), lnColor)}
+                ${kpiCard('📊', 'Biên lợi nhuận', bienLN + '%', bienColor)}
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- SO SÁNH THÁNG TRƯỚC -->
+        <tr>
+          <td style="padding:12px 14px 4px;">
+            <div style="background:#F5E6EF;border-radius:14px;padding:16px 10px;">
+              <div style="color:#73485E;font-size:11px;font-weight:700;letter-spacing:0.9px;text-transform:uppercase;margin-bottom:12px;">⚖️ So với T${prevThang}/${prevNam}</div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  ${badgeCell(dtPct, 'Doanh thu', false)}
+                  ${badgeCell(cpPct, 'Chi phí', true)}
+                  ${badgeCell(lnPct, 'Lãi / Lỗ', false)}
+                </tr>
+              </table>
+            </div>
+          </td>
+        </tr>
+
+        ${top3Section}
+
+        <!-- LỜI NHẮN ẤM -->
+        <tr>
+          <td style="padding:14px 14px 6px;">
+            <div style="background:linear-gradient(135deg,#FFF0F6,#FAF0E8);border:1px solid #F0C8DC;border-radius:14px;padding:18px;">
+              <div style="color:#73485E;font-size:11px;font-weight:700;letter-spacing:0.9px;text-transform:uppercase;margin-bottom:10px;">✉️ Lời nhắn từ ARI Finance</div>
+              <p style="color:#4A3040;font-size:14px;line-height:1.8;margin:0;font-style:italic;">${loiNhan}</p>
+            </div>
+          </td>
+        </tr>
+
+        <!-- CTA -->
+        <tr>
+          <td style="padding:18px 20px 22px;text-align:center;">
+            <a href="${link}" target="_blank"
+               style="display:inline-block;background:linear-gradient(135deg,#73485E 0%,#C4778A 100%);color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:700;padding:13px 30px;border-radius:10px;letter-spacing:0.2px;">
+              Xem báo cáo chi tiết →
+            </a>
+          </td>
+        </tr>
+
+        <!-- FOOTER -->
+        <tr>
+          <td style="background:#F5E6EF;padding:16px 24px;text-align:center;border-top:1px solid #EFCFDF;">
+            <img src="${logoUrl}" alt="Call Me Ari" width="48"
+                 style="display:block;margin:0 auto 8px;width:48px;height:auto;opacity:0.72;" />
+            <div style="color:#8A6070;font-size:12px;font-weight:600;">ARI Finance · Call Me Ari</div>
+            <div style="color:#C4A4B0;font-size:11px;margin-top:4px;">Email tự động gửi đầu tháng — vui lòng không trả lời.</div>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+/**
+ * Gửi "Lá thư ARI" — email tổng kết tài chính tháng trước cho OWNER + MANAGER.
+ *
+ * @param {object} opts
+ * @param {number} opts.thang  - Tháng cần tổng kết (1–12)
+ * @param {number} opts.nam    - Năm cần tổng kết
+ * @param {object} [opts.user] - Người dùng gửi thủ công (null nếu cron tự động)
+ * @param {boolean} [opts.preview] - true → trả HTML không gửi mail (xem trước)
+ */
+export async function sendMonthlyReport({ thang, nam, user = null, preview = false }) {
+  try {
+    // Tháng so sánh = tháng liền trước (tự xử lý qua đầu năm)
+    const prevDate = new Date(nam, thang - 2, 1);
+    const prevThang = prevDate.getMonth() + 1; // 1-12
+    const prevNam = prevDate.getFullYear();
+
+    const [hienTai, truoc, top3Chi] = await Promise.all([
+      getMonthlyFinancials(thang, nam),
+      getMonthlyFinancials(prevThang, prevNam),
+      getTop3ChiDanhMuc(thang, nam),
+    ]);
+
+    const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const html = buildMonthlyReportHtml({ thang, nam, prevThang, prevNam, hienTai, truoc, top3Chi, appUrl });
+
+    if (preview) {
+      return { ok: true, html };
+    }
+
+    const transporter = getTransporter();
+    if (!transporter) {
+      logger.warn('sendMonthlyReport: chưa cấu hình SMTP → bỏ qua.');
+      return { ok: false, error: 'Chưa cấu hình SMTP_USER / SMTP_PASS trong .env.' };
+    }
+
+    const toList = await getManagerRecipients();
+    if (toList.length === 0) {
+      return { ok: false, error: 'Không có OWNER/MANAGER nào có email hợp lệ.' };
+    }
+
+    const from = process.env.SMTP_FROM || `ARI Finance <${process.env.SMTP_USER}>`;
+    const loiLai = hienTai.loiNhuanThucTe >= 0 ? 'Lãi' : 'Lỗ';
+    const loiNhuanAbs = formatVND(Math.abs(hienTai.loiNhuanThucTe));
+
+    await transporter.sendMail({
+      from,
+      to: toList.join(', '),
+      subject: `🌸 Lá thư ARI — Tổng kết tháng ${thang}/${nam} · ${loiLai} ${loiNhuanAbs}`,
+      html,
+    });
+
+    await ghiNhatKy({
+      user,
+      hanhDong: 'GUI_THU_THANG',
+      doiTuong: 'EMAIL',
+      maDoiTuong: `${nam}-${String(thang).padStart(2, '0')}`,
+      moTa: `Gửi Lá thư ARI tổng kết tháng ${thang}/${nam} tới ${toList.length} người (${toList.join(', ')})`,
+    });
+
+    logger.info(`sendMonthlyReport: đã gửi tháng ${thang}/${nam} → ${toList.length} người.`);
+    return { ok: true, thang, nam, recipients: toList.length };
+  } catch (error) {
+    logger.error('sendMonthlyReport', error);
+    return { ok: false, error: error.message || 'Lỗi hệ thống.' };
+  }
+}
+
+// ─── END LÁ THƯ ARI ──────────────────────────────────────────────────────────
 
 /**
  * Gửi email thông báo cho tất cả OWNER + MANAGER (đang ACTIVE, có email)

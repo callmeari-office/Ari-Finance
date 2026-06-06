@@ -25,6 +25,7 @@ model NhanVien {
   deXuatTao           DeXuatChiPhi[] @relation("NguoiTao")
   deXuatDuyet         DeXuatChiPhi[] @relation("NguoiDuyet")
   thuChiTao           ThuChi[]
+  pushSubscriptions   PushSubscription[]
 }
 
 model Session {
@@ -239,6 +240,20 @@ model PhieuDinhKy {
   nguoiTaoId        String
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+// Đăng ký nhận Web Push Notification theo từng trình duyệt/thiết bị.
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique  // URL endpoint do browser cấp
+  p256dh    String            // Public key mã hoá payload
+  auth      String            // Auth secret
+  createdAt DateTime @default(now())
+
+  nhanVien  NhanVien @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Nhật ký thao tác (audit log) — ghi lại ai làm gì, lúc nào.

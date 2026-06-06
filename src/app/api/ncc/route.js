@@ -52,6 +52,13 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
+    if (!['OWNER', 'MANAGER'].includes(user.role)) {
+      return NextResponse.json(
+        { error: 'Bạn không có quyền thêm nhà cung cấp.' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { id, tenNCC, tenTaiKhoan, soTaiKhoan, tenNganHang, maQR } = body;
 

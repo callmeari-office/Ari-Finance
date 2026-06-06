@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaDeXuat } from '@/lib/generateId';
 import { notifyManagersChoThanhToan } from '@/lib/email';
+import { notifyManagers as pushNotifyManagers } from '@/lib/webpush';
 import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
 import { ghiNhatKy } from '@/lib/audit';
 
@@ -283,6 +284,13 @@ export async function POST(request) {
     // tự bắt lỗi bên trong nên KHÔNG làm hỏng luồng tạo phiếu nếu gửi mail thất bại.
     if (newProposal.trangThai === 'CHO_THANH_TOAN') {
       await notifyManagersChoThanhToan(newProposal.id);
+      // Gửi push notification song song với email (tự bắt lỗi bên trong)
+      pushNotifyManagers({
+        title: 'Phiếu mới chờ duyệt',
+        body: `${newProposal.noiDung} — ${Number(newProposal.soTien).toLocaleString('vi-VN')}đ`,
+        url: '/de-xuat/duyet',
+        tag: 'phieu-cho-duyet',
+      }).catch(() => {});
     }
 
     return NextResponse.json({

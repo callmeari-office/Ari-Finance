@@ -299,7 +299,6 @@
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
   border-right: 1px solid rgba(230, 162, 197, 0.28) !important;
-  position: relative !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
 }

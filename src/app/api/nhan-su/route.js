@@ -70,7 +70,7 @@ export async function POST(request) {
       );
     }
 
-    if (!['OWNER', 'MANAGER', 'STAFF'].includes(role)) {
+    if (!['OWNER', 'MANAGER', 'LEADER', 'STAFF'].includes(role)) {
       return NextResponse.json({ error: 'Vai trò không hợp lệ.' }, { status: 400 });
     }
 

@@ -201,6 +201,15 @@ export async function PUT(request, { params }) {
         );
       }
 
+      // Chống duyệt 2 lần: phiếu đã gắn dòng tiền (đã thanh toán) thì không duyệt lại,
+      // tránh sinh phiếu chi trùng làm lệch số dư quỹ. (Bulk-approve đã chặn sẵn việc này.)
+      if (existingProposal.thuChiId !== null) {
+        return NextResponse.json(
+          { error: 'Đề xuất này đã được thanh toán trước đó, không thể duyệt lại.' },
+          { status: 400 }
+        );
+      }
+
       if (!quyThanhToanId) {
         return NextResponse.json(
           { error: 'Vui lòng chọn quỹ dùng để thanh toán.' },
