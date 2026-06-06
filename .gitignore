@@ -58,3 +58,5 @@ prisma/dev.db-journal
 Thumbs.db
 desktop.ini
 
+
+.vercel

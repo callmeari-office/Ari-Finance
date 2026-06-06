@@ -78,6 +78,10 @@ export default function PushToggle() {
         if (!keyRes.ok) throw new Error('Không lấy được VAPID key');
         const { publicKey } = await keyRes.json();
 
+        if (!publicKey) {
+          throw new Error('Tính năng thông báo chưa được cấu hình trên server (thiếu VAPID key). Liên hệ quản trị viên.');
+        }
+
         // --- Đăng ký subscription ---
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,

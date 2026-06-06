@@ -33,10 +33,17 @@ Chạy trong `web-app/` (Windows + PowerShell):
 - **KHÔNG hardcode màu tối** (rgba đen, `#1d2030`...) trong CSS — app chạy cả light/dark mode. Dùng biến CSS: `var(--surface)`, `var(--text-main)`, `var(--text-muted)`, `var(--border)`, `var(--brand-brown)`.
 - **ESLint 10** trong repo lỗi môi trường `scopeManager.addGlobals is not a function` — đây là bug version, không liên quan code. Dùng `next build` để verify thay vì `npm run lint`.
 
-## 4. Trạng thái dự án — 2026-06-05
-Cập nhật cuối: **2026-06-05 (Đợt 6)**.
+## 4. Trạng thái dự án — 2026-06-06
+Cập nhật cuối: **2026-06-06 (Đợt 7)**.
 
-### Tính năng mới hôm nay
+### Tính năng mới hôm nay (2026-06-06)
+- **Chế độ Ari theme thời trang độc quyền & Web Push & Vercel Crons**:
+  - Giao diện theme màu hồng ("Chế độ Ari") cao cấp với font Quicksand, viền đứt couture stitch, button satin cát, hiệu ứng cánh hoa bay `PetalsTransition.js`.
+  - Tích hợp Web Push Notifications cho trình duyệt và Service Worker.
+  - Cấu hình file `vercel.json` lên lịch tự động cho các API cron gửi báo cáo mail tháng và push thông báo đẩy hàng ngày.
+  - Cấu hình đồng bộ 10 biến môi trường (SMTP, VAPID, CRON_SECRET, APP_URL) lên Vercel Production và cập nhật tên miền chính thành `https://callmeari-finance.vercel.app/`.
+
+### Tính năng cũ hơn (2026-06-05)
 - **Trang Thông tin Quỹ (`/quy`) nâng cấp toàn diện:**
   - Lazy-load 8 phiếu gần nhất per quỹ (không còn tải 100 phiếu toàn cục khi vào trang)
   - Badge "X phiếu" lấy số thật từ server (trước đếm trong 100 phiếu → sai)
