@@ -288,8 +288,8 @@ export async function POST(request) {
       pushNotifyManagers({
         title: 'Phiếu mới chờ duyệt',
         body: `${newProposal.noiDung} — ${Number(newProposal.soTien).toLocaleString('vi-VN')}đ`,
-        url: '/de-xuat/duyet',
-        tag: 'phieu-cho-duyet',
+        url: '/de-xuat/duyet?open=' + newProposal.id,
+        tag: 'phieu-' + newProposal.id,
       }).catch(() => {});
     }
 

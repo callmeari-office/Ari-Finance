@@ -256,6 +256,24 @@ model PushSubscription {
   @@index([userId])
 }
 
+// Bảng thông báo nội bộ — hiển thị ngay đầu trang Tổng quan.
+// Bảng được tạo bằng raw SQL (prisma/add-thong-bao.js) — xem lưu ý Prisma 7 db push trên Windows.
+model ThongBaoNoiBo {
+  id          String    @id @default(uuid())
+  tieuDe      String
+  noiDung     String
+  tag         String    @default("THONG_TIN") // QUAN_TRONG | NHAC_NHO | THONG_TIN
+  ngayHetHan  DateTime?
+  trangThai   String    @default("ACTIVE")    // ACTIVE | ARCHIVED
+  nguoiTaoId  String
+  tenNguoiTao String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([trangThai])
+  @@index([ngayHetHan])
+}
+
 // Nhật ký thao tác (audit log) — ghi lại ai làm gì, lúc nào.
 // Bảng độc lập, không khóa ngoại để xóa nhân viên không ảnh hưởng lịch sử.
 // Bảng được tạo bằng raw SQL (prisma/add-lichsuthaotac.js) — xem lưu ý Prisma 7 db push trên Windows.

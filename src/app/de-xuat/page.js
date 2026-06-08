@@ -1,8 +1,8 @@
 'use client';
 // Reverted VietQR quick transfer feature to restore clean codebase
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   PlusCircle,
   Search,
@@ -27,8 +27,10 @@ import FilterDropdown from '@/components/FilterDropdown';
 import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
 import styles from './de-xuat.module.css';
 
-export default function DeXuatPage() {
+function DeXuatPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const openHandledRef = useRef(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -309,6 +311,31 @@ export default function DeXuatPage() {
       }
     }
   }, [filterTrangThai, filterNguonTien, filterThang, filterNam, filterDanhMuc, filterNguoiTao, filterSearch]);
+
+  // Deep-link: notification click với ?open=ID → tự mở modal xem nhanh phiếu đó
+  useEffect(() => {
+    if (dataLoading) return;
+    if (openHandledRef.current) return;
+    const openId = searchParams.get('open');
+    if (!openId) return;
+    openHandledRef.current = true;
+    const target = proposals.find((p) => p.id === openId);
+    if (target) {
+      setSelectedProp(target);
+      router.replace('/de-xuat');
+    } else {
+      // Phiếu không có trong trang hiện tại (khác tháng / đã lọc ra) → fetch riêng
+      fetch(`/api/de-xuat/${openId}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data) {
+            setSelectedProp(data);
+            router.replace('/de-xuat');
+          }
+        })
+        .catch(() => {});
+    }
+  }, [dataLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCancelProp = (id, maPhieu) => {
     setCancelReason('');
@@ -2444,5 +2471,13 @@ export default function DeXuatPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DeXuatPageWrapper() {
+  return (
+    <Suspense>
+      <DeXuatPage />
+    </Suspense>
   );
 }

@@ -17,6 +17,13 @@ import {
   Gauge,
   Banknote,
   Activity,
+  Wallet,
+  BarChart3,
+  Megaphone,
+  Pencil,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import AriLoader from '@/components/AriLoader';
@@ -47,6 +54,18 @@ export default function Dashboard() {
   // Dự báo dòng tiền
   const [duBao, setDuBao] = useState(null);
   const [duBaoLoading, setDuBaoLoading] = useState(true);
+  // Ngân sách danh mục + doanh thu mini (STAFF/LEADER)
+  const [nganSachThang, setNganSachThang] = useState(null);
+  const [nganSachLoading, setNganSachLoading] = useState(true);
+  const [doanhThuSummary, setDoanhThuSummary] = useState(null);
+  const [doanhThuSummaryLoading, setDoanhThuSummaryLoading] = useState(true);
+
+  // Bảng thông báo nội bộ
+  const [thongBaoList, setThongBaoList] = useState([]);
+  const [tbModal, setTbModal] = useState(null); // null | 'create' | { id, tieuDe, noiDung, tag, ngayHetHan }
+  const [tbForm, setTbForm] = useState({ tieuDe: '', noiDung: '', tag: 'THONG_TIN', ngayHetHan: '' });
+  const [tbSaving, setTbSaving] = useState(false);
+  const [tbExpanded, setTbExpanded] = useState({}); // id -> bool (xem thêm nội dung dài)
 
   useEffect(() => {
     // 1. Kiểm tra session
@@ -77,6 +96,15 @@ export default function Dashboard() {
           if (seeTx) fetchTransactions(); else setTxLoading(false);
           if (seeInsights) fetchInsights(); else setInsightsLoading(false);
           if (seeDuBao) fetchDuBao(); else setDuBaoLoading(false);
+
+          // STAFF/LEADER: ngân sách danh mục + doanh thu mini
+          const seeNganSach = isRestrictedToOwnProposals(u.role) && canViewMenu(u, 'keHoach');
+          const seeDoanhThuMini = isRestrictedToOwnProposals(u.role) && canViewMenu(u, 'doanhThuDBThang');
+          if (seeNganSach) fetchNganSach(); else setNganSachLoading(false);
+          if (seeDoanhThuMini) fetchDoanhThuSummary(); else setDoanhThuSummaryLoading(false);
+
+          // Thông báo nội bộ — mọi role
+          fetchThongBao();
         }
       })
       .catch((err) => {
@@ -90,7 +118,7 @@ export default function Dashboard() {
       if (isRestrictedToOwnProposals(u.role)) {
         // STAFF/LEADER: chỉ có đề xuất của mình (số lượng nhỏ) → tải về để tính thống kê
         // cá nhân + danh sách gần đây, giữ nguyên 100% cách tính cũ.
-        const res = await fetch('/api/de-xuat?limit=1000');
+        const res = await fetch('/api/de-xuat?limit=200');
         if (res.ok) {
           const data = await res.json();
           const list = data.data || [];
@@ -141,10 +169,21 @@ export default function Dashboard() {
 
   const fetchTransactions = async () => {
     try {
-      const res = await fetch('/api/thu-chi?limit=2000&includeHistory=true');
+      const res = await fetch('/api/thu-chi/thong-ke-thang?soThang=6');
       if (res.ok) {
-        const data = await res.json();
-        setTransactions(data.data || []);
+        const rawData = await res.json();
+        // Xây dựng 6 tháng gần nhất (kể cả tháng không có giao dịch)
+        const now = new Date();
+        const months = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const year = d.getFullYear();
+          const month = d.getMonth() + 1;
+          const key = `${year}-${String(month).padStart(2, '0')}`;
+          const found = rawData.find((r) => r.thang === key);
+          months.push({ year, month, thu: found?.thu || 0, chi: found?.chi || 0 });
+        }
+        setTransactions(months);
       }
     } catch (e) {
       console.error('Error fetching transactions:', e);
@@ -185,6 +224,37 @@ export default function Dashboard() {
     }
   };
 
+  const fetchNganSach = async () => {
+    try {
+      const res = await fetch(`/api/ke-hoach?nam=${new Date().getFullYear()}`);
+      if (res.ok) setNganSachThang(await res.json());
+    } catch (e) {
+      console.error('Error fetching nganSach:', e);
+    } finally {
+      setNganSachLoading(false);
+    }
+  };
+
+  const fetchDoanhThuSummary = async () => {
+    try {
+      const res = await fetch(`/api/doanh-thu?nam=${new Date().getFullYear()}`);
+      if (res.ok) setDoanhThuSummary(await res.json());
+    } catch (e) {
+      console.error('Error fetching doanhThuSummary:', e);
+    } finally {
+      setDoanhThuSummaryLoading(false);
+    }
+  };
+
+  const fetchThongBao = async () => {
+    try {
+      const res = await fetch('/api/thong-bao-noi-bo');
+      if (res.ok) setThongBaoList(await res.json());
+    } catch (e) {
+      console.error('Error fetching thongBao:', e);
+    }
+  };
+
   if (loading) {
     return (
       <div className={styles.loaderContainer}>
@@ -195,6 +265,71 @@ export default function Dashboard() {
 
   const formatVND = (num) => (num || 0).toLocaleString('vi-VN') + ' ₫';
   const currentYear = new Date().getFullYear();
+
+  // ===== Thông báo nội bộ helpers =====
+  const TB_TAG_META = {
+    QUAN_TRONG: { label: 'Quan trọng', bg: '#ef4444', color: '#fff' },
+    NHAC_NHO:   { label: 'Nhắc nhở',   bg: '#f59e0b', color: '#fff' },
+    THONG_TIN:  { label: 'Thông tin',  bg: '#60a5fa', color: '#fff' },
+  };
+  const canManageTB = user && (user.role === 'OWNER' || user.role === 'MANAGER');
+
+  const openCreateTB = () => {
+    setTbForm({ tieuDe: '', noiDung: '', tag: 'THONG_TIN', ngayHetHan: '' });
+    setTbModal('create');
+  };
+
+  const openEditTB = (tb) => {
+    const hetHan = tb.ngayHetHan ? new Date(tb.ngayHetHan).toISOString().split('T')[0] : '';
+    setTbForm({ tieuDe: tb.tieuDe, noiDung: tb.noiDung, tag: tb.tag, ngayHetHan: hetHan });
+    setTbModal({ id: tb.id, tieuDe: tb.tieuDe });
+  };
+
+  const saveTB = async () => {
+    if (!tbForm.tieuDe.trim() || !tbForm.noiDung.trim()) return;
+    setTbSaving(true);
+    try {
+      const body = {
+        tieuDe: tbForm.tieuDe,
+        noiDung: tbForm.noiDung,
+        tag: tbForm.tag,
+        ngayHetHan: tbForm.ngayHetHan || null,
+      };
+      const isEdit = tbModal && tbModal.id;
+      const res = await fetch(
+        isEdit ? `/api/thong-bao-noi-bo/${tbModal.id}` : '/api/thong-bao-noi-bo',
+        { method: isEdit ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      );
+      if (res.ok) {
+        setTbModal(null);
+        await fetchThongBao();
+      } else {
+        const d = await res.json();
+        alert(d.error || 'Lỗi khi lưu thông báo.');
+      }
+    } finally {
+      setTbSaving(false);
+    }
+  };
+
+  const archiveTB = async (id) => {
+    const res = await fetch(`/api/thong-bao-noi-bo/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trangThai: 'ARCHIVED' }),
+    });
+    if (res.ok) fetchThongBao();
+  };
+
+  const deleteTB = async (id, tieuDe) => {
+    if (!confirm(`Xóa vĩnh viễn thông báo "${tieuDe}"?`)) return;
+    const res = await fetch(`/api/thong-bao-noi-bo/${id}`, { method: 'DELETE' });
+    if (res.ok) fetchThongBao();
+    else {
+      const d = await res.json();
+      alert(d.error || 'Lỗi khi xóa thông báo.');
+    }
+  };
   const thisMonth = new Date().getMonth() + 1;
 
   // Lời nhắn ấm áp giọng "Call Me Ari" — đổi theo buổi trong ngày, xoay theo ngày.
@@ -236,6 +371,9 @@ export default function Dashboard() {
   const canDuBao = canViewMenu(user, 'tqDuBao');
   // Khối cá nhân chỉ dành cho vai trò bị giới hạn xem đề xuất của chính mình.
   const canPersonal = isRestrictedToOwnProposals(user.role) && canViewMenu(user, 'tqDeXuatCuaToi');
+  // Widget bổ sung cho STAFF/LEADER
+  const canNganSach = canPersonal && canViewMenu(user, 'keHoach');
+  const canDoanhThuMini = canPersonal && canViewMenu(user, 'doanhThuDBThang');
 
   // ===== Thống kê đề xuất =====
   // pendingPayment / pendingReimburse: nay là STATE (đếm nhẹ ở server cho OWNER/MANAGER).
@@ -261,24 +399,71 @@ export default function Dashboard() {
   const tileChiPhi = chiPhiKeHoachThang > 0 ? Math.round((chiPhiThang / chiPhiKeHoachThang) * 100) : 0;
   const bienLoiNhuan = doanhThuThang > 0 ? Math.round((laiLoThang / doanhThuThang) * 100) : 0;
 
+  // ===== Ngân sách theo danh mục — STAFF/LEADER =====
+  const nganSachRows = (() => {
+    if (!nganSachThang) return [];
+    const { keHoach, thucTeByMonth } = nganSachThang;
+    const khThisMonth = keHoach.filter((kh) => kh.thang === thisMonth && kh.soTien > 0);
+    const ttMap = {};
+    thucTeByMonth
+      .filter((tt) => Number(tt.thang) === thisMonth)
+      .forEach((tt) => { ttMap[tt.danhMucId] = (ttMap[tt.danhMucId] || 0) + Number(tt.total); });
+    return khThisMonth.map((kh) => {
+      const daChi = ttMap[kh.danhMucId] || 0;
+      const pct = kh.soTien > 0 ? Math.round((daChi / kh.soTien) * 100) : 0;
+      return {
+        tenDanhMuc: kh.danhMuc.tenDanhMuc,
+        keHoach: kh.soTien,
+        daChi,
+        con: kh.soTien - daChi,
+        pct,
+        color: pct >= 100 ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#10b981',
+      };
+    }).sort((a, b) => b.pct - a.pct);
+  })();
+
+  // ===== Doanh thu tháng mini — STAFF/LEADER =====
+  const doanhThuThangMini = (() => {
+    if (!doanhThuSummary) return null;
+    const { kenhBan, data } = doanhThuSummary;
+    const tmData = data.filter((d) => d.thang === thisMonth);
+    const chiTieuTong = tmData.reduce((s, d) => s + (d.chiTieu || 0), 0);
+    const thucTeTong = tmData.reduce((s, d) => s + (d.thucTe || 0), 0);
+    if (chiTieuTong === 0) return null;
+    const pct = Math.round((thucTeTong / chiTieuTong) * 100);
+    const pctColor = pct >= 90 ? '#10b981' : pct >= 70 ? '#f59e0b' : '#ef4444';
+    const byKenh = kenhBan
+      .map((k) => {
+        const row = tmData.find((d) => d.kenhBanId === k.id);
+        if (!row || !row.chiTieu) return null;
+        const kPct = Math.round(((row.thucTe || 0) / row.chiTieu) * 100);
+        return {
+          tenKenh: k.tenKenh,
+          mauSac: k.mauSac || '#60a5fa',
+          chiTieu: row.chiTieu,
+          thucTe: row.thucTe || 0,
+          pct: kPct,
+          color: kPct >= 90 ? '#10b981' : kPct >= 70 ? '#f59e0b' : '#ef4444',
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.pct - a.pct);
+    return { chiTieuTong, thucTeTong, pct, pctColor, byKenh };
+  })();
+
+  // ===== Phiếu của tôi sắp đến hạn — STAFF/LEADER (dùng proposals đã tải) =====
+  const soonDue = proposals
+    .filter((p) => {
+      if (p.trangThai !== 'CHO_THANH_TOAN' && p.trangThai !== 'CHO_HOAN_UNG') return false;
+      if (!p.ngayCanThanhToan) return false;
+      const diffDays = Math.round((new Date(p.ngayCanThanhToan) - new Date()) / 86400000);
+      return diffDays <= 3;
+    })
+    .sort((a, b) => new Date(a.ngayCanThanhToan) - new Date(b.ngayCanThanhToan));
+
   // ===== Biểu đồ Thu-Chi 6 tháng + đường Lãi/Lỗ =====
-  const buildMonthlyChart = () => {
-    const months = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({ year: d.getFullYear(), month: d.getMonth() + 1, thu: 0, chi: 0 });
-    }
-    transactions.forEach((tx) => {
-      const d = new Date(tx.ngayGiaoDich);
-      const found = months.find((x) => x.year === d.getFullYear() && x.month === d.getMonth() + 1);
-      if (!found) return;
-      if (tx.loaiGiaoDich === 'THU') found.thu += tx.soTien;
-      else found.chi += tx.soTien;
-    });
-    return months;
-  };
-  const monthlyData = buildMonthlyChart();
+  // transactions đã được fetch từ /api/thu-chi/thong-ke-thang, shape { year, month, thu, chi }[]
+  const monthlyData = transactions;
   const maxMonthly = Math.max(...monthlyData.flatMap((m) => [m.thu, m.chi]), 1);
 
   // Đường Lãi/Lỗ overlay: chỉ có dữ liệu cho các tháng thuộc năm hiện tại (API lợi nhuận theo năm).
@@ -322,6 +507,192 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        {/* ===== BẢNG THÔNG BÁO NỘI BỘ ===== */}
+        {(thongBaoList.length > 0 || canManageTB) && (
+          <div className="glass-card" style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: thongBaoList.length > 0 ? '0.75rem' : 0 }}>
+              <Megaphone size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+              <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-main)', flex: 1 }}>Thông báo nội bộ</span>
+              {canManageTB && (
+                <button
+                  onClick={openCreateTB}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: '2px 6px', borderRadius: '6px' }}
+                  title="Thêm thông báo mới"
+                >
+                  <PlusCircle size={14} /> Thêm
+                </button>
+              )}
+            </div>
+
+            {thongBaoList.length === 0 && canManageTB && (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: 0 }}>Chưa có thông báo nào. Bấm &ldquo;Thêm&rdquo; để tạo mới.</p>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {thongBaoList.map((tb) => {
+                const meta = TB_TAG_META[tb.tag] || TB_TAG_META.THONG_TIN;
+                const isLong = tb.noiDung.length > 120;
+                const isExpanded = tbExpanded[tb.id];
+                const shownContent = isLong && !isExpanded ? tb.noiDung.slice(0, 120) + '…' : tb.noiDung;
+                const hetHanDate = tb.ngayHetHan ? new Date(tb.ngayHetHan) : null;
+                const hetHanStr = hetHanDate
+                  ? `Hết hạn ${hetHanDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+                  : null;
+
+                return (
+                  <div key={tb.id} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '0.6rem',
+                    padding: '0.55rem 0.75rem', borderRadius: '8px',
+                    background: 'rgba(var(--surface-rgb, 255,255,255), 0.04)',
+                    border: '1px solid rgba(var(--border-rgb, 200,200,200), 0.18)',
+                    flexWrap: 'wrap',
+                  }}>
+                    {/* Badge tag */}
+                    <span style={{
+                      fontSize: '0.68rem', fontWeight: 700, padding: '2px 7px',
+                      borderRadius: '999px', background: meta.bg, color: meta.color,
+                      flexShrink: 0, marginTop: '2px',
+                    }}>{meta.label}</span>
+
+                    {/* Nội dung */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-main)', marginRight: '0.4rem' }}>{tb.tieuDe}</span>
+                      <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)' }}>{shownContent}</span>
+                      {isLong && (
+                        <button
+                          onClick={() => setTbExpanded((p) => ({ ...p, [tb.id]: !p[tb.id] }))}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', fontSize: '0.78rem', fontWeight: 600, padding: '0 4px', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                        >
+                          {isExpanded ? <><ChevronUp size={12} /> Thu gọn</> : <><ChevronDown size={12} /> Xem thêm</>}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Ngày hết hạn */}
+                    {hetHanStr && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flexShrink: 0, alignSelf: 'center', whiteSpace: 'nowrap' }}>{hetHanStr}</span>
+                    )}
+
+                    {/* Nút quản lý (OWNER/MANAGER) */}
+                    {canManageTB && (
+                      <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0, alignSelf: 'center' }}>
+                        <button
+                          onClick={() => openEditTB(tb)}
+                          title="Sửa thông báo"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '3px', borderRadius: '4px', display: 'flex' }}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => archiveTB(tb.id)}
+                          title="Ẩn thông báo"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '3px', borderRadius: '4px', display: 'flex' }}
+                        >
+                          <X size={14} />
+                        </button>
+                        {user.role === 'OWNER' && (
+                          <button
+                            onClick={() => deleteTB(tb.id, tb.tieuDe)}
+                            title="Xóa vĩnh viễn"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '3px', borderRadius: '4px', display: 'flex', fontSize: '0.7rem', fontWeight: 700 }}
+                          >
+                            Xóa
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Modal tạo/sửa thông báo */}
+        {tbModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+            <div className="glass-card" style={{ width: '100%', maxWidth: '480px', padding: '1.5rem', borderRadius: '16px' }}>
+              <h3 style={{ margin: '0 0 1rem', fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                {tbModal === 'create' ? 'Tạo thông báo mới' : `Sửa: ${tbModal.tieuDe}`}
+              </h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                    Tiêu đề <span style={{ color: '#ef4444' }}>*</span> ({tbForm.tieuDe.length}/80)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={80}
+                    value={tbForm.tieuDe}
+                    onChange={(e) => setTbForm((p) => ({ ...p, tieuDe: e.target.value }))}
+                    style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-main)', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                    placeholder="Nhập tiêu đề ngắn gọn..."
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                    Nội dung <span style={{ color: '#ef4444' }}>*</span> ({tbForm.noiDung.length}/500)
+                  </label>
+                  <textarea
+                    maxLength={500}
+                    rows={4}
+                    value={tbForm.noiDung}
+                    onChange={(e) => setTbForm((p) => ({ ...p, noiDung: e.target.value }))}
+                    style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-main)', fontSize: '0.9rem', resize: 'vertical', boxSizing: 'border-box' }}
+                    placeholder="Nhập nội dung chi tiết..."
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '140px' }}>
+                    <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Loại thông báo</label>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      {Object.entries(TB_TAG_META).map(([key, m]) => (
+                        <button
+                          key={key}
+                          onClick={() => setTbForm((p) => ({ ...p, tag: key }))}
+                          style={{
+                            padding: '3px 10px', borderRadius: '999px', border: '2px solid',
+                            borderColor: tbForm.tag === key ? m.bg : 'transparent',
+                            background: tbForm.tag === key ? m.bg : 'rgba(0,0,0,0.08)',
+                            color: tbForm.tag === key ? m.color : 'var(--text-muted)',
+                            fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
+                          }}
+                        >{m.label}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: '140px' }}>
+                    <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Ngày hết hạn (tùy chọn)</label>
+                    <input
+                      type="date"
+                      value={tbForm.ngayHetHan}
+                      onChange={(e) => setTbForm((p) => ({ ...p, ngayHetHan: e.target.value }))}
+                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-main)', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setTbModal(null)}
+                  style={{ padding: '0.5rem 1.25rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 600 }}
+                >Hủy</button>
+                <button
+                  onClick={saveTB}
+                  disabled={tbSaving || !tbForm.tieuDe.trim() || !tbForm.noiDung.trim()}
+                  className="btn btn-primary"
+                  style={{ padding: '0.5rem 1.25rem' }}
+                >{tbSaving ? 'Đang lưu…' : 'Lưu'}</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ❶ ================= BỨC TRANH THÁNG NÀY (KPI) ================= */}
         {canKPI && (
@@ -684,6 +1055,36 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* ⚠ Phiếu sắp đến hạn thanh toán */}
+            {!proposalsLoading && soonDue.length > 0 && (
+              <div className="glass-card" style={{ marginTop: '1.5rem', borderLeft: '4px solid #f59e0b' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.85rem' }}>
+                  <CalendarClock size={18} style={{ color: '#f59e0b' }} />
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
+                    Phiếu sắp đến hạn thanh toán
+                  </span>
+                  <span style={{ background: '#f59e0b', color: '#fff', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 700, padding: '2px 7px' }}>
+                    {soonDue.length}
+                  </span>
+                </div>
+                {soonDue.map((p) => {
+                  const diffDays = Math.round((new Date(p.ngayCanThanhToan) - new Date()) / 86400000);
+                  const quaHan = diffDays < 0;
+                  const label = quaHan ? `Quá hạn ${Math.abs(diffDays)} ngày` : diffDays === 0 ? 'Đến hạn hôm nay' : `Còn ${diffDays} ngày`;
+                  return (
+                    <div key={p.id} onClick={() => router.push('/de-xuat')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '8px', background: quaHan ? 'rgba(239,68,68,0.07)' : 'rgba(245,158,11,0.07)', marginBottom: '0.35rem', cursor: 'pointer', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: '140px' }}>
+                        <span style={{ fontWeight: 600, color: '#60a5fa', fontSize: '0.88rem' }}>{p.maPhieu}</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.83rem' }}> — {p.noiDung}</span>
+                      </div>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{formatVND(p.soTien)}</span>
+                      <span className="badge" style={{ background: quaHan ? '#ef4444' : '#f59e0b', color: '#fff', whiteSpace: 'nowrap', fontSize: '0.75rem' }}>{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Cần bổ sung — phiếu bị từ chối/hủy */}
             {!proposalsLoading && myRejected.length > 0 && (
               <div className="glass-card" style={{ marginTop: '1.5rem', borderLeft: '4px solid #ef4444' }}>
@@ -706,6 +1107,116 @@ export default function Dashboard() {
               </div>
             )}
           </>
+        )}
+
+        {/* ❺ ================= NGÂN SÁCH THEO DANH MỤC (STAFF/LEADER) ================= */}
+        {canNganSach && (
+          <div className="glass-card" style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+            <div className={styles.cardTitleBar}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Wallet size={19} style={{ color: 'var(--info)' }} />
+                Ngân sách danh mục — Tháng {thisMonth}
+              </h2>
+              <button onClick={() => router.push('/ke-hoach')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                <span>Kế hoạch chi phí</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+
+            {nganSachLoading ? (
+              <div className={styles.loaderSmall}>Đang tải ngân sách...</div>
+            ) : nganSachRows.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', textAlign: 'center', padding: '1rem 0' }}>
+                Chưa có kế hoạch chi nào được đặt cho tháng này.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {nganSachRows.map((row, i) => (
+                  <div key={i}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-main)', flex: 1, minWidth: '120px' }}>{row.tenDanhMuc}</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                        {formatVND(row.daChi)} / {formatVND(row.keHoach)}
+                      </span>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: row.color, whiteSpace: 'nowrap', minWidth: '38px', textAlign: 'right' }}>{row.pct}%</span>
+                    </div>
+                    <div style={{ height: '6px', borderRadius: '3px', background: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.min(row.pct, 100)}%`, height: '100%', background: row.color, borderRadius: '3px', transition: 'width 0.35s ease' }} />
+                    </div>
+                    <p style={{ fontSize: '0.74rem', color: row.con >= 0 ? 'var(--text-muted)' : '#ef4444', marginTop: '0.2rem' }}>
+                      {row.con >= 0 ? `Còn lại ${formatVND(row.con)}` : `Vượt kế hoạch ${formatVND(Math.abs(row.con))}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ❻ ================= DOANH THU THÁNG MINI (STAFF/LEADER) ================= */}
+        {canDoanhThuMini && (
+          <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
+            <div className={styles.cardTitleBar}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BarChart3 size={19} style={{ color: '#10b981' }} />
+                Doanh thu shop — Tháng {thisMonth}
+              </h2>
+              <button onClick={() => router.push('/doanh-thu')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                <span>Chi tiết</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+
+            {doanhThuSummaryLoading ? (
+              <div className={styles.loaderSmall}>Đang tải doanh thu...</div>
+            ) : !doanhThuThangMini ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', textAlign: 'center', padding: '1rem 0' }}>
+                Chưa có chỉ tiêu doanh thu cho tháng này.
+              </p>
+            ) : (
+              <>
+                {/* KPI tổng */}
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                  <div style={{ flex: 1, minWidth: '120px' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Chỉ tiêu tháng</p>
+                    <p style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>{formatVND(doanhThuThangMini.chiTieuTong)}</p>
+                  </div>
+                  <div style={{ flex: 1, minWidth: '120px' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Thực tế</p>
+                    <p style={{ fontSize: '1.15rem', fontWeight: 800, color: doanhThuThangMini.pctColor }}>{formatVND(doanhThuThangMini.thucTeTong)}</p>
+                  </div>
+                  <div style={{ flex: 0, minWidth: '60px', textAlign: 'right' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Đạt</p>
+                    <p style={{ fontSize: '1.15rem', fontWeight: 800, color: doanhThuThangMini.pctColor }}>{doanhThuThangMini.pct}%</p>
+                  </div>
+                </div>
+                {/* Progress tổng */}
+                <div style={{ height: '8px', borderRadius: '4px', background: 'rgba(0,0,0,0.07)', overflow: 'hidden', marginBottom: '1rem' }}>
+                  <div style={{ width: `${Math.min(doanhThuThangMini.pct, 100)}%`, height: '100%', background: doanhThuThangMini.pctColor, borderRadius: '4px', transition: 'width 0.35s ease' }} />
+                </div>
+                {/* Per kênh */}
+                {doanhThuThangMini.byKenh.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                    {doanhThuThangMini.byKenh.map((k, i) => (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem', flexWrap: 'wrap' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.83rem', fontWeight: 600, color: 'var(--text-main)', flex: 1, minWidth: '100px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: k.mauSac, flexShrink: 0 }} />
+                            {k.tenKenh}
+                          </span>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatVND(k.thucTe)} / {formatVND(k.chiTieu)}</span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: k.color, minWidth: '36px', textAlign: 'right' }}>{k.pct}%</span>
+                        </div>
+                        <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.min(k.pct, 100)}%`, height: '100%', background: k.mauSac, borderRadius: '2px', transition: 'width 0.35s ease' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         )}
 
         {/* ================= ĐỀ XUẤT GẦN ĐÂY (chung) ================= */}

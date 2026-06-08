@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   CheckSquare, 
   Layers, 
@@ -18,10 +18,13 @@ import {
 import Sidebar from '@/components/Sidebar';
 import styles from './duyet.module.css';
 
-export default function DuyetPage() {
+function DuyetPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const openHandledRef = useRef(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [highlightId, setHighlightId] = useState(null);
 
   // Active Tab: 'TH1' (Chờ thanh toán) hoặc 'TH3' (Chờ hoàn ứng gộp)
   const [activeTab, setActiveTab] = useState('TH1');
@@ -103,6 +106,38 @@ export default function DuyetPage() {
         router.push('/login');
       });
   }, [router]);
+
+  // Deep-link: notification click với ?open=ID → chuyển đúng tab, scroll + highlight phiếu
+  useEffect(() => {
+    if (dataLoading) return;
+    if (openHandledRef.current) return;
+    const openId = searchParams.get('open');
+    if (!openId) return;
+    openHandledRef.current = true;
+
+    const target = proposals.find((p) => p.id === openId);
+    if (!target) return;
+
+    // Xác định tab chứa phiếu và chuyển sang tab đó
+    if (target.nguonTien === 'TIEN_SHOP' && target.trangThai === 'CHO_THANH_TOAN') {
+      setActiveTab('TH1');
+    } else if (target.nguonTien === 'TIEN_SHOP' && target.trangThai === 'DA_THANH_TOAN') {
+      setActiveTab('TH2');
+    } else if (target.nguonTien === 'TIEN_CA_NHAN' && target.trangThai === 'CHO_HOAN_UNG') {
+      setActiveTab('TH3');
+      setSelectedStaffId(target.nguoiTaoId);
+    }
+
+    setHighlightId(openId);
+    router.replace('/de-xuat/duyet');
+
+    // Delay để React render tab mới rồi mới scroll
+    setTimeout(() => {
+      const row = document.querySelector(`tr[data-proposal-id="${openId}"]`);
+      if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => setHighlightId(null), 2500);
+    }, 200);
+  }, [dataLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchData = async () => {
     setDataLoading(true);
@@ -462,6 +497,19 @@ export default function DuyetPage() {
     <div className="layout-wrapper">
       <Sidebar user={user} />
 
+      {highlightId && (
+        <style>{`
+          @keyframes ari-row-highlight {
+            0%   { background-color: rgba(37,99,235,0.22); outline: 2px solid rgba(37,99,235,0.45); }
+            70%  { background-color: rgba(37,99,235,0.08); }
+            100% { background-color: transparent; outline: none; }
+          }
+          tr[data-proposal-id="${highlightId}"] {
+            animation: ari-row-highlight 2.5s ease-out forwards;
+          }
+        `}</style>
+      )}
+
       <main className={styles.mainContent}>
         <div className={styles.pageHeader}>
           <div>
@@ -602,7 +650,7 @@ export default function DuyetPage() {
                   </thead>
                   <tbody>
                     {pendingPaymentProps.map((prop) => (
-                      <tr key={prop.id} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
+                      <tr key={prop.id} data-proposal-id={prop.id} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
                         <td style={{ textAlign: 'center' }}>
                           <input
                             type="checkbox"
@@ -779,7 +827,7 @@ export default function DuyetPage() {
                   </thead>
                   <tbody>
                     {pendingAssignFundProps.map((prop) => (
-                      <tr key={prop.id} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
+                      <tr key={prop.id} data-proposal-id={prop.id} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
                         <td style={{ textAlign: 'center' }}>
                           <input
                             type="checkbox"
@@ -997,16 +1045,16 @@ export default function DuyetPage() {
                         {reimbursementProps.map((prop) => {
                           const isChecked = selectedProposalIds.includes(prop.id);
                           return (
-                            <tr key={prop.id} style={{ background: isChecked ? 'rgba(37, 99, 235, 0.05)' : '' }}>
+                            <tr key={prop.id} data-proposal-id={prop.id} style={{ background: isChecked ? 'rgba(37, 99, 235, 0.05)' : '' }}>
                               <td style={{ textAlign: 'center' }}>
-                                <input 
+                                <input
                                   type="checkbox"
                                   checked={isChecked}
                                   onChange={() => handleCheckboxChange(prop.id)}
                                   disabled={actionLoading}
                                 />
                               </td>
-                              <td 
+                              <td
                                 onClick={() => setSelectedPreviewProp(prop)}
                                 style={{ fontWeight: 'bold', color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline' }}
                                 title="Click xem nhanh đề xuất"
@@ -1350,5 +1398,13 @@ export default function DuyetPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DuyetPageWrapper() {
+  return (
+    <Suspense>
+      <DuyetPage />
+    </Suspense>
   );
 }

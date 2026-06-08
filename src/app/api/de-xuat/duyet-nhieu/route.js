@@ -4,6 +4,7 @@ import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
+import { notifyUser } from '@/lib/webpush';
 
 // Duyệt NHIỀU đề xuất chờ thanh toán cùng lúc (TH1/TH2).
 // Khác với /duyet-gop (hoàn ứng gộp 1 phiếu): mỗi đề xuất sinh MỘT phiếu Chi riêng,
@@ -126,6 +127,15 @@ export async function POST(request) {
           maDoiTuong: existingProposal.maPhieu,
           moTa: `Duyệt thanh toán ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ từ quỹ ${quy.tenQuy} → sinh phiếu chi ${maThuChi} (duyệt hàng loạt)`,
         });
+
+        try {
+          await notifyUser(existingProposal.nguoiTaoId, {
+            title: '✅ Phiếu đã được duyệt',
+            body: `${existingProposal.maPhieu} — ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ đã được thanh toán.`,
+            url: '/de-xuat?open=' + existingProposal.id,
+            tag: 'duyet-' + existingProposal.id,
+          });
+        } catch (_) { /* push thất bại không làm hỏng nghiệp vụ */ }
 
         successCount += 1;
         results.push({ id, maPhieu: existingProposal.maPhieu, success: true, maThuChi });

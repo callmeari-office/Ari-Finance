@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
 import { isRestrictedToOwnProposals } from '@/lib/roles';
 import { ghiNhatKy } from '@/lib/audit';
+import { notifyUser } from '@/lib/webpush';
 
 export async function GET(request, { params }) {
   try {
@@ -264,6 +265,15 @@ export async function PUT(request, { params }) {
         maDoiTuong: existingProposal.maPhieu,
         moTa: `Duyệt thanh toán ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ từ quỹ ${quy.tenQuy} → sinh phiếu chi ${maThuChi}`,
       });
+
+      try {
+        await notifyUser(existingProposal.nguoiTaoId, {
+          title: '✅ Phiếu đã được duyệt',
+          body: `${existingProposal.maPhieu} — ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ đã được thanh toán.`,
+          url: '/de-xuat?open=' + existingProposal.id,
+          tag: 'duyet-' + existingProposal.id,
+        });
+      } catch (_) { /* push thất bại không làm hỏng nghiệp vụ */ }
 
       return NextResponse.json({
         success: true,

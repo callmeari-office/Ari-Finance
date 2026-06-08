@@ -4,6 +4,7 @@ import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
+import { notifyUser } from '@/lib/webpush';
 
 export async function POST(request) {
   try {
@@ -133,6 +134,15 @@ export async function POST(request) {
       maDoiTuong: maThuChi,
       moTa: `Duyệt gộp hoàn ứng ${proposals.length} phiếu (${proposals.map(p => p.maPhieu).join(', ')}) cho NV ${staffUser?.hoTen || ''} — tổng ${tongTien.toLocaleString('vi-VN')}đ`,
     });
+
+    try {
+      await notifyUser(staffId, {
+        title: '✅ Phiếu đã được duyệt',
+        body: `${proposals.length} phiếu hoàn ứng của bạn — ${tongTien.toLocaleString('vi-VN')}đ đã được thanh toán gộp.`,
+        url: '/de-xuat?open=' + proposals[0].id,
+        tag: 'duyet-gop-' + maThuChi,
+      });
+    } catch (_) { /* push thất bại không làm hỏng nghiệp vụ */ }
 
     return NextResponse.json({
       success: true,

@@ -37,22 +37,31 @@ export default function Sidebar({ user }) {
   const [isOpen, setIsOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [canhBaoCount, setCanhBaoCount] = useState(0);
+  const [hasQuanTrong, setHasQuanTrong] = useState(false);
 
   useEffect(() => {
-    if (!user || (user.role !== 'OWNER' && user.role !== 'MANAGER')) return;
-    const fetchPending = async () => {
+    if (!user) return;
+
+    const fetchAll = async () => {
       try {
-        // Chỉ gọi /api/canh-bao (đã trả sẵn pendingCount đếm nhẹ) — không kéo cả 1000 phiếu nữa.
-        const resCb = await fetch('/api/canh-bao');
-        if (resCb.ok) {
+        const promises = [fetch('/api/thong-bao-noi-bo')];
+        if (user.role === 'OWNER' || user.role === 'MANAGER') {
+          promises.push(fetch('/api/canh-bao'));
+        }
+        const [resTb, resCb] = await Promise.all(promises);
+        if (resTb && resTb.ok) {
+          const tbList = await resTb.json();
+          setHasQuanTrong(Array.isArray(tbList) && tbList.some((t) => t.tag === 'QUAN_TRONG'));
+        }
+        if (resCb && resCb.ok) {
           const cb = await resCb.json();
           setPendingCount(cb.pendingCount || 0);
           setCanhBaoCount(cb.tongSo || 0);
         }
       } catch {}
     };
-    fetchPending();
-    const interval = setInterval(fetchPending, 60000);
+    fetchAll();
+    const interval = setInterval(fetchAll, 60000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -139,17 +148,31 @@ export default function Sidebar({ user }) {
               {user.role === 'OWNER' ? 'Chủ shop (Owner)' : user.role === 'MANAGER' ? 'Quản lý (Manager)' : user.role === 'LEADER' ? 'Trưởng nhóm (Leader)' : 'Nhân viên (Staff)'}
             </p>
           </div>
-          {(user.role === 'OWNER' || user.role === 'MANAGER') && (pendingCount + canhBaoCount) > 0 && (
-            <Link href="/" style={{ position: 'relative', marginLeft: 'auto', color: 'var(--text-muted)' }} title={`${pendingCount} đề xuất chờ duyệt · ${canhBaoCount} cảnh báo cần chú ý`}>
+          {((user.role === 'OWNER' || user.role === 'MANAGER') && (pendingCount + canhBaoCount) > 0) || hasQuanTrong ? (
+            <Link href="/" style={{ position: 'relative', marginLeft: 'auto', color: 'var(--text-muted)' }}
+              title={[
+                (pendingCount + canhBaoCount) > 0 ? `${pendingCount} đề xuất chờ duyệt · ${canhBaoCount} cảnh báo` : '',
+                hasQuanTrong ? 'Có thông báo quan trọng' : '',
+              ].filter(Boolean).join(' | ')}
+            >
               <Bell size={18} />
-              <span style={{
-                position: 'absolute', top: '-6px', right: '-6px',
-                background: '#ef4444', color: '#fff', borderRadius: '999px',
-                fontSize: '0.65rem', fontWeight: '700', lineHeight: 1,
-                padding: '2px 5px', minWidth: '16px', textAlign: 'center'
-              }}>{pendingCount + canhBaoCount}</span>
+              {(user.role === 'OWNER' || user.role === 'MANAGER') && (pendingCount + canhBaoCount) > 0 && (
+                <span style={{
+                  position: 'absolute', top: '-6px', right: '-6px',
+                  background: '#ef4444', color: '#fff', borderRadius: '999px',
+                  fontSize: '0.65rem', fontWeight: '700', lineHeight: 1,
+                  padding: '2px 5px', minWidth: '16px', textAlign: 'center'
+                }}>{pendingCount + canhBaoCount}</span>
+              )}
+              {hasQuanTrong && (pendingCount + canhBaoCount) === 0 && (
+                <span style={{
+                  position: 'absolute', top: '-3px', right: '-3px',
+                  width: '8px', height: '8px', background: '#ef4444',
+                  borderRadius: '50%', display: 'block',
+                }} />
+              )}
             </Link>
-          )}
+          ) : null}
         </div>
 
         {/* Navigation Items */}
