@@ -117,7 +117,7 @@ export async function PUT(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const { action, quyThanhToanId, noiDung, soTien, danhMucId, nhaCungCapId, ghiChu, ngayCanThanhToan, ngayPhatSinh, nguonTien, trangThai, anhHoaDon } = body;
+    const { action, quyThanhToanId, ngayGiaoDich, noiDung, soTien, danhMucId, nhaCungCapId, ghiChu, ngayCanThanhToan, ngayPhatSinh, nguonTien, trangThai, anhHoaDon } = body;
 
     // Kiểm tra ảnh hóa đơn nếu có gửi lên (chỉ validate khi có giá trị khác null)
     if (anhHoaDon) {
@@ -231,7 +231,7 @@ export async function PUT(request, { params }) {
         const phieuChi = await tx.thuChi.create({
           data: {
             maPhieu: maThuChi,
-            ngayGiaoDich: new Date(),
+            ngayGiaoDich: ngayGiaoDich ? new Date(ngayGiaoDich) : new Date(),
             loaiGiaoDich: 'CHI',
             soTien: existingProposal.soTien,
             quyId: quyThanhToanId,

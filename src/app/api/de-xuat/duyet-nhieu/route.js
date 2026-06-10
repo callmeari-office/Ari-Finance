@@ -53,7 +53,7 @@ export async function POST(request) {
 
     // Xử lý TUẦN TỰ để mã phiếu chi (TCyymm-xxxx) sinh liên tiếp, không trùng
     for (const it of items) {
-      const { id, quyThanhToanId } = it;
+      const { id, quyThanhToanId, ngayGiaoDich } = it;
       try {
         const existingProposal = await prisma.deXuatChiPhi.findUnique({
           where: { id },
@@ -96,7 +96,7 @@ export async function POST(request) {
           const phieuChi = await tx.thuChi.create({
             data: {
               maPhieu: maThuChi,
-              ngayGiaoDich: new Date(),
+              ngayGiaoDich: ngayGiaoDich ? new Date(ngayGiaoDich) : new Date(),
               loaiGiaoDich: 'CHI',
               soTien: existingProposal.soTien,
               quyId: quyThanhToanId,

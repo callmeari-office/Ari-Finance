@@ -22,7 +22,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { ids, quyThanhToanId, ghiChu } = body;
+    const { ids, quyThanhToanId, ghiChu, ngayGiaoDich } = body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json(
@@ -98,7 +98,7 @@ export async function POST(request) {
       const phieuChi = await tx.thuChi.create({
         data: {
           maPhieu: maThuChi,
-          ngayGiaoDich: new Date(),
+          ngayGiaoDich: ngayGiaoDich ? new Date(ngayGiaoDich) : new Date(),
           loaiGiaoDich: 'CHI',
           soTien: tongTien,
           quyId: quyThanhToanId,

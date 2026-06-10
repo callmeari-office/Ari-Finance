@@ -18,6 +18,14 @@ import {
 import Sidebar from '@/components/Sidebar';
 import styles from './duyet.module.css';
 
+const getTodayString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 function DuyetPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -25,6 +33,9 @@ function DuyetPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [highlightId, setHighlightId] = useState(null);
+
+  // Cache today's date string once per render
+  const todayStr = getTodayString();
 
   // Active Tab: 'TH1' (Chờ thanh toán) hoặc 'TH3' (Chờ hoàn ứng gộp)
   const [activeTab, setActiveTab] = useState('TH1');
@@ -36,16 +47,19 @@ function DuyetPage() {
 
   // States: TH1 (Duyệt đơn)
   const [selectedQuyId, setSelectedQuyId] = useState({}); // Lưu quỹ được chọn cho từng proposalId
+  const [selectedNgayGD, setSelectedNgayGD] = useState({}); // Lưu ngày giao dịch cho từng proposalId
   const [actionLoading, setActionLoading] = useState(false);
 
   // States: TH1/TH2 (Duyệt nhiều phiếu cùng lúc)
   const [selectedPayIds, setSelectedPayIds] = useState([]); // Các phiếu được tích chọn để duyệt hàng loạt
   const [bulkQuyId, setBulkQuyId] = useState(''); // Quỹ áp dụng chung cho các phiếu chưa chọn quỹ riêng
+  const [bulkNgayGD, setBulkNgayGD] = useState(todayStr); // Ngày giao dịch áp dụng hàng loạt
 
   // States: TH3 (Duyệt gộp hoàn ứng)
   const [selectedStaffId, setSelectedStaffId] = useState(''); // Nhân viên được chọn để hoàn ứng
   const [selectedProposalIds, setSelectedProposalIds] = useState([]); // Các đề xuất hoàn ứng được tích chọn
   const [gopQuyId, setGopQuyId] = useState(''); // Quỹ dùng để chi trả hoàn ứng gộp
+  const [gopNgayGD, setGopNgayGD] = useState(todayStr); // Ngày giao dịch hoàn gộp
 
   // Cancel modal state
   const [cancelModal, setCancelModal] = useState({ open: false, id: '', maPhieu: '' });
@@ -173,6 +187,7 @@ function DuyetPage() {
       alert('Vui lòng chọn Quỹ dùng để thanh toán trước khi duyệt!');
       return;
     }
+    const ngayGD = selectedNgayGD[proposalId] || todayStr;
 
     if (confirm(`Bạn có chắc chắn duyệt thanh toán đề xuất ${maPhieu}? Việc này sẽ sinh ra phiếu Chi và thay đổi số dư quỹ.`)) {
       setActionLoading(true);
@@ -180,7 +195,7 @@ function DuyetPage() {
         const res = await fetch(`/api/de-xuat/${proposalId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'DUYET', quyThanhToanId: quyId }),
+          body: JSON.stringify({ action: 'DUYET', quyThanhToanId: quyId, ngayGiaoDich: ngayGD }),
         });
 
         const data = await res.json();
@@ -274,7 +289,8 @@ function DuyetPage() {
         missing.push(prop.maPhieu);
         continue;
       }
-      items.push({ id, quyThanhToanId: quyId });
+      const ngayGD = selectedNgayGD[id] || bulkNgayGD || todayStr;
+      items.push({ id, quyThanhToanId: quyId, ngayGiaoDich: ngayGD });
       total += prop.soTien;
     }
 
@@ -316,6 +332,8 @@ function DuyetPage() {
 
       setSelectedPayIds([]);
       setBulkQuyId('');
+      setSelectedNgayGD({});
+      setBulkNgayGD(todayStr);
       fetchData();
     } catch (err) {
       alert(err.message);
@@ -362,6 +380,7 @@ function DuyetPage() {
           body: JSON.stringify({
             ids: selectedProposalIds,
             quyThanhToanId: gopQuyId,
+            ngayGiaoDich: gopNgayGD || todayStr,
           }),
         });
 
@@ -371,6 +390,7 @@ function DuyetPage() {
         alert(data.message || 'Đã duyệt hoàn ứng gộp thành công!');
         if (typeof window !== 'undefined') window.dispatchEvent(new Event('ari:celebrate'));
         setSelectedProposalIds([]);
+        setGopNgayGD(todayStr);
         fetchData();
       } catch (err) {
         alert(err.message);
@@ -528,6 +548,8 @@ function DuyetPage() {
               setSelectedStaffId('');
               setSelectedPayIds([]);
               setBulkQuyId('');
+              setSelectedNgayGD({});
+              setBulkNgayGD(todayStr);
             }}
           >
             <Clock size={18} />
@@ -544,6 +566,8 @@ function DuyetPage() {
               setSelectedStaffId('');
               setSelectedPayIds([]);
               setBulkQuyId('');
+              setSelectedNgayGD({});
+              setBulkNgayGD(todayStr);
             }}
           >
             <TrendingDown size={18} />
@@ -560,6 +584,8 @@ function DuyetPage() {
               setSelectedStaffId('');
               setSelectedPayIds([]);
               setBulkQuyId('');
+              setSelectedNgayGD({});
+              setGopNgayGD(todayStr);
             }}
           >
             <Layers size={18} />
@@ -605,6 +631,15 @@ function DuyetPage() {
                           </option>
                         ))}
                       </select>
+                      <input
+                        type="date"
+                        className="form-control form-control-sm"
+                        style={{ width: '130px', display: 'inline-block' }}
+                        value={bulkNgayGD}
+                        onChange={(e) => setBulkNgayGD(e.target.value)}
+                        disabled={actionLoading}
+                        title="Ngày giao dịch chung áp dụng cho các phiếu chưa chọn ngày riêng"
+                      />
                       <button
                         onClick={() => handleApproveBulk(pendingPaymentProps)}
                         className="btn btn-primary"
@@ -615,7 +650,7 @@ function DuyetPage() {
                         <span>Duyệt {selectedPayIds.length} phiếu đã chọn</span>
                       </button>
                       <button
-                        onClick={() => { setSelectedPayIds([]); setBulkQuyId(''); }}
+                        onClick={() => { setSelectedPayIds([]); setBulkQuyId(''); setSelectedNgayGD({}); setBulkNgayGD(todayStr); }}
                         className="btn btn-secondary"
                         disabled={actionLoading}
                       >
@@ -645,6 +680,7 @@ function DuyetPage() {
                       <th>Nội dung</th>
                       <th>Số tiền</th>
                       <th>Chọn Quỹ chi</th>
+                      <th>Ngày GD</th>
                       <th style={{ textAlign: 'center' }}>Thao tác duyệt</th>
                     </tr>
                   </thead>
@@ -717,6 +753,19 @@ function DuyetPage() {
                             ))}
                           </select>
                         </td>
+                        <td>
+                          <input
+                            type="date"
+                            className="form-control form-control-sm"
+                            style={{ width: '130px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            value={selectedNgayGD[prop.id] || todayStr}
+                            onChange={(e) => setSelectedNgayGD({
+                              ...selectedNgayGD,
+                              [prop.id]: e.target.value
+                            })}
+                            disabled={actionLoading}
+                          />
+                        </td>
                         <td style={{ textAlign: 'center' }}>
                           <div className={styles.approvalButtons}>
                             <button 
@@ -782,6 +831,15 @@ function DuyetPage() {
                           </option>
                         ))}
                       </select>
+                      <input
+                        type="date"
+                        className="form-control form-control-sm"
+                        style={{ width: '130px', display: 'inline-block' }}
+                        value={bulkNgayGD}
+                        onChange={(e) => setBulkNgayGD(e.target.value)}
+                        disabled={actionLoading}
+                        title="Ngày giao dịch chung áp dụng cho các phiếu chưa chọn ngày riêng"
+                      />
                       <button
                         onClick={() => handleApproveBulk(pendingAssignFundProps)}
                         className="btn btn-primary"
@@ -792,7 +850,7 @@ function DuyetPage() {
                         <span>Gán quỹ & Duyệt {selectedPayIds.length} phiếu</span>
                       </button>
                       <button
-                        onClick={() => { setSelectedPayIds([]); setBulkQuyId(''); }}
+                        onClick={() => { setSelectedPayIds([]); setBulkQuyId(''); setSelectedNgayGD({}); setBulkNgayGD(todayStr); }}
                         className="btn btn-secondary"
                         disabled={actionLoading}
                       >
@@ -822,6 +880,7 @@ function DuyetPage() {
                       <th>Nội dung</th>
                       <th>Số tiền</th>
                       <th>Chọn Quỹ chi</th>
+                      <th>Ngày GD</th>
                       <th style={{ textAlign: 'center' }}>Thao tác duyệt</th>
                     </tr>
                   </thead>
@@ -896,6 +955,19 @@ function DuyetPage() {
                               </option>
                             ))}
                           </select>
+                        </td>
+                        <td>
+                          <input
+                            type="date"
+                            className="form-control form-control-sm"
+                            style={{ width: '130px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            value={selectedNgayGD[prop.id] || todayStr}
+                            onChange={(e) => setSelectedNgayGD({
+                              ...selectedNgayGD,
+                              [prop.id]: e.target.value
+                            })}
+                            disabled={actionLoading}
+                          />
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <div className={styles.approvalButtons}>
@@ -1001,6 +1073,17 @@ function DuyetPage() {
                           </option>
                         ))}
                       </select>
+
+                      <label className="form-label" htmlFor="gopNgayGD" style={{ marginTop: '0.5rem' }}>Ngày giao dịch:</label>
+                      <input 
+                        type="date"
+                        id="gopNgayGD"
+                        className="form-control"
+                        style={{ marginBottom: '0.75rem' }}
+                        value={gopNgayGD}
+                        onChange={(e) => setGopNgayGD(e.target.value)}
+                        disabled={actionLoading}
+                      />
 
                       <button 
                         onClick={handleApproveMerge}
@@ -1318,6 +1401,17 @@ function DuyetPage() {
                           </option>
                         ))}
                       </select>
+                      <input 
+                        type="date"
+                        className="form-control form-control-sm"
+                        style={{ width: '130px', display: 'inline-block' }}
+                        value={selectedNgayGD[selectedPreviewProp.id] || todayStr}
+                        onChange={(e) => setSelectedNgayGD({
+                          ...selectedNgayGD,
+                          [selectedPreviewProp.id]: e.target.value
+                        })}
+                        disabled={actionLoading}
+                      />
                       <button 
                         onClick={async () => {
                           const qId = selectedQuyId[selectedPreviewProp.id];
