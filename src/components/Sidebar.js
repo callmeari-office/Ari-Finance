@@ -23,21 +23,33 @@ import {
   KeyRound,
   ScrollText,
   Scale,
-  Repeat
+  Repeat,
+  AlertTriangle,
+  Clock,
+  ChevronRight,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ThemeToggle from './ThemeToggle';
 import PushToggle from './PushToggle';
 import { canViewMenu } from '@/lib/roles';
 import styles from './Sidebar.module.css';
+
+const TAG_STYLE = {
+  QUAN_TRONG: { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5', label: 'Quan trọng' },
+  NHAC_NHO:   { bg: '#fffbeb', color: '#92400e', border: '#fcd34d', label: 'Nhắc nhở' },
+  THONG_BAO:  { bg: '#f0f9ff', color: '#0369a1', border: '#7dd3fc', label: 'Thông báo' },
+};
 
 export default function Sidebar({ user }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
-  const [canhBaoCount, setCanhBaoCount] = useState(0);
+  const [tbList, setTbList] = useState([]);
+  const [nhacHan, setNhacHan] = useState([]);
   const [hasQuanTrong, setHasQuanTrong] = useState(false);
+  const [showNotifPanel, setShowNotifPanel] = useState(false);
+  const panelWrapRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
@@ -50,20 +62,38 @@ export default function Sidebar({ user }) {
         }
         const [resTb, resCb] = await Promise.all(promises);
         if (resTb && resTb.ok) {
-          const tbList = await resTb.json();
-          setHasQuanTrong(Array.isArray(tbList) && tbList.some((t) => t.tag === 'QUAN_TRONG'));
+          const list = await resTb.json();
+          setTbList(Array.isArray(list) ? list : []);
+          setHasQuanTrong(Array.isArray(list) && list.some((t) => t.tag === 'QUAN_TRONG'));
         }
         if (resCb && resCb.ok) {
           const cb = await resCb.json();
           setPendingCount(cb.pendingCount || 0);
-          setCanhBaoCount(cb.tongSo || 0);
+          setNhacHan(Array.isArray(cb.nhacHan) ? cb.nhacHan.slice(0, 5) : []);
         }
       } catch {}
     };
     fetchAll();
-    const interval = setInterval(fetchAll, 60000);
+    const interval = setInterval(fetchAll, 30000);
     return () => clearInterval(interval);
   }, [user]);
+
+  // Close panel on click outside
+  useEffect(() => {
+    if (!showNotifPanel) return;
+    const handleOutside = (e) => {
+      if (panelWrapRef.current && !panelWrapRef.current.contains(e.target)) {
+        setShowNotifPanel(false);
+      }
+    };
+    // mousedown so it fires before click events bubble
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('touchstart', handleOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('touchstart', handleOutside);
+    };
+  }, [showNotifPanel]);
 
   const handleLogout = async () => {
     if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
@@ -75,14 +105,14 @@ export default function Sidebar({ user }) {
     }
   };
 
-  const toggleSidebar = () => {
-    setIsOpen(!isOpen);
-  };
+  const toggleSidebar = () => setIsOpen(!isOpen);
 
   if (!user) return null;
 
-  // Quyền hiển thị từng menu lấy từ canViewMenu (roles.js) — nguồn sự thật duy nhất:
-  // OWNER full → permissions override (trang /quyen) → mặc định DEFAULT_MENU_ROLES.
+  const isOwnerOrManager = user.role === 'OWNER' || user.role === 'MANAGER';
+  const bellBadge = tbList.length + (isOwnerOrManager ? nhacHan.length : 0);
+  const bellRed = hasQuanTrong || nhacHan.some((n) => n.quaHan);
+
   const menuItems = [
     { key: 'tongQuan', name: 'Tổng quan', path: '/', icon: LayoutDashboard },
     { key: 'deXuat', name: 'Đề xuất chi phí', path: '/de-xuat', icon: FileText },
@@ -137,42 +167,317 @@ export default function Sidebar({ user }) {
           <span className={styles.subtitle}>Call Me Ari</span>
         </div>
 
-        {/* User Card info */}
-        <div className={styles.userCard}>
-          <div className={styles.avatar}>
-            <User size={18} />
-          </div>
-          <div className={styles.userInfo}>
-            <p className={styles.userName}>{user.tenNgan || user.hoTen}</p>
-            <p className={styles.userRole}>
-              {user.role === 'OWNER' ? 'Chủ shop (Owner)' : user.role === 'MANAGER' ? 'Quản lý (Manager)' : user.role === 'LEADER' ? 'Trưởng nhóm (Leader)' : 'Nhân viên (Staff)'}
-            </p>
-          </div>
-          {((user.role === 'OWNER' || user.role === 'MANAGER') && (pendingCount + canhBaoCount) > 0) || hasQuanTrong ? (
-            <Link href="/" style={{ position: 'relative', marginLeft: 'auto', color: 'var(--text-muted)' }}
-              title={[
-                (pendingCount + canhBaoCount) > 0 ? `${pendingCount} đề xuất chờ duyệt · ${canhBaoCount} cảnh báo` : '',
-                hasQuanTrong ? 'Có thông báo quan trọng' : '',
-              ].filter(Boolean).join(' | ')}
+        {/* User Card + Notification panel wrapper */}
+        <div ref={panelWrapRef}>
+          <div className={styles.userCard}>
+            <div className={styles.avatar}>
+              <User size={18} />
+            </div>
+            <div className={styles.userInfo}>
+              <p className={styles.userName}>{user.tenNgan || user.hoTen}</p>
+              <p className={styles.userRole}>
+                {user.role === 'OWNER'
+                  ? 'Chủ shop (Owner)'
+                  : user.role === 'MANAGER'
+                  ? 'Quản lý (Manager)'
+                  : user.role === 'LEADER'
+                  ? 'Trưởng nhóm (Leader)'
+                  : 'Nhân viên (Staff)'}
+              </p>
+            </div>
+
+            {/* Bell button */}
+            <button
+              onClick={() => setShowNotifPanel((v) => !v)}
+              title="Thông báo"
+              style={{
+                position: 'relative',
+                marginLeft: 'auto',
+                background: showNotifPanel ? 'rgba(99,77,62,0.08)' : 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-muted)',
+                padding: '5px',
+                borderRadius: '8px',
+                lineHeight: 0,
+                flexShrink: 0,
+              }}
             >
               <Bell size={18} />
-              {(user.role === 'OWNER' || user.role === 'MANAGER') && (pendingCount + canhBaoCount) > 0 && (
-                <span style={{
-                  position: 'absolute', top: '-6px', right: '-6px',
-                  background: '#ef4444', color: '#fff', borderRadius: '999px',
-                  fontSize: '0.65rem', fontWeight: '700', lineHeight: 1,
-                  padding: '2px 5px', minWidth: '16px', textAlign: 'center'
-                }}>{pendingCount + canhBaoCount}</span>
+              {bellBadge > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-4px',
+                    background: bellRed ? '#ef4444' : '#f59e0b',
+                    color: '#fff',
+                    borderRadius: '999px',
+                    fontSize: '0.6rem',
+                    fontWeight: '700',
+                    lineHeight: 1,
+                    padding: '2px 4px',
+                    minWidth: '14px',
+                    textAlign: 'center',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {bellBadge}
+                </span>
               )}
-              {hasQuanTrong && (pendingCount + canhBaoCount) === 0 && (
-                <span style={{
-                  position: 'absolute', top: '-3px', right: '-3px',
-                  width: '8px', height: '8px', background: '#ef4444',
-                  borderRadius: '50%', display: 'block',
-                }} />
+            </button>
+          </div>
+
+          {/* Notification Panel */}
+          {showNotifPanel && (
+            <div
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                marginBottom: '0.75rem',
+                overflow: 'hidden',
+                boxShadow: '0 4px 20px rgba(99,77,62,0.12)',
+              }}
+            >
+              {/* Panel header */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.625rem 0.875rem',
+                  borderBottom: '1px solid var(--border)',
+                  background: 'rgba(99,77,62,0.03)',
+                }}
+              >
+                <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--brand-brown)' }}>
+                  Thông báo hệ thống
+                </span>
+                <button
+                  onClick={() => setShowNotifPanel(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    lineHeight: 0,
+                    padding: '2px',
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {/* nhacHan items (OWNER/MANAGER) */}
+              {isOwnerOrManager && nhacHan.length > 0 && (
+                <>
+                  {nhacHan.map((item) => (
+                    <Link
+                      key={item.id}
+                      href={`/de-xuat/duyet`}
+                      onClick={() => setShowNotifPanel(false)}
+                      style={{
+                        display: 'block',
+                        padding: '0.625rem 0.875rem',
+                        borderBottom: '1px solid var(--border)',
+                        textDecoration: 'none',
+                        background: item.quaHan ? 'rgba(239,68,68,0.03)' : 'transparent',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99,77,62,0.04)')}
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = item.quaHan
+                          ? 'rgba(239,68,68,0.03)'
+                          : 'transparent')
+                      }
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                        <span style={{ marginTop: '1px', flexShrink: 0 }}>
+                          {item.quaHan ? (
+                            <AlertTriangle size={13} style={{ color: '#ef4444' }} />
+                          ) : (
+                            <Clock size={13} style={{ color: '#f59e0b' }} />
+                          )}
+                        </span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.4rem',
+                              marginBottom: '1px',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: '0.65rem',
+                                fontWeight: '700',
+                                padding: '1px 5px',
+                                borderRadius: '999px',
+                                background: item.quaHan ? '#fef2f2' : '#fffbeb',
+                                color: item.quaHan ? '#b91c1c' : '#92400e',
+                                border: `1px solid ${item.quaHan ? '#fca5a5' : '#fcd34d'}`,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {item.quaHan
+                                ? `Quá hạn ${Math.abs(item.soNgay)} ngày`
+                                : item.soNgay === 0
+                                ? 'Hôm nay'
+                                : `Còn ${item.soNgay} ngày`}
+                            </span>
+                          </div>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: '0.78rem',
+                              fontWeight: '600',
+                              color: 'var(--text-main)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {item.maPhieu} — {item.noiDung}
+                          </p>
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: '0.7rem',
+                              color: 'var(--text-muted)',
+                            }}
+                          >
+                            {Number(item.soTien).toLocaleString('vi-VN')}đ
+                            {item.nhaCungCap ? ` · ${item.nhaCungCap}` : ''}
+                          </p>
+                        </div>
+                        <ChevronRight size={12} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: '2px' }} />
+                      </div>
+                    </Link>
+                  ))}
+                </>
               )}
-            </Link>
-          ) : null}
+
+              {/* ThongBaoNoiBo items */}
+              <div style={{ maxHeight: nhacHan.length > 0 ? '180px' : '260px', overflowY: 'auto' }}>
+                {tbList.length === 0 && nhacHan.length === 0 ? (
+                  <p
+                    style={{
+                      padding: '1rem 0.875rem',
+                      fontSize: '0.8rem',
+                      color: 'var(--text-muted)',
+                      textAlign: 'center',
+                      margin: 0,
+                    }}
+                  >
+                    Không có thông báo nào
+                  </p>
+                ) : tbList.length > 0 ? (
+                  tbList.map((tb) => {
+                    const ts = TAG_STYLE[tb.tag] || TAG_STYLE.THONG_BAO;
+                    return (
+                      <div
+                        key={tb.id}
+                        style={{
+                          padding: '0.625rem 0.875rem',
+                          borderBottom: '1px solid var(--border)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            marginBottom: '0.2rem',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: '0.6rem',
+                              fontWeight: '700',
+                              padding: '1px 6px',
+                              borderRadius: '999px',
+                              background: ts.bg,
+                              color: ts.color,
+                              border: `1px solid ${ts.border}`,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {ts.label}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.8rem',
+                              fontWeight: '600',
+                              color: 'var(--text-main)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              flex: 1,
+                            }}
+                          >
+                            {tb.tieuDe}
+                          </span>
+                        </div>
+                        {tb.noiDung && (
+                          <p
+                            style={{
+                              margin: 0,
+                              fontSize: '0.75rem',
+                              color: 'var(--text-muted)',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            {tb.noiDung}
+                          </p>
+                        )}
+                        {tb.hetHan && (
+                          <span
+                            style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}
+                          >
+                            Hết hạn:{' '}
+                            {new Date(tb.hetHan).toLocaleDateString('vi-VN', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : null}
+              </div>
+
+              {/* Footer: link to dashboard if there's anything */}
+              {(tbList.length > 0 || nhacHan.length > 0) && (
+                <Link
+                  href="/"
+                  onClick={() => setShowNotifPanel(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem',
+                    padding: '0.5rem',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-muted)',
+                    textDecoration: 'none',
+                    borderTop: '1px solid var(--border)',
+                    background: 'rgba(99,77,62,0.02)',
+                  }}
+                >
+                  Xem tất cả ở Tổng quan
+                  <ChevronRight size={12} />
+                </Link>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Navigation Items */}
@@ -180,15 +485,34 @@ export default function Sidebar({ user }) {
           {allowedMenuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.path;
+            const showPending = item.key === 'duyet' && isOwnerOrManager && pendingCount > 0;
             return (
-              <Link 
-                key={item.path} 
-                href={item.path} 
+              <Link
+                key={item.path}
+                href={item.path}
                 className={`${styles.navItem} ${isActive ? styles.active : ''}`}
                 onClick={() => setIsOpen(false)}
               >
                 <Icon size={20} className={styles.navIcon} />
-                <span>{item.name}</span>
+                <span style={{ flex: 1 }}>{item.name}</span>
+                {showPending && (
+                  <span
+                    style={{
+                      background: '#ef4444',
+                      color: '#fff',
+                      borderRadius: '999px',
+                      fontSize: '0.65rem',
+                      fontWeight: '700',
+                      lineHeight: 1,
+                      padding: '2px 6px',
+                      minWidth: '18px',
+                      textAlign: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {pendingCount}
+                  </span>
+                )}
               </Link>
             );
           })}

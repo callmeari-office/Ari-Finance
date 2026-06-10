@@ -8,7 +8,7 @@ const PUBLIC_PATHS = [
   '/api/cron/', // Cron jobs xác thực bằng CRON_SECRET header, không cần session
 ];
 
-export function middleware(request) {
+export function proxy(request) {
   const { pathname } = request.nextUrl;
 
   // Cho phép các public path không cần auth
