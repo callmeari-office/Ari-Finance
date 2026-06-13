@@ -154,7 +154,7 @@ function DeXuatPage() {
 
     const bankMap = {
       'vcb': 'vietcombank', 'tcb': 'techcombank', 'ctg': 'vietinbank',
-      'mb': 'mbb', 'mbbank': 'mbb', 'vpb': 'vpbank', 'hdb': 'hdbank',
+      'mb': 'mb', 'mbbank': 'mb', 'vpb': 'vpbank', 'hdb': 'hdbank',
       'stb': 'sacombank', 'tpb': 'tpbank', 'msb': 'msb', 'shb': 'shb',
       'eib': 'eximbank', 'ocb': 'ocb', 'lpb': 'lpbank', 'abb': 'abbank',
       'nab': 'namabank', 'cake': 'cake'
