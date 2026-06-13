@@ -56,11 +56,12 @@ function formatVND(n) {
 function formatDate(d) {
   if (!d) return '—';
   try {
-    return new Intl.DateTimeFormat('vi-VN', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }).format(new Date(d));
+    const dateObj = new Date(d);
+    if (isNaN(dateObj.getTime())) return '—';
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = String(dateObj.getFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
   } catch {
     return '—';
   }

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useToast } from '@/components/Toast';
+import { formatDate } from '@/lib/date';
 import styles from './quy.module.css';
 
 const KY_OPTIONS = [
@@ -305,7 +306,7 @@ export default function QuyReportPage() {
               <p style={{ fontSize: '0.82rem', color: 'var(--danger)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <AlertTriangle size={13} />
                 Quỹ có thể âm khoảng ngày{' '}
-                {new Date(forecast.ngayCoTheAm + 'T00:00:00').toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric' })}
+                {formatDate(forecast.ngayCoTheAm)}
                 {' '}— cần kiểm tra chi tiêu
               </p>
             ) : (
@@ -552,7 +553,7 @@ export default function QuyReportPage() {
                         {thu ? '+' : '-'}{formatVND(tx.soTien)}
                       </span>
                       <span className={styles.diDate} suppressHydrationWarning>
-                        {new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}
+                        {formatDate(tx.ngayGiaoDich)}
                       </span>
                     </div>
                   </div>

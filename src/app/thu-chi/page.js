@@ -19,6 +19,7 @@ import {
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
 import { useToast } from '@/components/Toast';
+import { formatDate } from '@/lib/date';
 import styles from './thu-chi.module.css';
 
 export default function ThuChiPage() {
@@ -369,7 +370,7 @@ export default function ThuChiPage() {
                     {filteredTransactions.map((tx) => (
                       <tr key={tx.id}>
                         <td style={{ fontWeight: 'bold', color: 'var(--success)' }}>{tx.maPhieu}</td>
-                        <td>{new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}</td>
+                        <td>{formatDate(tx.ngayGiaoDich)}</td>
                         <td>
                           {tx.loaiGiaoDich === 'THU' ? (
                             <span className={styles.thuBadge}>
@@ -441,7 +442,7 @@ export default function ThuChiPage() {
                       <span className={styles.cardMaPhieu} style={{ color: tx.loaiGiaoDich === 'THU' ? '#34d399' : '#f87171' }}>
                         {tx.maPhieu}
                       </span>
-                      <span className={styles.cardDate}>{new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}</span>
+                      <span className={styles.cardDate}>{formatDate(tx.ngayGiaoDich)}</span>
                     </div>
                     <div className={styles.cardBodyRow}>
                       <div className={styles.cardDetailItem}>
@@ -710,7 +711,7 @@ export default function ThuChiPage() {
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Ngày Giao Dịch:</span>
-                  <span className={styles.detailValue}>{new Date(selectedTx.ngayGiaoDich).toLocaleDateString('vi-VN')}</span>
+                  <span className={styles.detailValue}>{formatDate(selectedTx.ngayGiaoDich)}</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Loại dòng tiền:</span>

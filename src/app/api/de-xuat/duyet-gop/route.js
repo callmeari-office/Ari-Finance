@@ -4,7 +4,7 @@ import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
-import { notifyUser } from '@/lib/webpush';
+import { notifyUser, notifyProposalApproved } from '@/lib/webpush';
 
 export async function POST(request) {
   try {
@@ -136,7 +136,7 @@ export async function POST(request) {
     });
 
     try {
-      await notifyUser(staffId, {
+      await notifyProposalApproved(staffId, {
         title: '✅ Phiếu đã được duyệt',
         body: `${proposals.length} phiếu hoàn ứng của bạn — ${tongTien.toLocaleString('vi-VN')}đ đã được thanh toán gộp.`,
         url: '/de-xuat?open=' + proposals[0].id,

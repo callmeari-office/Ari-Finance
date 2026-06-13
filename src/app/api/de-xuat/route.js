@@ -20,6 +20,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const trangThai = searchParams.get('trangThai');
+    const onlyPending = searchParams.get('onlyPending');
     const nguonTien = searchParams.get('nguonTien');
     const nhaCungCapId = searchParams.get('nhaCungCapId');
     const danhMucId = searchParams.get('danhMucId');
@@ -33,7 +34,25 @@ export async function GET(request) {
     const skip = (page - 1) * limit;
 
     const where = {};
-    if (trangThai) {
+    if (onlyPending === 'true') {
+      const states = trangThai ? trangThai.split(',').map(s => s.trim()).filter(Boolean) : ['CHO_THANH_TOAN', 'CHO_HOAN_UNG', 'DA_THANH_TOAN'];
+      where.AND = [
+        ...(where.AND || []),
+        {
+          OR: [
+            { trangThai: { in: states.filter(s => s !== 'DA_THANH_TOAN') } },
+            states.includes('DA_THANH_TOAN') ? {
+              trangThai: 'DA_THANH_TOAN',
+              laLichSu: false,
+              OR: [
+                { quyThanhToanId: null },
+                { thuChiId: null }
+              ]
+            } : null
+          ].filter(Boolean)
+        }
+      ];
+    } else if (trangThai) {
       where.trangThai = { in: trangThai.split(',').map(s => s.trim()).filter(Boolean) };
     }
     if (nguonTien) {

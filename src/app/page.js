@@ -32,6 +32,7 @@ import AnimatedNumber from '@/components/AnimatedNumber';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { isRestrictedToOwnProposals, canViewMenu } from '@/lib/roles';
+import { formatDate } from '@/lib/date';
 import styles from './dashboard.module.css';
 
 export default function Dashboard() {
@@ -460,7 +461,7 @@ export default function Dashboard() {
                 const shownContent = isLong && !isExpanded ? tb.noiDung.slice(0, 120) + '…' : tb.noiDung;
                 const hetHanDate = tb.ngayHetHan ? new Date(tb.ngayHetHan) : null;
                 const hetHanStr = hetHanDate
-                  ? `Hết hạn ${hetHanDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+                  ? `Hết hạn ${formatDate(hetHanDate)}`
                   : null;
 
                 return (
@@ -795,7 +796,12 @@ export default function Dashboard() {
                     <span>
                       Quỹ có thể âm khoảng ngày{' '}
                       <strong>
-                        {new Date(duBao.ngayCoTheAm + 'T00:00:00').toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric' })}
+                        {(() => {
+                          const d = new Date(duBao.ngayCoTheAm + 'T00:00:00');
+                          const dd = String(d.getDate()).padStart(2, '0');
+                          const mm = String(d.getMonth() + 1).padStart(2, '0');
+                          return `${dd}/${mm}`;
+                        })()}
                       </strong>{' '}
                       nếu chi theo xu hướng hiện tại — cần bổ sung thu hoặc cắt giảm chi.
                     </span>
@@ -1238,7 +1244,7 @@ export default function Dashboard() {
                   {recentProposals.slice(0, 5).map((prop) => (
                     <tr key={prop.id}>
                       <td style={{ fontWeight: 700, color: 'var(--info)' }}>{prop.maPhieu}</td>
-                      <td>{new Date(prop.ngayPhatSinh).toLocaleDateString('vi-VN')}</td>
+                      <td>{formatDate(prop.ngayPhatSinh)}</td>
                       <td>
                         <span style={{ fontWeight: '500' }}>{prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}</span>
                         <br />

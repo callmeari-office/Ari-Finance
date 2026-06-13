@@ -4,7 +4,7 @@ import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
-import { notifyUser } from '@/lib/webpush';
+import { notifyUser, notifyProposalApproved } from '@/lib/webpush';
 
 // Duyệt NHIỀU đề xuất chờ thanh toán cùng lúc (TH1/TH2).
 // Khác với /duyet-gop (hoàn ứng gộp 1 phiếu): mỗi đề xuất sinh MỘT phiếu Chi riêng,
@@ -129,7 +129,7 @@ export async function POST(request) {
         });
 
         try {
-          await notifyUser(existingProposal.nguoiTaoId, {
+          await notifyProposalApproved(existingProposal.nguoiTaoId, {
             title: '✅ Phiếu đã được duyệt',
             body: `${existingProposal.maPhieu} — ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ đã được thanh toán.`,
             url: '/de-xuat?open=' + existingProposal.id,

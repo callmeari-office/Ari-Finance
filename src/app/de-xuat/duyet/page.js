@@ -19,6 +19,7 @@ import Sidebar from '@/components/Sidebar';
 import AriCameo from '@/components/AriCameo';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { formatDate } from '@/lib/date';
 import styles from './duyet.module.css';
 
 const getTodayString = () => {
@@ -161,8 +162,8 @@ function DuyetPage() {
   const fetchData = async () => {
     setDataLoading(true);
     try {
-      // Tải các đề xuất ở trạng thái chờ duyệt (CHO_THANH_TOAN hoặc CHO_HOAN_UNG)
-      const propRes = await fetch('/api/de-xuat?trangThai=CHO_THANH_TOAN,CHO_HOAN_UNG&limit=500');
+      // Tải các đề xuất ở trạng thái chờ duyệt (TH1, TH2, TH3)
+      const propRes = await fetch('/api/de-xuat?trangThai=CHO_THANH_TOAN,CHO_HOAN_UNG,DA_THANH_TOAN&onlyPending=true&limit=500');
       if (propRes.ok) {
         const propData = await propRes.json();
         const pendingProps = (propData.data || []).filter(p => !p.laLichSu);
@@ -481,7 +482,7 @@ function DuyetPage() {
       return (
         <div style={{ marginTop: '0.25rem' }}>
           <span style={{ fontSize: '0.65rem', color: 'var(--success)', fontWeight: '600', backgroundColor: 'var(--success-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block' }}>
-            ✓ Hạn: {new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')}
+            ✓ Hạn: {formatDate(ngayCanThanhToan)}
           </span>
         </div>
       );
@@ -499,7 +500,7 @@ function DuyetPage() {
       return (
         <div style={{ marginTop: '0.25rem' }}>
           <span style={{ fontSize: '0.65rem', color: 'var(--danger)', fontWeight: '800', backgroundColor: 'var(--danger-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block', border: '1px solid var(--danger)' }}>
-            🚨 Trễ hạn {Math.abs(diffDays)} ngày ({new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')})
+            🚨 Trễ hạn {Math.abs(diffDays)} ngày ({formatDate(ngayCanThanhToan)})
           </span>
         </div>
       );
@@ -507,7 +508,7 @@ function DuyetPage() {
       return (
         <div style={{ marginTop: '0.25rem' }}>
           <span style={{ fontSize: '0.65rem', color: 'var(--warning)', fontWeight: '800', backgroundColor: 'var(--warning-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block', border: '1px solid var(--warning)' }}>
-            🚨 CẦN CHI HÔM NAY ({new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')})
+            🚨 CẦN CHI HÔM NAY ({formatDate(ngayCanThanhToan)})
           </span>
         </div>
       );
@@ -515,7 +516,7 @@ function DuyetPage() {
       return (
         <div style={{ marginTop: '0.25rem' }}>
           <span style={{ fontSize: '0.65rem', color: '#fbbf24', fontWeight: '700', backgroundColor: 'rgba(251,191,36,0.1)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block' }}>
-            ⏳ Sắp đến hạn ({new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')})
+            ⏳ Sắp đến hạn ({formatDate(ngayCanThanhToan)})
           </span>
         </div>
       );
@@ -523,7 +524,7 @@ function DuyetPage() {
       return (
         <div style={{ marginTop: '0.25rem' }}>
           <span style={{ fontSize: '0.65rem', color: '#4b5563', fontWeight: '600', backgroundColor: 'rgba(75,85,99,0.06)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block' }}>
-            📅 Hạn: {new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')}
+            📅 Hạn: {formatDate(ngayCanThanhToan)}
           </span>
         </div>
       );
@@ -738,7 +739,7 @@ function DuyetPage() {
                           {prop.maPhieu}
                         </td>
                         <td suppressHydrationWarning>
-                          {new Date(prop.ngayPhatSinh).toLocaleDateString('vi-VN')}
+                          {formatDate(prop.ngayPhatSinh)}
                           {getDeadlineBadge(prop.ngayCanThanhToan, prop.trangThai)}
                         </td>
 
@@ -944,7 +945,7 @@ function DuyetPage() {
                           {prop.maPhieu}
                         </td>
                         <td suppressHydrationWarning>
-                          {new Date(prop.ngayPhatSinh).toLocaleDateString('vi-VN')}
+                          {formatDate(prop.ngayPhatSinh)}
                           {getDeadlineBadge(prop.ngayCanThanhToan, prop.trangThai)}
                         </td>
 
@@ -1192,7 +1193,7 @@ function DuyetPage() {
                                 {prop.maPhieu}
                               </td>
                               <td suppressHydrationWarning>
-                                {new Date(prop.ngayPhatSinh).toLocaleDateString('vi-VN')}
+                                {formatDate(prop.ngayPhatSinh)}
                                 {getDeadlineBadge(prop.ngayCanThanhToan, prop.trangThai)}
                               </td>
 
@@ -1252,13 +1253,13 @@ function DuyetPage() {
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Ngày lập:</span>
-                  <span className={styles.detailValue} suppressHydrationWarning>{new Date(selectedPreviewProp.ngayPhatSinh).toLocaleDateString('vi-VN')}</span>
+                  <span className={styles.detailValue} suppressHydrationWarning>{formatDate(selectedPreviewProp.ngayPhatSinh)}</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Hạn thanh toán:</span>
                   <span className={styles.detailValue} style={{ color: selectedPreviewProp.ngayCanThanhToan ? '#fbbf24' : 'inherit', fontWeight: selectedPreviewProp.ngayCanThanhToan ? '600' : 'normal' }} suppressHydrationWarning>
                     {selectedPreviewProp.ngayCanThanhToan 
-                      ? `📅 ${new Date(selectedPreviewProp.ngayCanThanhToan).toLocaleDateString('vi-VN')}` 
+                      ? `📅 ${formatDate(selectedPreviewProp.ngayCanThanhToan)}` 
                       : 'Không có'}
                   </span>
                 </div>

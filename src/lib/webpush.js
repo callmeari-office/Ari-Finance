@@ -95,3 +95,30 @@ export async function notifyUser(userId, payload) {
 
   await Promise.allSettled(subs.map((s) => sendToOne(s, payload)));
 }
+
+/**
+ * Gửi thông báo khi duyệt đề xuất đến:
+ * 1. Tất cả OWNER + MANAGER (qua notifyManagers)
+ * 2. Người tạo đề xuất (nếu người tạo là LEADER hoặc STAFF)
+ */
+export async function notifyProposalApproved(creatorId, payload) {
+  try {
+    // 1. Gửi cho tất cả Owner + Manager đang hoạt động
+    await notifyManagers(payload);
+
+    // 2. Tìm thông tin người tạo đề xuất để kiểm tra vai trò
+    const creator = await prisma.nhanVien.findUnique({
+      where: { id: creatorId },
+      select: { role: true, trangThai: true },
+    });
+
+    // Nếu người tạo là LEADER hoặc STAFF và đang hoạt động, gửi thông báo riêng cho họ
+    // (Vì họ không nằm trong nhóm OWNER/MANAGER ở bước 1)
+    if (creator && creator.trangThai === 'ACTIVE' && (creator.role === 'LEADER' || creator.role === 'STAFF')) {
+      await notifyUser(creatorId, payload);
+    }
+  } catch (error) {
+    // Bỏ qua lỗi để không làm ảnh hưởng luồng nghiệp vụ chính
+    console.error('Lỗi khi gửi thông báo duyệt đề xuất:', error);
+  }
+}

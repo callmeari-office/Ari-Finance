@@ -27,6 +27,7 @@ import FilterDropdown from '@/components/FilterDropdown';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
+import { formatDate, formatDateOrEmpty } from '@/lib/date';
 import styles from './de-xuat.module.css';
 
 function DeXuatPage() {
@@ -750,8 +751,8 @@ function DeXuatPage() {
 
       const rows = all.map((p) => [
         p.maPhieu,
-        p.ngayPhatSinh ? new Date(p.ngayPhatSinh).toLocaleDateString('vi-VN') : '',
-        p.ngayCanThanhToan ? new Date(p.ngayCanThanhToan).toLocaleDateString('vi-VN') : '',
+        formatDateOrEmpty(p.ngayPhatSinh),
+        formatDateOrEmpty(p.ngayCanThanhToan),
         p.nguoiTao ? (p.nguoiTao.tenNgan || p.nguoiTao.hoTen) : '',
         p.danhMuc?.tenDanhMuc || '',
         p.noiDung || '',
@@ -778,7 +779,7 @@ function DeXuatPage() {
       ];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Đề xuất chi phí');
-      const date = new Date().toLocaleDateString('vi-VN').replace(/\//g, '-');
+      const date = formatDate(new Date()).replace(/\//g, '-');
       XLSX.writeFile(wb, `DeXuatChiPhi_${filterLabel}_${date}.xlsx`);
     } catch {
       toast.error('Xuất Excel thất bại.');
@@ -980,7 +981,7 @@ function DeXuatPage() {
       return (
         <div style={{ marginTop: '0.25rem' }}>
           <span style={{ fontSize: '0.65rem', color: 'var(--success)', fontWeight: '600', backgroundColor: 'var(--success-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block' }}>
-            ✓ Hạn: {new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')}
+            ✓ Hạn: {formatDate(ngayCanThanhToan)}
           </span>
         </div>
       );
@@ -998,7 +999,7 @@ function DeXuatPage() {
       return (
         <div style={{ marginTop: '0.25rem' }}>
           <span style={{ fontSize: '0.65rem', color: 'var(--danger)', fontWeight: '800', backgroundColor: 'var(--danger-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block', border: '1px solid var(--danger)' }}>
-            🚨 Trễ hạn {Math.abs(diffDays)} ngày ({new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')})
+            🚨 Trễ hạn {Math.abs(diffDays)} ngày ({formatDate(ngayCanThanhToan)})
           </span>
         </div>
       );
@@ -1006,7 +1007,7 @@ function DeXuatPage() {
       return (
         <div style={{ marginTop: '0.25rem' }}>
           <span style={{ fontSize: '0.65rem', color: 'var(--warning)', fontWeight: '800', backgroundColor: 'var(--warning-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block', border: '1px solid var(--warning)' }}>
-            🚨 CẦN CHI HÔM NAY ({new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')})
+            🚨 CẦN CHI HÔM NAY ({formatDate(ngayCanThanhToan)})
           </span>
         </div>
       );
@@ -1014,7 +1015,7 @@ function DeXuatPage() {
       return (
         <div style={{ marginTop: '0.25rem' }}>
           <span style={{ fontSize: '0.65rem', color: '#fbbf24', fontWeight: '700', backgroundColor: 'rgba(251,191,36,0.1)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block' }}>
-            ⏳ Sắp đến hạn ({new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')})
+            ⏳ Sắp đến hạn ({formatDate(ngayCanThanhToan)})
           </span>
         </div>
       );
@@ -1022,7 +1023,7 @@ function DeXuatPage() {
       return (
         <div style={{ marginTop: '0.25rem' }}>
           <span style={{ fontSize: '0.65rem', color: '#4b5563', fontWeight: '600', backgroundColor: 'rgba(75,85,99,0.06)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block' }}>
-            📅 Hạn: {new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')}
+            📅 Hạn: {formatDate(ngayCanThanhToan)}
           </span>
         </div>
       );
@@ -1190,7 +1191,7 @@ function DeXuatPage() {
                       <tr key={prop.id}>
                         <td style={{ fontWeight: 'bold', color: 'var(--info)' }}>{prop.maPhieu}</td>
                         <td suppressHydrationWarning>
-                          {new Date(prop.ngayPhatSinh).toLocaleDateString('vi-VN')}
+                          {formatDate(prop.ngayPhatSinh)}
                           {getDeadlineBadge(prop.ngayCanThanhToan, prop.trangThai)}
                         </td>
 
@@ -1294,7 +1295,7 @@ function DeXuatPage() {
                     <div key={prop.id} className={styles.mobileCard}>
                       <div className={styles.cardHeaderRow}>
                         <span className={styles.cardMaPhieu}>{prop.maPhieu}</span>
-                        <span className={styles.cardDate}>{new Date(prop.ngayPhatSinh).toLocaleDateString('vi-VN')}</span>
+                        <span className={styles.cardDate}>{formatDate(prop.ngayPhatSinh)}</span>
                       </div>
                       <div className={styles.cardBodyRow}>
                         <div className={styles.cardDetailItem}>
@@ -1970,7 +1971,7 @@ function DeXuatPage() {
                           const badNgayTT = r.ngayTTGoc && !r.ngayThanhToan;
                           return (
                             <tr key={i} style={r.tenQuy ? { background: 'var(--success-bg)' } : {}}>
-                              <td style={{ color: badDate ? '#ef4444' : 'inherit' }}>{badDate ? `⚠️ ${r.ngayGoc || 'trống'}` : new Date(r.ngayPhatSinh).toLocaleDateString('vi-VN')}</td>
+                              <td style={{ color: badDate ? '#ef4444' : 'inherit' }}>{badDate ? `⚠️ ${r.ngayGoc || 'trống'}` : formatDate(r.ngayPhatSinh)}</td>
                               <td>{r.danhMuc || <span style={{ color: 'var(--danger)' }}>⚠️ trống</span>}</td>
                               <td style={{ maxWidth: '160px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.noiDung}>{r.noiDung || <span style={{ color: 'var(--danger)' }}>⚠️ trống</span>}</td>
                               <td style={{ color: badTien ? '#ef4444' : '#34d399', fontWeight: '600' }}>{badTien ? '⚠️ 0' : r.soTien.toLocaleString('vi-VN')}</td>
@@ -1979,7 +1980,7 @@ function DeXuatPage() {
                                 {badNgayTT
                                   ? `⚠️ ${r.ngayTTGoc}`
                                   : r.ngayThanhToan
-                                    ? new Date(r.ngayThanhToan).toLocaleDateString('vi-VN')
+                                    ? formatDate(r.ngayThanhToan)
                                     : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                               </td>
                               <td>
@@ -2070,13 +2071,13 @@ function DeXuatPage() {
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Ngày lập:</span>
-                  <span className={styles.detailValue} suppressHydrationWarning>{new Date(selectedProp.ngayPhatSinh).toLocaleDateString('vi-VN')}</span>
+                  <span className={styles.detailValue} suppressHydrationWarning>{formatDate(selectedProp.ngayPhatSinh)}</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Hạn thanh toán:</span>
                   <span className={styles.detailValue} style={{ color: selectedProp.ngayCanThanhToan ? '#fbbf24' : 'inherit', fontWeight: selectedProp.ngayCanThanhToan ? '600' : 'normal' }} suppressHydrationWarning>
                     {selectedProp.ngayCanThanhToan 
-                      ? `📅 ${new Date(selectedProp.ngayCanThanhToan).toLocaleDateString('vi-VN')}` 
+                      ? `📅 ${formatDate(selectedProp.ngayCanThanhToan)}` 
                       : 'Không có'}
                   </span>
                 </div>
@@ -2136,7 +2137,7 @@ function DeXuatPage() {
                     </div>
                     <div className={styles.detailItem}>
                       <span className={styles.detailLabel}>Ngày duyệt chi:</span>
-                      <span className={styles.detailValue} suppressHydrationWarning>{new Date(selectedProp.ngayThanhToan).toLocaleDateString('vi-VN')}</span>
+                      <span className={styles.detailValue} suppressHydrationWarning>{formatDate(selectedProp.ngayThanhToan)}</span>
                     </div>
 
                     <div className={styles.detailItem}>

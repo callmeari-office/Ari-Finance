@@ -20,6 +20,7 @@ import {
 import Sidebar from '@/components/Sidebar';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { formatDate } from '@/lib/date';
 import styles from './ncc.module.css';
 
 export default function VendorsPage() {
@@ -794,7 +795,7 @@ export default function VendorsPage() {
                       {vendorHistory.map((p) => (
                         <tr key={p.id}>
                           <td style={{ fontWeight: 'bold', color: 'var(--info)' }}>{p.maPhieu}</td>
-                          <td suppressHydrationWarning>{new Date(p.ngayPhatSinh).toLocaleDateString('vi-VN')}</td>
+                          <td suppressHydrationWarning>{formatDate(p.ngayPhatSinh)}</td>
                           <td>{p.noiDung}</td>
                           <td>{p.nguoiTao?.hoTen || '—'}</td>
                           <td style={{ fontWeight: '700', textAlign: 'right', color: '#fbbf24' }}>{formatVND(p.soTien)}</td>

@@ -23,6 +23,7 @@ import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { formatDate } from '@/lib/date';
 import styles from './bao-cao.module.css';
 
 export default function BaoCaoThuChiPage() {
@@ -275,7 +276,7 @@ export default function BaoCaoThuChiPage() {
 
     const rows = filteredTx.map((tx) => [
       tx.maPhieu,
-      new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN'),
+      formatDate(tx.ngayGiaoDich),
       tx.loaiGiaoDich === 'THU' ? 'Thu' : 'Chi',
       tx.quy?.tenQuy || '',
       tx.danhMuc?.nhomChiPhi?.tenNhom || '',
@@ -302,7 +303,7 @@ export default function BaoCaoThuChiPage() {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Báo cáo Thu-Chi');
-    const fileName = `BaoCaoThuChi_${periodLabel}_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.xlsx`;
+    const fileName = `BaoCaoThuChi_${periodLabel}_${formatDate(new Date()).replace(/\//g, '-')}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
 
@@ -352,7 +353,7 @@ export default function BaoCaoThuChiPage() {
               : 'Cả năm'}{' '}
             {filterNam || ''}
           </p>
-          <p>Ngày in: {new Date().toLocaleDateString('vi-VN')}</p>
+          <p>Ngày in: {formatDate(new Date())}</p>
         </div>
 
         {/* SECTION 1: SMART FILTER GRID */}
@@ -722,7 +723,7 @@ export default function BaoCaoThuChiPage() {
                     {filteredTx.map((tx) => (
                       <tr key={tx.id}>
                         <td style={{ fontWeight: 'bold', color: tx.loaiGiaoDich === 'THU' ? '#34d399' : '#f87171' }}>{tx.maPhieu}</td>
-                        <td suppressHydrationWarning>{new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}</td>
+                        <td suppressHydrationWarning>{formatDate(tx.ngayGiaoDich)}</td>
                         <td>
                           {tx.loaiGiaoDich === 'THU' ? (
                             <span className={styles.thuBadge}>THU</span>

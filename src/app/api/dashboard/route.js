@@ -77,7 +77,19 @@ export async function GET() {
 
       // OWNER/MANAGER: đếm phiếu chờ thanh toán (!laLichSu — khớp với logic cũ)
       !isRestricted ? prisma.deXuatChiPhi.count({
-        where: { trangThai: 'CHO_THANH_TOAN', laLichSu: false },
+        where: {
+          OR: [
+            { trangThai: 'CHO_THANH_TOAN', laLichSu: false },
+            {
+              trangThai: 'DA_THANH_TOAN',
+              laLichSu: false,
+              OR: [
+                { quyThanhToanId: null },
+                { thuChiId: null }
+              ]
+            }
+          ]
+        },
       }) : Promise.resolve(0),
 
       // OWNER/MANAGER: đếm phiếu chờ hoàn ứng

@@ -32,6 +32,7 @@ import { useState, useEffect, useRef } from 'react';
 import ThemeToggle from './ThemeToggle';
 import PushToggle from './PushToggle';
 import { canViewMenu } from '@/lib/roles';
+import { formatDate } from '@/lib/date';
 import styles from './Sidebar.module.css';
 
 const TAG_STYLE = {
@@ -425,11 +426,7 @@ export default function Sidebar({ user }) {
                             style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}
                           >
                             Hết hạn:{' '}
-                            {new Date(tb.hetHan).toLocaleDateString('vi-VN', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                            })}
+                            {formatDate(tb.hetHan)}
                           </span>
                         )}
                       </div>

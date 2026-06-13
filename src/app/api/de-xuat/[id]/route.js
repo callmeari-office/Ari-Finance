@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
 import { isRestrictedToOwnProposals } from '@/lib/roles';
 import { ghiNhatKy } from '@/lib/audit';
-import { notifyUser } from '@/lib/webpush';
+import { notifyUser, notifyProposalApproved } from '@/lib/webpush';
 import { validateStorageImageUrl } from '@/lib/validateImage';
 import { deleteStorageImage } from '@/lib/supabase';
 
@@ -266,7 +266,7 @@ export async function PUT(request, { params }) {
       });
 
       try {
-        await notifyUser(existingProposal.nguoiTaoId, {
+        await notifyProposalApproved(existingProposal.nguoiTaoId, {
           title: '✅ Phiếu đã được duyệt',
           body: `${existingProposal.maPhieu} — ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ đã được thanh toán.`,
           url: '/de-xuat?open=' + existingProposal.id,

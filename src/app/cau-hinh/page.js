@@ -22,6 +22,7 @@ import Sidebar from '@/components/Sidebar';
 import PushToggle from '@/components/PushToggle';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { formatDate } from '@/lib/date';
 import styles from './cau-hinh.module.css';
 
 export default function CauHinhPage() {
@@ -541,7 +542,7 @@ export default function CauHinhPage() {
         XLSX.utils.book_append_sheet(wb, ws, sheetName);
       });
 
-      const today = new Date().toLocaleDateString('vi-VN').replace(/\//g, '-');
+      const today = formatDate(new Date()).replace(/\//g, '-');
       XLSX.writeFile(wb, `SaoLuu_ARI-Finance_${today}.xlsx`);
     } catch (err) {
       toast.error(err.message || 'Sao lưu thất bại. Vui lòng thử lại.');

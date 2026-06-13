@@ -136,7 +136,19 @@ export async function getCanhBao(prisma, days = 3) {
       include: { danhMuc: { select: { tenDanhMuc: true } } },
     }),
     prisma.deXuatChiPhi.count({
-      where: { trangThai: { in: ['CHO_THANH_TOAN', 'CHO_HOAN_UNG'] }, laLichSu: false },
+      where: {
+        OR: [
+          { trangThai: { in: ['CHO_THANH_TOAN', 'CHO_HOAN_UNG'] }, laLichSu: false },
+          {
+            trangThai: 'DA_THANH_TOAN',
+            laLichSu: false,
+            OR: [
+              { quyThanhToanId: null },
+              { thuChiId: null }
+            ]
+          }
+        ]
+      },
     }),
   ]);
 
