@@ -109,12 +109,12 @@ export default function DoiMatKhauPage() {
 
         <form onSubmit={handleSubmit} className="glass-card" style={{ maxWidth: 460, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {error && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(239,68,68,0.1)', color: '#ef4444', padding: '0.7rem 0.9rem', borderRadius: 8, fontSize: '0.9rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', padding: '0.7rem 0.9rem', borderRadius: 8, fontSize: '0.9rem' }}>
               <AlertCircle size={18} /> {error}
             </div>
           )}
           {success && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(16,185,129,0.12)', color: '#10b981', padding: '0.7rem 0.9rem', borderRadius: 8, fontSize: '0.9rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(16,185,129,0.12)', color: 'var(--success)', padding: '0.7rem 0.9rem', borderRadius: 8, fontSize: '0.9rem' }}>
               <Check size={18} /> {success}
             </div>
           )}

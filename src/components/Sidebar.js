@@ -136,7 +136,7 @@ export default function Sidebar({ user }) {
   return (
     <>
       {/* Mobile Toggle Header */}
-      <header className={styles.mobileHeader}>
+      <header className={`${styles.mobileHeader} print-hide`}>
         <Link href="/" className={styles.brand} onClick={() => setIsOpen(false)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="Logo" className={styles.logoImg} />
@@ -154,7 +154,7 @@ export default function Sidebar({ user }) {
       {isOpen && <div className={styles.overlay} onClick={toggleSidebar}></div>}
 
       {/* Main Sidebar */}
-      <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
+      <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''} print-hide`}>
         <div className={styles.sidebarHeader}>
           <Link href="/" className={styles.brand} onClick={() => setIsOpen(false)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -205,23 +205,7 @@ export default function Sidebar({ user }) {
             >
               <Bell size={18} />
               {bellBadge > 0 && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '-4px',
-                    right: '-4px',
-                    background: bellRed ? '#ef4444' : '#f59e0b',
-                    color: '#fff',
-                    borderRadius: '999px',
-                    fontSize: '0.6rem',
-                    fontWeight: '700',
-                    lineHeight: 1,
-                    padding: '2px 4px',
-                    minWidth: '14px',
-                    textAlign: 'center',
-                    pointerEvents: 'none',
-                  }}
-                >
+                <span className={`${styles.bellBadge} ${bellRed ? styles.bellBadgeRed : ''}`}>
                   {bellBadge}
                 </span>
               )}
@@ -295,9 +279,9 @@ export default function Sidebar({ user }) {
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
                         <span style={{ marginTop: '1px', flexShrink: 0 }}>
                           {item.quaHan ? (
-                            <AlertTriangle size={13} style={{ color: '#ef4444' }} />
+                            <AlertTriangle size={13} style={{ color: 'var(--danger)' }} />
                           ) : (
-                            <Clock size={13} style={{ color: '#f59e0b' }} />
+                            <Clock size={13} style={{ color: 'var(--warning)' }} />
                           )}
                         </span>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -496,22 +480,7 @@ export default function Sidebar({ user }) {
                 <Icon size={20} className={styles.navIcon} />
                 <span style={{ flex: 1 }}>{item.name}</span>
                 {showPending && (
-                  <span
-                    style={{
-                      background: '#ef4444',
-                      color: '#fff',
-                      borderRadius: '999px',
-                      fontSize: '0.65rem',
-                      fontWeight: '700',
-                      lineHeight: 1,
-                      padding: '2px 6px',
-                      minWidth: '18px',
-                      textAlign: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {pendingCount}
-                  </span>
+                  <span className={styles.navBadge}>{pendingCount}</span>
                 )}
               </Link>
             );

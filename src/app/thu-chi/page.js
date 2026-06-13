@@ -18,10 +18,12 @@ import {
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
+import { useToast } from '@/components/Toast';
 import styles from './thu-chi.module.css';
 
 export default function ThuChiPage() {
   const router = useRouter();
+  const toast = useToast();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -86,7 +88,7 @@ export default function ThuChiPage() {
       .then((data) => {
         if (data && data.authenticated) {
           if (data.user.role !== 'OWNER' && data.user.role !== 'MANAGER' && !data.user.permissions?.thuChi) {
-            alert('Bạn không có quyền truy cập trang quản lý Thu-Chi.');
+            toast.error('Bạn không có quyền truy cập trang quản lý Thu-Chi.');
             router.push('/');
             return;
           }
@@ -339,7 +341,9 @@ export default function ThuChiPage() {
 
         <div className="glass-card" style={{ marginTop: '0.5rem' }}>
           {dataLoading ? (
-            <div className={styles.loaderSmall}>Đang tải lịch sử giao dịch...</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+              {[1, 2, 3, 4, 5].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+            </div>
           ) : filteredTransactions.length === 0 ? (
             <div className={styles.emptyState}>Chưa có giao dịch dòng tiền nào được ghi nhận.</div>
           ) : (
@@ -364,7 +368,7 @@ export default function ThuChiPage() {
                   <tbody>
                     {filteredTransactions.map((tx) => (
                       <tr key={tx.id}>
-                        <td style={{ fontWeight: 'bold', color: '#34d399' }}>{tx.maPhieu}</td>
+                        <td style={{ fontWeight: 'bold', color: 'var(--success)' }}>{tx.maPhieu}</td>
                         <td>{new Date(tx.ngayGiaoDich).toLocaleDateString('vi-VN')}</td>
                         <td>
                           {tx.loaiGiaoDich === 'THU' ? (
@@ -702,7 +706,7 @@ export default function ThuChiPage() {
               <div className={styles.detailCardGrid}>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Mã Giao Dịch:</span>
-                  <span className={styles.detailValue} style={{ fontWeight: 'bold', color: '#34d399' }}>{selectedTx.maPhieu}</span>
+                  <span className={styles.detailValue} style={{ fontWeight: 'bold', color: 'var(--success)' }}>{selectedTx.maPhieu}</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Ngày Giao Dịch:</span>
@@ -716,7 +720,7 @@ export default function ThuChiPage() {
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Tác động Quỹ:</span>
-                  <span className={styles.detailValue} style={{ fontWeight: 'bold', color: '#60a5fa' }}>{selectedTx.quy.tenQuy}</span>
+                  <span className={styles.detailValue} style={{ fontWeight: 'bold', color: 'var(--info)' }}>{selectedTx.quy.tenQuy}</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Danh mục kế toán:</span>
@@ -754,7 +758,7 @@ export default function ThuChiPage() {
               {selectedTx.loaiGiaoDich === 'CHI' && selectedTx.soPhieuDeXuat > 0 && (
                 <div className={styles.subProposalsSection}>
                   <div className={styles.subProposalsHeader}>
-                    <Layers size={18} style={{ color: '#60a5fa' }} />
+                    <Layers size={18} style={{ color: 'var(--info)' }} />
                     <h3>Danh sách các Đề xuất chi phí được gộp ({selectedTx.soPhieuDeXuat} phiếu)</h3>
                   </div>
                   <p className={styles.subProposalsDesc}>Phiếu chi {selectedTx.maPhieu} được sinh ra từ việc duyệt gộp các đề xuất chi của nhân viên dưới đây:</p>
@@ -772,7 +776,7 @@ export default function ThuChiPage() {
                       <tbody>
                         {selectedTx.deXuatChiPhi.map((dx) => (
                           <tr key={dx.id}>
-                            <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{dx.maPhieu}</td>
+                            <td style={{ fontWeight: 'bold', color: 'var(--info)' }}>{dx.maPhieu}</td>
                             <td>{dx.nguoiTao.hoTen}</td>
                             <td>{dx.noiDung}</td>
                             <td style={{ fontWeight: '700', textAlign: 'right' }}>{formatVND(dx.soTien)}</td>
@@ -780,7 +784,7 @@ export default function ThuChiPage() {
                         ))}
                         <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
                           <td colSpan="3" style={{ fontWeight: 'bold', textAlign: 'right' }}>Tổng cộng tiền đề xuất:</td>
-                          <td style={{ fontWeight: '800', color: '#34d399', textAlign: 'right' }}>{formatVND(selectedTx.tongTienDeXuat)}</td>
+                          <td style={{ fontWeight: '800', color: 'var(--success)', textAlign: 'right' }}>{formatVND(selectedTx.tongTienDeXuat)}</td>
                         </tr>
                       </tbody>
                     </table>

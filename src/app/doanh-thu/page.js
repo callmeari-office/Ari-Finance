@@ -27,6 +27,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { canViewMenu } from '@/lib/roles';
 import styles from './doanh-thu.module.css';
 
@@ -52,6 +54,8 @@ const pctColor4 = (p) => (p >= 90 ? '#34d399' : p >= 70 ? '#f59e0b' : p >= 50 ? 
 
 export default function DoanhThuPage() {
   const router = useRouter();
+  const toast = useToast();
+  const showConfirm = useConfirm();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
@@ -95,7 +99,7 @@ export default function DoanhThuPage() {
       .then((data) => {
         if (!data?.authenticated) { router.push('/login'); return; }
         const u = data.user;
-        if (!canViewMenu(u, 'doanhThu')) { alert('Bạn không có quyền truy cập.'); router.push('/'); return; }
+        if (!canViewMenu(u, 'doanhThu')) { toast.error('Bạn không có quyền truy cập.'); router.push('/'); return; }
         setUser(u);
         setIsOwner(u.role === 'OWNER');
         // Mở tab đầu tiên mà vai trò được phép xem (DB Tháng -> DB Năm -> Nhập số cho OWNER)
@@ -261,7 +265,7 @@ export default function DoanhThuPage() {
       XLSX.writeFile(wb, `mau-chi-tieu-doanh-thu-nam-${nam}.xlsx`);
     } catch (err) {
       console.error(err);
-      alert('Không tải được file mẫu.');
+      toast.error('Không tải được file mẫu.');
     }
   };
 
@@ -296,7 +300,7 @@ export default function DoanhThuPage() {
       XLSX.writeFile(wb, `mau-doanh-thu-ngay-thang-${thang}-${nam}.xlsx`);
     } catch (err) {
       console.error(err);
-      alert('Không tải được file mẫu.');
+      toast.error('Không tải được file mẫu.');
     }
   };
 
@@ -625,7 +629,7 @@ export default function DoanhThuPage() {
                 <div className={styles.toolbar}>
                   <span className={styles.toolbarInfo}>
                     {hasDirtyYear
-                      ? <span style={{ color: '#f59e0b' }}>● Có thay đổi chưa lưu</span>
+                      ? <span style={{ color: 'var(--warning)' }}>● Có thay đổi chưa lưu</span>
                       : <span>Nhập <b style={{ color: '#a5b4fc' }}>Chỉ tiêu</b> từng tháng. <b style={{ color: '#6ee7b7' }}>Thực tế</b> tự tổng hợp từ doanh thu ngày.</span>}
                   </span>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -649,7 +653,9 @@ export default function DoanhThuPage() {
                 </div>
 
                 {dataLoading ? (
-                  <div className={styles.loaderSmall}>Đang tải dữ liệu...</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                    {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+                  </div>
                 ) : kenhBan.length === 0 ? (
                   <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                     Chưa có kênh bán nào. Nhấn <b>Quản lý kênh</b> để thêm.
@@ -667,7 +673,7 @@ export default function DoanhThuPage() {
                 <div className={styles.toolbar}>
                   <span className={styles.toolbarInfo}>
                     {hasDirtyDaily
-                      ? <span style={{ color: '#f59e0b' }}>● Có thay đổi chưa lưu</span>
+                      ? <span style={{ color: 'var(--warning)' }}>● Có thay đổi chưa lưu</span>
                       : <span>Nhập doanh thu từng <b style={{ color: '#6ee7b7' }}>ngày</b> của <b>Tháng {thang}/{nam}</b> theo từng kênh.</span>}
                   </span>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -694,7 +700,9 @@ export default function DoanhThuPage() {
                 </div>
 
                 {dailyLoading ? (
-                  <div className={styles.loaderSmall}>Đang tải dữ liệu...</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                    {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+                  </div>
                 ) : kenhBan.length === 0 ? (
                   <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                     Chưa có kênh bán nào. Nhấn <b>Quản lý kênh</b> để thêm.
@@ -769,7 +777,7 @@ export default function DoanhThuPage() {
                   <span>{importParseError}</span>
                 </div>
                 {importErrors.length > 0 && (
-                  <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', padding: '0.5rem' }}>
+                  <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--danger)', borderRadius: '8px', padding: '0.5rem' }}>
                     <table className={styles.importErrorsTable}>
                       <thead>
                         <tr>
@@ -815,7 +823,7 @@ export default function DoanhThuPage() {
             <div className="form-group" style={{ marginBottom: '1rem' }}>
               <label className="form-label">Chọn file Excel (.xlsx) đã điền doanh thu ngày</label>
               <label className={styles.uploadBox}>
-                <FileSpreadsheet size={32} style={{ color: '#10b981' }} />
+                <FileSpreadsheet size={32} style={{ color: 'var(--success)' }} />
                 <span style={{ fontWeight: '600' }}>
                   {importFileName ? `📄 ${importFileName}` : 'Bấm để chọn file .xlsx'}
                 </span>
@@ -855,7 +863,7 @@ export default function DoanhThuPage() {
                   <span>{importParseError}</span>
                 </div>
                 {importErrors.length > 0 && (
-                  <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', padding: '0.5rem' }}>
+                  <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--danger)', borderRadius: '8px', padding: '0.5rem' }}>
                     <table className={styles.importErrorsTable}>
                       <thead>
                         <tr>
@@ -933,19 +941,19 @@ function DashboardThang({ kenhBan, getCT, getDaily, nam, thang, loading }) {
         </div>
 
         <div className={`glass-card ${styles.kpiCard}`}>
-          <div className={styles.kpiLabel}><TrendingUp size={16} style={{ color: '#10b981' }} /> Thực tế đạt</div>
-          <div className={styles.kpiValue} style={{ color: '#10b981' }}>{formatVNDFull(thucTeThang)}</div>
+          <div className={styles.kpiLabel}><TrendingUp size={16} style={{ color: 'var(--success)' }} /> Thực tế đạt</div>
+          <div className={styles.kpiValue} style={{ color: 'var(--success)' }}>{formatVNDFull(thucTeThang)}</div>
           <div className={styles.kpiSub}>
             {chiTieuThang > 0
               ? (thucTeThang < chiTieuThang
-                  ? <span style={{ color: '#f59e0b' }}>Còn thiếu {formatVNDFull(chiTieuThang - thucTeThang)}</span>
-                  : <span style={{ color: '#34d399' }}>▲ Vượt {formatVNDFull(thucTeThang - chiTieuThang)}</span>)
+                  ? <span style={{ color: 'var(--warning)' }}>Còn thiếu {formatVNDFull(chiTieuThang - thucTeThang)}</span>
+                  : <span style={{ color: 'var(--success)' }}>▲ Vượt {formatVNDFull(thucTeThang - chiTieuThang)}</span>)
               : 'Cộng dồn doanh thu các ngày'}
           </div>
         </div>
 
         <div className={`glass-card ${styles.kpiCard}`}>
-          <div className={styles.kpiLabel}><Gauge size={16} style={{ color: '#f59e0b' }} /> Tỉ lệ hoàn thành</div>
+          <div className={styles.kpiLabel}><Gauge size={16} style={{ color: 'var(--warning)' }} /> Tỉ lệ hoàn thành</div>
           <div className={styles.kpiValue} style={{ color: pctCol }}>{pctText}</div>
           {pct !== null ? <ProgressBar value={pct} color4 /> : <div className={styles.kpiSub}>Chưa lập chỉ tiêu tháng</div>}
         </div>
@@ -1095,19 +1103,19 @@ function DashboardNam({ kenhBan, getCT, getTT, tongCTThang, tongTTThang, tongCTN
         </div>
 
         <div className={`glass-card ${styles.kpiCard}`}>
-          <div className={styles.kpiLabel}><TrendingUp size={16} style={{ color: '#10b981' }} /> Tổng thực tế đạt</div>
-          <div className={styles.kpiValue} style={{ color: '#10b981' }}>{formatVNDFull(tongTTNam)}</div>
+          <div className={styles.kpiLabel}><TrendingUp size={16} style={{ color: 'var(--success)' }} /> Tổng thực tế đạt</div>
+          <div className={styles.kpiValue} style={{ color: 'var(--success)' }}>{formatVNDFull(tongTTNam)}</div>
           <div className={styles.kpiSub}>
             {tongCTNam > 0 && tongTTNam < tongCTNam ? (
-              <span style={{ color: '#f59e0b' }}>Còn thiếu {formatVNDFull(tongCTNam - tongTTNam)}</span>
+              <span style={{ color: 'var(--warning)' }}>Còn thiếu {formatVNDFull(tongCTNam - tongTTNam)}</span>
             ) : tongCTNam > 0 ? (
-              <span style={{ color: '#34d399' }}>▲ Vượt {formatVNDFull(tongTTNam - tongCTNam)}</span>
+              <span style={{ color: 'var(--success)' }}>▲ Vượt {formatVNDFull(tongTTNam - tongCTNam)}</span>
             ) : '—'}
           </div>
         </div>
 
         <div className={`glass-card ${styles.kpiCard}`}>
-          <div className={styles.kpiLabel}><BarChart3 size={16} style={{ color: '#f59e0b' }} /> Tỉ lệ hoàn thành năm</div>
+          <div className={styles.kpiLabel}><BarChart3 size={16} style={{ color: 'var(--warning)' }} /> Tỉ lệ hoàn thành năm</div>
           <div className={styles.kpiValue} style={{ color: pctColor(pct) }}>{pct}%</div>
           <ProgressBar value={pct} />
         </div>
@@ -1199,7 +1207,7 @@ function DashboardNam({ kenhBan, getCT, getTT, tongCTThang, tongTTThang, tongCTN
                       {ct === 0 && tt === 0 ? (
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Chưa có dữ liệu</span>
                       ) : p === null ? (
-                        <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>Chưa lập chỉ tiêu</span>
+                        <span style={{ color: 'var(--warning)', fontSize: '0.8rem' }}>Chưa lập chỉ tiêu</span>
                       ) : isFuture ? (
                         <span className={styles.badgeGray}><Clock size={12} /> Kế hoạch</span>
                       ) : cur ? (
@@ -1430,6 +1438,7 @@ function ProgressBar({ value, color4 }) {
 
 /* ──────────────── MODAL QUẢN LÝ KÊNH ──────────────── */
 function KenhModal({ kenhBan, onClose, onChanged }) {
+  const showConfirm = useConfirm();
   const [list, setList] = useState(kenhBan);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#6366f1');
@@ -1467,7 +1476,8 @@ function KenhModal({ kenhBan, onClose, onChanged }) {
   };
 
   const delKenh = async (k) => {
-    if (!confirm(`Xoá/ẩn kênh "${k.tenKenh}"?\n(Nếu kênh đã có số liệu, hệ thống sẽ ẩn để giữ lịch sử.)`)) return;
+    const ok = await showConfirm({ message: `Xoá/ẩn kênh "${k.tenKenh}"?\n(Nếu kênh đã có số liệu, hệ thống sẽ ẩn để giữ lịch sử.)`, confirmLabel: 'Xóa kênh', danger: true });
+    if (!ok) return;
     setBusy(true);
     try {
       const res = await fetch(`/api/kenh-ban/${k.id}`, { method: 'DELETE' });
@@ -1513,7 +1523,7 @@ function KenhModal({ kenhBan, onClose, onChanged }) {
             <Plus size={14} /> Thêm
           </button>
         </div>
-        {msg && <p style={{ color: '#f87171', fontSize: '0.8rem', marginTop: '0.5rem' }}>{msg}</p>}
+        {msg && <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.5rem' }}>{msg}</p>}
       </div>
     </div>
   );

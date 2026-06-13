@@ -16,6 +16,9 @@ import {
   X
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import AriCameo from '@/components/AriCameo';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 import styles from './duyet.module.css';
 
 const getTodayString = () => {
@@ -30,6 +33,8 @@ function DuyetPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const openHandledRef = useRef(false);
+  const toast = useToast();
+  const showConfirm = useConfirm();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [highlightId, setHighlightId] = useState(null);
@@ -106,7 +111,7 @@ function DuyetPage() {
       .then((data) => {
         if (data && data.authenticated) {
           if (!data.user.permissions?.duyet && data.user.role !== 'OWNER') {
-            alert('Bạn không có quyền truy cập trang duyệt đề xuất.');
+            toast.error('Bạn không có quyền truy cập trang duyệt đề xuất.');
             router.push('/');
             return;
           }
@@ -184,31 +189,35 @@ function DuyetPage() {
   const handleApproveSingle = async (proposalId, maPhieu) => {
     const quyId = selectedQuyId[proposalId];
     if (!quyId) {
-      alert('Vui lòng chọn Quỹ dùng để thanh toán trước khi duyệt!');
+      toast.error('Vui lòng chọn Quỹ dùng để thanh toán trước khi duyệt!');
       return;
     }
     const ngayGD = selectedNgayGD[proposalId] || todayStr;
 
-    if (confirm(`Bạn có chắc chắn duyệt thanh toán đề xuất ${maPhieu}? Việc này sẽ sinh ra phiếu Chi và thay đổi số dư quỹ.`)) {
-      setActionLoading(true);
-      try {
-        const res = await fetch(`/api/de-xuat/${proposalId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'DUYET', quyThanhToanId: quyId, ngayGiaoDich: ngayGD }),
-        });
+    const ok = await showConfirm({
+      message: `Duyệt thanh toán đề xuất ${maPhieu}?\nViệc này sẽ sinh ra phiếu Chi và thay đổi số dư quỹ.`,
+      confirmLabel: 'Duyệt chi',
+    });
+    if (!ok) return;
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Duyệt đề xuất thất bại.');
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/de-xuat/${proposalId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'DUYET', quyThanhToanId: quyId, ngayGiaoDich: ngayGD }),
+      });
 
-        alert(`Đã duyệt thanh toán thành công đề xuất ${maPhieu}!`);
-        if (typeof window !== 'undefined') window.dispatchEvent(new Event('ari:celebrate'));
-        fetchData(); // Tải lại danh sách
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        setActionLoading(false);
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Duyệt đề xuất thất bại.');
+
+      toast.success(`Đã duyệt thanh toán thành công đề xuất ${maPhieu}`);
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('ari:celebrate'));
+      fetchData();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -234,7 +243,7 @@ function DuyetPage() {
       setCancelModal({ open: false, id: '', maPhieu: '' });
       fetchData();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setActionLoading(false);
     }
@@ -243,9 +252,13 @@ function DuyetPage() {
   // OWNER: Xóa vĩnh viễn đề xuất rác (chỉ phiếu chưa gắn dòng tiền)
   const handleDeleteProposal = async () => {
     const { id, maPhieu } = cancelModal;
-    if (!confirm(`XÓA VĨNH VIỄN đề xuất ${maPhieu}?\nThao tác này KHÔNG THỂ hoàn tác và sẽ xóa hẳn dữ liệu khỏi hệ thống.`)) {
-      return;
-    }
+    const ok = await showConfirm({
+      title: 'Xóa vĩnh viễn đề xuất',
+      message: `Xóa vĩnh viễn đề xuất ${maPhieu}?\nThao tác này KHÔNG THỂ hoàn tác và sẽ xóa hẳn dữ liệu khỏi hệ thống.`,
+      confirmLabel: 'Xóa vĩnh viễn',
+      danger: true,
+    });
+    if (!ok) return;
     setActionLoading(true);
     try {
       const res = await fetch(`/api/de-xuat/${id}`, { method: 'DELETE' });
@@ -255,7 +268,7 @@ function DuyetPage() {
       setCancelModal({ open: false, id: '', maPhieu: '' });
       fetchData();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setActionLoading(false);
     }
@@ -273,7 +286,7 @@ function DuyetPage() {
   // TH1/TH2: Duyệt nhiều phiếu cùng lúc (mỗi phiếu sinh 1 phiếu Chi riêng)
   const handleApproveBulk = async (listProps) => {
     if (selectedPayIds.length === 0) {
-      alert('Vui lòng tích chọn ít nhất một phiếu để duyệt!');
+      toast.error('Vui lòng tích chọn ít nhất một phiếu để duyệt!');
       return;
     }
 
@@ -295,19 +308,21 @@ function DuyetPage() {
     }
 
     if (missing.length > 0) {
-      alert(
-        `Các phiếu sau chưa chọn quỹ chi: ${missing.join(', ')}.\n` +
-        `Hãy chọn "Quỹ chi cho tất cả" ở thanh bên trên, hoặc chọn quỹ riêng cho từng phiếu.`
+      toast.error(
+        `Các phiếu chưa chọn quỹ chi: ${missing.join(', ')}.\n` +
+        `Hãy chọn "Quỹ chi cho tất cả" hoặc chọn quỹ riêng từng phiếu.`
       );
       return;
     }
 
-    const message =
-      `Bạn có chắc chắn DUYỆT CHI ${items.length} phiếu đã chọn?\n` +
-      `- Tổng tiền chi: ${total.toLocaleString('vi-VN')} VND\n` +
-      `Hệ thống sẽ sinh ${items.length} phiếu Chi riêng và trừ tiền các quỹ tương ứng.`;
-
-    if (!confirm(message)) return;
+    const ok = await showConfirm({
+      title: `Duyệt chi ${items.length} phiếu`,
+      message:
+        `Tổng tiền chi: ${total.toLocaleString('vi-VN')} VND\n` +
+        `Hệ thống sẽ sinh ${items.length} phiếu Chi riêng và trừ tiền các quỹ tương ứng.`,
+      confirmLabel: `Duyệt ${items.length} phiếu`,
+    });
+    if (!ok) return;
 
     setActionLoading(true);
     try {
@@ -324,9 +339,9 @@ function DuyetPage() {
           .filter((r) => !r.success)
           .map((r) => `${r.maPhieu || r.id}: ${r.error}`)
           .join('\n');
-        alert(`${data.message}\n\nChi tiết phiếu lỗi:\n${failed}`);
+        toast.warning(`${data.message}\n\nChi tiết phiếu lỗi:\n${failed}`);
       } else {
-        alert(data.message);
+        toast.success(data.message);
         if (typeof window !== 'undefined') window.dispatchEvent(new Event('ari:celebrate'));
       }
 
@@ -336,7 +351,7 @@ function DuyetPage() {
       setBulkNgayGD(todayStr);
       fetchData();
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setActionLoading(false);
     }
@@ -354,49 +369,52 @@ function DuyetPage() {
   // TH3: Duyệt hoàn ứng gộp
   const handleApproveMerge = async () => {
     if (selectedProposalIds.length === 0) {
-      alert('Vui lòng tích chọn ít nhất một đề xuất cần hoàn ứng!');
+      toast.error('Vui lòng tích chọn ít nhất một đề xuất cần hoàn ứng!');
       return;
     }
 
     if (!gopQuyId) {
-      alert('Vui lòng chọn quỹ shop chi trả hoàn ứng!');
+      toast.error('Vui lòng chọn quỹ shop chi trả hoàn ứng!');
       return;
     }
 
     const selectedProps = reimbursementProps.filter(p => selectedProposalIds.includes(p.id));
     const totalAmount = selectedProps.reduce((sum, p) => sum + p.soTien, 0);
 
-    const message = `Bạn có chắc chắn muốn DUYỆT GỘP ${selectedProposalIds.length} đề xuất hoàn ứng?\n` +
-      `- Tổng tiền chi hoàn ứng: ${totalAmount.toLocaleString('vi-VN')} VND\n` +
-      `- Quỹ thanh toán: ${funds.find(f => f.id === gopQuyId)?.tenQuy}\n` +
-      `Hệ thống sẽ tạo MỘT phiếu Chi duy nhất và thanh toán toàn bộ đề xuất này.`;
+    const ok = await showConfirm({
+      title: `Duyệt gộp ${selectedProposalIds.length} đề xuất hoàn ứng`,
+      message:
+        `Tổng tiền chi hoàn ứng: ${totalAmount.toLocaleString('vi-VN')} VND\n` +
+        `Quỹ thanh toán: ${funds.find(f => f.id === gopQuyId)?.tenQuy}\n` +
+        `Hệ thống sẽ tạo MỘT phiếu Chi duy nhất cho toàn bộ đề xuất này.`,
+      confirmLabel: 'Duyệt gộp',
+    });
+    if (!ok) return;
 
-    if (confirm(message)) {
-      setActionLoading(true);
-      try {
-        const res = await fetch('/api/de-xuat/duyet-gop', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ids: selectedProposalIds,
-            quyThanhToanId: gopQuyId,
-            ngayGiaoDich: gopNgayGD || todayStr,
-          }),
-        });
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/de-xuat/duyet-gop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: selectedProposalIds,
+          quyThanhToanId: gopQuyId,
+          ngayGiaoDich: gopNgayGD || todayStr,
+        }),
+      });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Duyệt gộp thất bại.');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Duyệt gộp thất bại.');
 
-        alert(data.message || 'Đã duyệt hoàn ứng gộp thành công!');
-        if (typeof window !== 'undefined') window.dispatchEvent(new Event('ari:celebrate'));
-        setSelectedProposalIds([]);
-        setGopNgayGD(todayStr);
-        fetchData();
-      } catch (err) {
-        alert(err.message);
-      } finally {
-        setActionLoading(false);
-      }
+      toast.success(data.message || 'Đã duyệt hoàn ứng gộp thành công');
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('ari:celebrate'));
+      setSelectedProposalIds([]);
+      setGopNgayGD(todayStr);
+      fetchData();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -462,7 +480,7 @@ function DuyetPage() {
     if (isCompleted) {
       return (
         <div style={{ marginTop: '0.25rem' }}>
-          <span style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: '600', backgroundColor: 'rgba(16,185,129,0.08)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block' }}>
+          <span style={{ fontSize: '0.65rem', color: 'var(--success)', fontWeight: '600', backgroundColor: 'var(--success-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block' }}>
             ✓ Hạn: {new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')}
           </span>
         </div>
@@ -480,7 +498,7 @@ function DuyetPage() {
     if (diffDays < 0) {
       return (
         <div style={{ marginTop: '0.25rem' }}>
-          <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: '800', backgroundColor: 'rgba(239,68,68,0.1)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block', border: '1px solid rgba(239,68,68,0.2)' }}>
+          <span style={{ fontSize: '0.65rem', color: 'var(--danger)', fontWeight: '800', backgroundColor: 'var(--danger-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block', border: '1px solid var(--danger)' }}>
             🚨 Trễ hạn {Math.abs(diffDays)} ngày ({new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')})
           </span>
         </div>
@@ -488,7 +506,7 @@ function DuyetPage() {
     } else if (diffDays === 0) {
       return (
         <div style={{ marginTop: '0.25rem' }}>
-          <span style={{ fontSize: '0.65rem', color: '#f59e0b', fontWeight: '800', backgroundColor: 'rgba(245,158,11,0.1)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block', border: '1px solid rgba(245,158,11,0.2)' }}>
+          <span style={{ fontSize: '0.65rem', color: 'var(--warning)', fontWeight: '800', backgroundColor: 'var(--warning-bg)', padding: '0.1rem 0.35rem', borderRadius: '4px', display: 'inline-block', border: '1px solid var(--warning)' }}>
             🚨 CẦN CHI HÔM NAY ({new Date(ngayCanThanhToan).toLocaleDateString('vi-VN')})
           </span>
         </div>
@@ -512,6 +530,17 @@ function DuyetPage() {
     }
   };
 
+
+  const getRowUrgencyClass = (ngayCanThanhToan, trangThai) => {
+    if (!ngayCanThanhToan) return '';
+    if (trangThai === 'DA_THANH_TOAN' || trangThai === 'HUY') return '';
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const deadline = new Date(ngayCanThanhToan); deadline.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((deadline - today) / 86400000);
+    if (diff < 0) return styles.overdueRow;
+    if (diff <= 1) return styles.urgentRow;
+    return '';
+  };
 
   return (
     <div className="layout-wrapper">
@@ -604,16 +633,22 @@ function DuyetPage() {
             </div>
             
             {dataLoading ? (
-              <div className={styles.loaderSmall}>Đang tải đề xuất...</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+              </div>
             ) : pendingPaymentProps.length === 0 ? (
-              <div className={styles.emptyState}>Không có đề xuất Chờ thanh toán nào cần duyệt.</div>
+              <div className={styles.emptyState}>
+                <AriCameo size={56} />
+                <span className={styles.emptyStateTitle}>Không có đề xuất nào đang chờ</span>
+                <span>Tất cả phiếu chi quỹ đã được xử lý.</span>
+              </div>
             ) : (
               <>
                 {selectedPayIds.length > 0 && (
                   <div className={styles.bulkBar}>
                     <div className={styles.bulkInfo}>
                       <CheckSquare size={18} />
-                      <span>Đã chọn <strong>{selectedPayIds.length}</strong> phiếu — Tổng <strong style={{ color: '#10b981' }}>{formatVND(pendingPaymentProps.filter(p => selectedPayIds.includes(p.id)).reduce((s, p) => s + p.soTien, 0))}</strong></span>
+                      <span>Đã chọn <strong>{selectedPayIds.length}</strong> phiếu — Tổng <strong style={{ color: 'var(--success)' }}>{formatVND(pendingPaymentProps.filter(p => selectedPayIds.includes(p.id)).reduce((s, p) => s + p.soTien, 0))}</strong></span>
                     </div>
                     <div className={styles.bulkActions}>
                       <select
@@ -686,7 +721,7 @@ function DuyetPage() {
                   </thead>
                   <tbody>
                     {pendingPaymentProps.map((prop) => (
-                      <tr key={prop.id} data-proposal-id={prop.id} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
+                      <tr key={prop.id} data-proposal-id={prop.id} className={getRowUrgencyClass(prop.ngayCanThanhToan, prop.trangThai)} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
                         <td style={{ textAlign: 'center' }}>
                           <input
                             type="checkbox"
@@ -697,7 +732,7 @@ function DuyetPage() {
                         </td>
                         <td
                           onClick={() => setSelectedPreviewProp(prop)}
-                          style={{ fontWeight: 'bold', color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline' }}
+                          style={{ fontWeight: 'bold', color: 'var(--info)', cursor: 'pointer', textDecoration: 'underline' }}
                           title="Click xem nhanh đề xuất"
                         >
                           {prop.maPhieu}
@@ -779,7 +814,7 @@ function DuyetPage() {
                             <button 
                               onClick={() => handleCancelSingle(prop.id, prop.maPhieu)}
                               className="btn btn-secondary"
-                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', color: 'var(--danger)', border: '1px solid var(--danger)' }}
                               disabled={actionLoading}
                             >
                               Từ chối
@@ -804,16 +839,22 @@ function DuyetPage() {
             </div>
             
             {dataLoading ? (
-              <div className={styles.loaderSmall}>Đang tải đề xuất...</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+              </div>
             ) : pendingAssignFundProps.length === 0 ? (
-              <div className={styles.emptyState}>Không có đề xuất Đã thanh toán nào cần gán Quỹ.</div>
+              <div className={styles.emptyState}>
+                <AriCameo size={56} />
+                <span className={styles.emptyStateTitle}>Không có phiếu nào chờ gán Quỹ</span>
+                <span>Các phiếu đã thanh toán đều đã được gán quỹ trừ tiền.</span>
+              </div>
             ) : (
               <>
                 {selectedPayIds.length > 0 && (
                   <div className={styles.bulkBar}>
                     <div className={styles.bulkInfo}>
                       <CheckSquare size={18} />
-                      <span>Đã chọn <strong>{selectedPayIds.length}</strong> phiếu — Tổng <strong style={{ color: '#10b981' }}>{formatVND(pendingAssignFundProps.filter(p => selectedPayIds.includes(p.id)).reduce((s, p) => s + p.soTien, 0))}</strong></span>
+                      <span>Đã chọn <strong>{selectedPayIds.length}</strong> phiếu — Tổng <strong style={{ color: 'var(--success)' }}>{formatVND(pendingAssignFundProps.filter(p => selectedPayIds.includes(p.id)).reduce((s, p) => s + p.soTien, 0))}</strong></span>
                     </div>
                     <div className={styles.bulkActions}>
                       <select
@@ -886,7 +927,7 @@ function DuyetPage() {
                   </thead>
                   <tbody>
                     {pendingAssignFundProps.map((prop) => (
-                      <tr key={prop.id} data-proposal-id={prop.id} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
+                      <tr key={prop.id} data-proposal-id={prop.id} className={getRowUrgencyClass(prop.ngayCanThanhToan, prop.trangThai)} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
                         <td style={{ textAlign: 'center' }}>
                           <input
                             type="checkbox"
@@ -897,7 +938,7 @@ function DuyetPage() {
                         </td>
                         <td
                           onClick={() => setSelectedPreviewProp(prop)}
-                          style={{ fontWeight: 'bold', color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline' }}
+                          style={{ fontWeight: 'bold', color: 'var(--info)', cursor: 'pointer', textDecoration: 'underline' }}
                           title="Click xem nhanh đề xuất"
                         >
                           {prop.maPhieu}
@@ -1003,9 +1044,15 @@ function DuyetPage() {
               <p className={styles.splitDesc}>Chọn một nhân viên ứng tiền trước để xem và duyệt gộp phiếu hoàn ứng:</p>
               
               {dataLoading ? (
-                <div className={styles.loaderSmall}>Đang tải...</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                  {[1, 2, 3].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+                </div>
               ) : reimbursementStaffs.length === 0 ? (
-                <div className={styles.emptyState}>Không có nhân viên nào đang chờ hoàn ứng.</div>
+                <div className={styles.emptyState}>
+                  <AriCameo size={56} />
+                  <span className={styles.emptyStateTitle}>Không có hoàn ứng nào đang chờ</span>
+                  <span>Tất cả nhân viên đã được hoàn ứng tiền.</span>
+                </div>
               ) : (
                 <div className={styles.staffList}>
                   {reimbursementStaffs.map((group) => {
@@ -1027,7 +1074,7 @@ function DuyetPage() {
                         </div>
                         <div className={styles.staffFooter}>
                           <span>{group.proposals.length} đề xuất chờ hoàn</span>
-                          <strong style={{ color: '#10b981' }}>{formatVND(totalPending)}</strong>
+                          <strong style={{ color: 'var(--success)' }}>{formatVND(totalPending)}</strong>
                         </div>
                       </button>
                     );
@@ -1052,8 +1099,8 @@ function DuyetPage() {
                   <div className={styles.mergeSummaryBar}>
                     <div className={styles.mergeSummaryText}>
                       <p>Nhân viên: <strong>{staffGroups[selectedStaffId]?.nhanVien.tenNgan || staffGroups[selectedStaffId]?.nhanVien.hoTen}</strong></p>
-                      <p>Đã tích chọn: <strong style={{ color: '#60a5fa' }}>{selectedProposalIds.length}</strong> / {reimbursementProps.length} đề xuất</p>
-                      <p>Tổng tiền hoàn gộp: <strong style={{ color: '#10b981', fontSize: '1.25rem' }}>{formatVND(selectedMergeTotal)}</strong></p>
+                      <p>Đã tích chọn: <strong style={{ color: 'var(--info)' }}>{selectedProposalIds.length}</strong> / {reimbursementProps.length} đề xuất</p>
+                      <p>Tổng tiền hoàn gộp: <strong style={{ color: 'var(--success)', fontSize: '1.25rem' }}>{formatVND(selectedMergeTotal)}</strong></p>
                     </div>
 
                     <div className={styles.mergeActionBox}>
@@ -1139,7 +1186,7 @@ function DuyetPage() {
                               </td>
                               <td
                                 onClick={() => setSelectedPreviewProp(prop)}
-                                style={{ fontWeight: 'bold', color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline' }}
+                                style={{ fontWeight: 'bold', color: 'var(--info)', cursor: 'pointer', textDecoration: 'underline' }}
                                 title="Click xem nhanh đề xuất"
                               >
                                 {prop.maPhieu}
@@ -1201,7 +1248,7 @@ function DuyetPage() {
               <div className={styles.detailGrid}>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Mã phiếu:</span>
-                  <span className={styles.detailValue} style={{ fontWeight: 'bold', color: '#60a5fa' }}>{selectedPreviewProp.maPhieu}</span>
+                  <span className={styles.detailValue} style={{ fontWeight: 'bold', color: 'var(--info)' }}>{selectedPreviewProp.maPhieu}</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Ngày lập:</span>
@@ -1232,7 +1279,7 @@ function DuyetPage() {
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Số tiền chi:</span>
-                  <span className={styles.detailValue} style={{ fontWeight: '800', color: '#34d399', fontSize: '1.1rem' }}>{formatVND(selectedPreviewProp.soTien)}</span>
+                  <span className={styles.detailValue} style={{ fontWeight: '800', color: 'var(--success)', fontSize: '1.1rem' }}>{formatVND(selectedPreviewProp.soTien)}</span>
                 </div>
                 <div className={styles.detailItem} style={{ gridColumn: 'span 2' }}>
                   <span className={styles.detailLabel}>Nội dung chi:</span>
@@ -1257,9 +1304,9 @@ function DuyetPage() {
                   <div className={styles.detailItem} style={{ gridColumn: 'span 2' }}>
                     <span className={styles.detailLabel}>Lý do từ chối:</span>
                     <span className={styles.detailValue} style={{
-                      color: '#ef4444',
-                      background: 'rgba(239,68,68,0.08)',
-                      border: '1px solid rgba(239,68,68,0.2)',
+                      color: 'var(--danger)',
+                      background: 'var(--danger-bg)',
+                      border: '1px solid var(--danger)',
                       borderRadius: '6px',
                       padding: '0.5rem 0.75rem',
                       display: 'block',
@@ -1321,7 +1368,7 @@ function DuyetPage() {
                         <div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Số tiền thanh toán</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
-                            <span style={{ fontWeight: '800', color: '#34d399', fontSize: '1.1rem' }}>
+                            <span style={{ fontWeight: '800', color: 'var(--success)', fontSize: '1.1rem' }}>
                               {formatVND(selectedPreviewProp.soTien)}
                             </span>
                             <button
@@ -1338,7 +1385,7 @@ function DuyetPage() {
                         <div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Nội dung chuyển khoản (Memo)</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
-                            <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.1)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: 'var(--info)', backgroundColor: 'var(--info-bg)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
                               {selectedPreviewProp.ghiChu || selectedPreviewProp.maPhieu}
                             </span>
                             <button
@@ -1412,11 +1459,11 @@ function DuyetPage() {
                         })}
                         disabled={actionLoading}
                       />
-                      <button 
+                      <button
                         onClick={async () => {
                           const qId = selectedQuyId[selectedPreviewProp.id];
                           if (!qId) {
-                            alert('Vui lòng chọn Quỹ thanh toán!');
+                            toast.error('Vui lòng chọn Quỹ thanh toán!');
                             return;
                           }
                           await handleApproveSingle(selectedPreviewProp.id, selectedPreviewProp.maPhieu);
@@ -1449,7 +1496,7 @@ function DuyetPage() {
             style={{ maxWidth: '480px', padding: '2rem' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ marginBottom: '0.5rem', color: '#ef4444' }}>Từ chối / Hủy đề xuất {cancelModal.maPhieu}</h3>
+            <h3 style={{ marginBottom: '0.5rem', color: 'var(--danger)' }}>Từ chối / Hủy đề xuất {cancelModal.maPhieu}</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
               Nhập lý do từ chối để người tạo phiếu biết lý do cụ thể. Bỏ trống nếu không muốn ghi lý do.
             </p>

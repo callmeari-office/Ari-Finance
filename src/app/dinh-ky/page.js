@@ -7,6 +7,8 @@ import {
   ToggleLeft, ToggleRight, CalendarCheck,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 import styles from './dinh-ky.module.css';
 
 const NGUON_TIEN_LABEL = { TIEN_SHOP: '🏦 Tiền Shop', TIEN_CA_NHAN: '👤 Cá nhân ứng' };
@@ -14,6 +16,8 @@ const TRANG_THAI_LABEL = { CHO_THANH_TOAN: 'Chờ thanh toán', CHO_HOAN_UNG: 'C
 
 export default function DinhKyPage() {
   const router = useRouter();
+  const toast = useToast();
+  const showConfirm = useConfirm();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [templates, setTemplates] = useState([]);
@@ -53,7 +57,7 @@ export default function DinhKyPage() {
       .then((d) => {
         if (!d?.authenticated) return;
         if (!['OWNER', 'MANAGER'].includes(d.user.role)) {
-          alert('Chỉ OWNER/MANAGER được truy cập trang này.');
+          toast.error('Chỉ OWNER/MANAGER được truy cập trang này.');
           router.push('/');
           return;
         }
@@ -144,24 +148,34 @@ export default function DinhKyPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active: !tpl.active }),
       });
-      if (!res.ok) { const d = await res.json(); alert(d.error || 'Thao tác thất bại.'); return; }
+      if (!res.ok) { const d = await res.json(); toast.error(d.error || 'Thao tác thất bại.'); return; }
       fetchAll();
-    } catch { alert('Lỗi kết nối.'); }
+    } catch { toast.error('Lỗi kết nối.'); }
   };
 
   const handleDelete = async (tpl) => {
-    if (!confirm(`Xóa vĩnh viễn mẫu "${tpl.tenMau}"?\nCác phiếu đã tạo trước đây không bị ảnh hưởng.`)) return;
+    const ok = await showConfirm({
+      title: `Xóa mẫu "${tpl.tenMau}"`,
+      message: `Các phiếu đã tạo trước đây không bị ảnh hưởng.`,
+      confirmLabel: 'Xóa mẫu',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/dinh-ky/${tpl.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
       fetchAll();
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast.error(err.message); }
   };
 
   const handleTaoThangNay = async () => {
     setCreateResult('');
-    if (!confirm(`Tạo phiếu định kỳ tháng ${createMonth}/${createYear}?\nHệ thống sẽ tạo phiếu cho tất cả mẫu đang hoạt động. Mẫu đã có phiếu trong tháng sẽ bị bỏ qua.`)) return;
+    const ok = await showConfirm({
+      message: `Tạo phiếu định kỳ tháng ${createMonth}/${createYear}?\nHệ thống sẽ tạo phiếu cho tất cả mẫu đang hoạt động. Mẫu đã có phiếu trong tháng sẽ bị bỏ qua.`,
+      confirmLabel: 'Tạo phiếu',
+    });
+    if (!ok) return;
     setCreateLoading(true);
     try {
       const res = await fetch('/api/dinh-ky/tao-thang-nay', {
@@ -296,7 +310,7 @@ export default function DinhKyPage() {
                             {tpl.active ? <ToggleRight size={14} color="#10b981" /> : <ToggleLeft size={14} />}
                           </button>
                           {user?.role === 'OWNER' && (
-                            <button onClick={() => handleDelete(tpl)} className="btn" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', color: '#ef4444' }} title="Xóa">
+                            <button onClick={() => handleDelete(tpl)} className="btn" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem', color: 'var(--danger)' }} title="Xóa">
                               <Trash2 size={14} />
                             </button>
                           )}
@@ -320,12 +334,12 @@ export default function DinhKyPage() {
               </div>
 
               {formError && (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '0.65rem 0.875rem', color: '#ef4444', fontSize: '0.88rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: '8px', padding: '0.65rem 0.875rem', color: 'var(--danger)', fontSize: '0.88rem', marginBottom: '1rem' }}>
                   <AlertCircle size={16} /> {formError}
                 </div>
               )}
               {formSuccess && (
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', padding: '0.65rem 0.875rem', color: '#10b981', fontSize: '0.88rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'var(--success-bg)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', padding: '0.65rem 0.875rem', color: 'var(--success)', fontSize: '0.88rem', marginBottom: '1rem' }}>
                   <Check size={16} /> {formSuccess}
                 </div>
               )}

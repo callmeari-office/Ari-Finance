@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { getFunds } from '@/lib/dashboardQueries';
 
 export async function POST(request) {
   try {
@@ -46,52 +47,13 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
-
     if (!checkRole(user, ['OWNER', 'MANAGER'])) {
-      return NextResponse.json(
-        { error: 'Bạn không có quyền thực hiện hành động này.' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Bạn không có quyền thực hiện hành động này.' }, { status: 403 });
     }
-
-    const [quys, aggregations] = await Promise.all([
-      prisma.quy.findMany({ where: { trangThai: 'ACTIVE' } }),
-      // Lũy kế toàn thời gian theo quỹ (số dư thực tế + tổng thu/chi + số phiếu mỗi quỹ)
-      prisma.thuChi.groupBy({
-        by: ['quyId', 'loaiGiaoDich'],
-        _sum: { soTien: true },
-        _count: { _all: true },
-      }),
-    ]);
-
-    const data = quys.map((quy) => {
-      const rows = aggregations.filter((a) => a.quyId === quy.id);
-      const tongThu = rows
-        .filter((a) => a.loaiGiaoDich === 'THU')
-        .reduce((sum, a) => sum + (a._sum.soTien ?? 0), 0);
-      const tongChi = rows
-        .filter((a) => a.loaiGiaoDich === 'CHI')
-        .reduce((sum, a) => sum + (a._sum.soTien ?? 0), 0);
-      const soPhieu = rows.reduce((sum, a) => sum + (a._count?._all ?? 0), 0);
-      const soDuDieuChinh = quy.soDuDieuChinh ?? 0;
-
-      return {
-        ...quy,
-        soDuDieuChinh,
-        tongThu,
-        tongChi,
-        soPhieu,
-        // Số dư thực tế = đầu kỳ + thu − chi + điều chỉnh thủ công
-        soDuHienTai: quy.soDuDauKy + tongThu - tongChi + soDuDieuChinh,
-      };
-    });
-
+    const data = await getFunds(prisma);
     return NextResponse.json(data);
   } catch (error) {
     logger.error('Quy API GET', error);
-    return NextResponse.json(
-      { error: 'Đã xảy ra lỗi trên hệ thống.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Đã xảy ra lỗi trên hệ thống.' }, { status: 500 });
   }
 }

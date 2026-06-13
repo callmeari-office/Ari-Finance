@@ -64,7 +64,7 @@
 .chip {
   padding: 0.28rem 0.7rem;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.18);
+  border: 1px solid var(--border);
   background: transparent;
   color: var(--text-muted);
   font-size: 0.78rem;
@@ -155,27 +155,27 @@
 
 /* Colors for summary cards */
 .greenBg {
-  border-left: 4px solid #10b981;
+  border-left: 4px solid var(--success);
 }
 
 .greenBg .sumIcon {
-  color: #10b981;
+  color: var(--success);
 }
 
 .greenBg h3 {
-  color: #10b981;
+  color: var(--success);
 }
 
 .redBg {
-  border-left: 4px solid #ef4444;
+  border-left: 4px solid var(--danger);
 }
 
 .redBg .sumIcon {
-  color: #ef4444;
+  color: var(--danger);
 }
 
 .redBg h3 {
-  color: #ef4444;
+  color: var(--danger);
 }
 
 .blueBg {
@@ -232,7 +232,7 @@
 .trendBarDt {
   flex: 1;
   max-width: 12px;
-  background: #10b981;
+  background: var(--success);
   border-radius: 3px 3px 0 0;
   min-height: 2px;
   transition: height 0.4s ease;
@@ -241,7 +241,7 @@
 .trendBarCp {
   flex: 1;
   max-width: 12px;
-  background: #f87171;
+  background: var(--danger);
   border-radius: 3px 3px 0 0;
   min-height: 2px;
   transition: height 0.4s ease;
@@ -347,10 +347,47 @@
   font-size: 0.9rem;
 }
 
+/* ===== PRINT ===== */
+.printHeader {
+  display: none;
+}
+
+@media print {
+  .printHeader {
+    display: block;
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid black;
+  }
+  .printHeader h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: black !important;
+    margin: 0 0 0.25rem 0;
+  }
+  .printHeader p {
+    font-size: 0.875rem;
+    color: black !important;
+    margin: 0.125rem 0;
+  }
+
+  /* Bảng: viền 1px đen rõ ràng */
+  .mainContent table,
+  .mainContent th,
+  .mainContent td {
+    border: 1px solid black !important;
+    color: black !important;
+  }
+  .mainContent th {
+    background: #f0f0f0 !important;
+  }
+}
+
 /* Badges for table */
 .thuBadge {
   background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  color: var(--success);
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
   border-radius: 6px;
@@ -359,7 +396,7 @@
 
 .chiBadge {
   background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  color: var(--danger);
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
   border-radius: 6px;

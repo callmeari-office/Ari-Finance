@@ -19,11 +19,11 @@ import Sidebar from '@/components/Sidebar';
 const HANH_DONG_META = {
   DANG_NHAP:    { label: 'Đăng nhập', color: '#3b82f6', Icon: LogIn },
   DOI_MAT_KHAU: { label: 'Đổi mật khẩu', color: '#8b5cf6', Icon: KeyRound },
-  TAO:          { label: 'Tạo mới', color: '#10b981', Icon: PlusCircle },
-  SUA:          { label: 'Chỉnh sửa', color: '#f59e0b', Icon: Pencil },
+  TAO:          { label: 'Tạo mới', color: 'var(--success)', Icon: PlusCircle },
+  SUA:          { label: 'Chỉnh sửa', color: 'var(--warning)', Icon: Pencil },
   DUYET:        { label: 'Duyệt/Thanh toán', color: '#0ea5e9', Icon: CheckCircle2 },
-  HUY:          { label: 'Hủy', color: '#ef4444', Icon: XCircle },
-  KHOA:         { label: 'Khóa tài khoản', color: '#ef4444', Icon: Lock },
+  HUY:          { label: 'Hủy', color: 'var(--danger)', Icon: XCircle },
+  KHOA:         { label: 'Khóa tài khoản', color: 'var(--danger)', Icon: Lock },
 };
 
 const DOI_TUONG_LABEL = {

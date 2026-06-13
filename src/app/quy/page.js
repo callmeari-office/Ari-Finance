@@ -18,6 +18,7 @@ import {
   Activity,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useToast } from '@/components/Toast';
 import styles from './quy.module.css';
 
 const KY_OPTIONS = [
@@ -30,6 +31,7 @@ const RECENT_LIMIT = 8;
 
 export default function QuyReportPage() {
   const router = useRouter();
+  const toast = useToast();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,7 +68,7 @@ export default function QuyReportPage() {
       .then((data) => {
         if (data && data.authenticated) {
           if (data.user.role !== 'OWNER' && data.user.role !== 'MANAGER' && !data.user.permissions?.quy) {
-            alert('Bạn không có quyền truy cập trang Thông tin Quỹ.');
+            toast.error('Bạn không có quyền truy cập trang Thông tin Quỹ.');
             router.push('/');
             return;
           }
@@ -300,7 +302,7 @@ export default function QuyReportPage() {
               ~{formatVND(Math.abs(forecast.soDuDuBaoCuoiKy))}{forecast.soDuDuBaoCuoiKy < 0 ? ' (âm)' : ''}
             </div>
             {forecast.canhBaoAm ? (
-              <p style={{ fontSize: '0.82rem', color: '#ef4444', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <p style={{ fontSize: '0.82rem', color: 'var(--danger)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <AlertTriangle size={13} />
                 Quỹ có thể âm khoảng ngày{' '}
                 {new Date(forecast.ngayCoTheAm + 'T00:00:00').toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric' })}
@@ -325,7 +327,9 @@ export default function QuyReportPage() {
           </div>
 
           {dataLoading ? (
-            <div className={styles.loaderSmall}>Đang tải danh sách quỹ...</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+              {[1, 2, 3].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+            </div>
           ) : funds.length === 0 ? (
             <div className={styles.emptyState}>Chưa có quỹ nào. Vào Cấu hình để thêm quỹ.</div>
           ) : (
@@ -357,7 +361,7 @@ export default function QuyReportPage() {
                       return (
                         <React.Fragment key={fund.id}>
                           <tr style={{ cursor: 'pointer' }} onClick={() => toggleExpand(fund.id)}>
-                            <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>
+                            <td style={{ fontWeight: 'bold', color: 'var(--info)' }}>
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
                                 {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                 {fund.id}
@@ -373,8 +377,8 @@ export default function QuyReportPage() {
                             </td>
                             <td>{loaiQuyLabel(fund.loaiQuy)}</td>
                             <td>{formatVND(fund.soDuDauKy)}</td>
-                            <td style={{ color: '#34d399', fontWeight: '500' }}>+{formatVND(fund.tongThu)}</td>
-                            <td style={{ color: '#f87171', fontWeight: '500' }}>-{formatVND(fund.tongChi)}</td>
+                            <td style={{ color: 'var(--success)', fontWeight: '500' }}>+{formatVND(fund.tongThu)}</td>
+                            <td style={{ color: 'var(--danger)', fontWeight: '500' }}>-{formatVND(fund.tongChi)}</td>
                             <td style={{ fontWeight: '800', color: am ? '#f87171' : '#34d399', fontSize: '1rem' }}>
                               {am && <AlertTriangle size={13} style={{ verticalAlign: '-2px', marginRight: 3 }} />}
                               {formatVND(fund.soDuHienTai)}
@@ -439,8 +443,8 @@ export default function QuyReportPage() {
                         </span>
                       </div>
                       <div className={styles.fcFlow}>
-                        <span style={{ color: '#34d399' }}>+{formatVND(fund.tongThu)}</span>
-                        <span style={{ color: '#f87171' }}>-{formatVND(fund.tongChi)}</span>
+                        <span style={{ color: 'var(--success)' }}>+{formatVND(fund.tongThu)}</span>
+                        <span style={{ color: 'var(--danger)' }}>-{formatVND(fund.tongChi)}</span>
                       </div>
                       <div className={styles.compBarWrap}>
                         <div className={styles.compBar} style={{ width: `${pct}%` }} />

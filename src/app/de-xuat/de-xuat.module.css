@@ -11,7 +11,7 @@
 .spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid rgba(255, 255, 255, 0.05);
+  border: 4px solid var(--border);
   border-left-color: var(--primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -61,7 +61,7 @@
 .chip {
   padding: 0.28rem 0.7rem;
   border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.18);
+  border: 1px solid var(--border);
   background: transparent;
   color: var(--text-muted);
   font-size: 0.78rem;
@@ -106,7 +106,7 @@
   height: 32px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--brand-brown-rgb), 0.03);
   cursor: pointer;
   color: var(--text-muted);
   transition: all 0.2s;
@@ -114,7 +114,7 @@
 
 .viewBtn:hover {
   background: rgba(59, 130, 246, 0.1);
-  color: #60a5fa;
+  color: var(--info);
   border-color: rgba(59, 130, 246, 0.3);
 }
 
@@ -126,7 +126,7 @@
 
 .deleteBtn:hover {
   background: rgba(239, 68, 68, 0.1);
-  color: #f87171;
+  color: var(--danger);
   border-color: rgba(239, 68, 68, 0.3);
 }
 
@@ -188,7 +188,7 @@
 }
 
 .closeBtn:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--brand-brown-rgb), 0.05);
   color: var(--text-main);
 }
 
@@ -234,7 +234,7 @@
 
 .uploadBox {
   border: 2px dashed var(--border);
-  background: rgba(255, 255, 255, 0.01);
+  background: rgba(var(--brand-brown-rgb), 0.01);
   border-radius: 8px;
   padding: 1rem;
   display: flex;
@@ -300,19 +300,19 @@
   color: var(--text-muted);
   font-weight: 700;
   padding: 0.6rem 0.5rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--brand-brown-rgb), 0.03);
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .bulkTable tbody td {
   padding: 0.4rem 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
 
 .bulkTable tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(var(--brand-brown-rgb), 0.02);
 }
 
 .bulkIndex {
@@ -330,7 +330,7 @@
 }
 
 .bulkRowError {
-  color: #f87171;
+  color: var(--danger);
   font-size: 0.78rem;
   margin: 0.25rem 0 0.5rem;
   padding-left: 0.25rem;
@@ -344,7 +344,7 @@
   height: 30px;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--brand-brown-rgb), 0.03);
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
@@ -352,7 +352,7 @@
 
 .bulkDelBtn:hover {
   background: rgba(239, 68, 68, 0.1);
-  color: #f87171;
+  color: var(--danger);
   border-color: rgba(239, 68, 68, 0.3);
 }
 
@@ -371,7 +371,7 @@
 }
 
 .bulkTotal strong {
-  color: #34d399;
+  color: var(--success);
   font-weight: 800;
   font-size: 1.05rem;
 }
@@ -454,14 +454,14 @@
 .mobileCard {
   border-radius: 12px;
   padding: 1.25rem;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(var(--brand-brown-rgb), 0.02);
   border: 1px solid var(--border);
   transition: all 0.2s ease;
 }
 
 .mobileCard:hover {
   border-color: var(--brand-accent);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(var(--brand-brown-rgb), 0.04);
 }
 
 .cardHeaderRow {
@@ -469,13 +469,13 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border);
   padding-bottom: 0.5rem;
 }
 
 .cardMaPhieu {
   font-weight: 700;
-  color: #60a5fa;
+  color: var(--info);
   font-size: 1rem;
 }
 
@@ -516,7 +516,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--border);
   padding-top: 0.75rem;
   margin-top: 0.5rem;
 }
@@ -539,7 +539,7 @@
   padding: 0.4rem 0.75rem;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--brand-brown-rgb), 0.03);
   color: var(--text-main);
   font-size: 0.85rem;
   cursor: pointer;
@@ -548,7 +548,7 @@
 }
 
 .pageBtn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--brand-brown-rgb), 0.08);
   border-color: var(--brand-accent);
   color: var(--brand-accent);
 }

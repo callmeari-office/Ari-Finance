@@ -20,10 +20,14 @@ import {
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import PushToggle from '@/components/PushToggle';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 import styles from './cau-hinh.module.css';
 
 export default function CauHinhPage() {
   const router = useRouter();
+  const toast = useToast();
+  const showConfirm = useConfirm();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [backupLoading, setBackupLoading] = useState(false);
@@ -93,7 +97,7 @@ export default function CauHinhPage() {
       .then((data) => {
         if (data && data.authenticated) {
           if (data.user.role !== 'OWNER') {
-            alert('Bạn không có quyền truy cập cấu hình hệ thống.');
+            toast.error('Bạn không có quyền truy cập cấu hình hệ thống.');
             router.push('/');
             return;
           }
@@ -272,19 +276,21 @@ export default function CauHinhPage() {
   };
 
   const handleDelete = async (catId, catName) => {
-    if (confirm(`Bạn có chắc chắn muốn XÓA danh mục "${catName}" [${catId}]?\nCảnh báo: Hành động này không thể hoàn tác nếu danh mục đang được sử dụng ở phiếu cũ.`)) {
-      try {
-        const res = await fetch(`/api/cau-hinh/${catId}`, {
-          method: 'DELETE'
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
-
-        alert(`Đã xóa danh mục "${catName}" thành công.`);
-        fetchData();
-      } catch (err) {
-        alert(err.message);
-      }
+    const ok = await showConfirm({
+      title: `Xóa danh mục "${catName}"`,
+      message: `Xóa danh mục [${catId}]?\nHành động này không thể hoàn tác nếu danh mục đang được sử dụng ở phiếu cũ.`,
+      confirmLabel: 'Xóa danh mục',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/cau-hinh/${catId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
+      toast.success(`Đã xóa danh mục "${catName}" thành công`);
+      fetchData();
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
@@ -371,19 +377,21 @@ export default function CauHinhPage() {
   };
 
   const handleDeleteGroup = async (gId, gName) => {
-    if (confirm(`Bạn có chắc chắn muốn XÓA nhóm danh mục "${gName}" [${gId}]?\nCảnh báo: Chỉ có thể xóa nếu nhóm này không chứa bất kỳ danh mục con nào.`)) {
-      try {
-        const res = await fetch(`/api/cau-hinh-nhom/${gId}`, {
-          method: 'DELETE'
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
-
-        alert(`Đã xóa nhóm danh mục "${gName}" thành công.`);
-        fetchData();
-      } catch (err) {
-        alert(err.message);
-      }
+    const ok = await showConfirm({
+      title: `Xóa nhóm "${gName}"`,
+      message: `Xóa nhóm [${gId}]?\nChỉ có thể xóa nếu nhóm này không chứa bất kỳ danh mục con nào.`,
+      confirmLabel: 'Xóa nhóm',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/cau-hinh-nhom/${gId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
+      toast.success(`Đã xóa nhóm danh mục "${gName}" thành công`);
+      fetchData();
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
@@ -442,16 +450,21 @@ export default function CauHinhPage() {
   };
 
   const handleDeleteFund = async (fId, fName) => {
-    if (confirm(`Bạn có chắc muốn XÓA quỹ "${fName}" [${fId}]?\nChỉ xóa được nếu quỹ chưa có phiếu thu-chi nào.`)) {
-      try {
-        const res = await fetch(`/api/quy/${fId}`, { method: 'DELETE' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
-        alert(`Đã xóa quỹ "${fName}" thành công.`);
-        fetchData();
-      } catch (err) {
-        alert(err.message);
-      }
+    const ok = await showConfirm({
+      title: `Xóa quỹ "${fName}"`,
+      message: `Chỉ xóa được nếu quỹ chưa có phiếu thu-chi nào.`,
+      confirmLabel: 'Xóa quỹ',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/quy/${fId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
+      toast.success(`Đã xóa quỹ "${fName}" thành công`);
+      fetchData();
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
@@ -531,7 +544,7 @@ export default function CauHinhPage() {
       const today = new Date().toLocaleDateString('vi-VN').replace(/\//g, '-');
       XLSX.writeFile(wb, `SaoLuu_ARI-Finance_${today}.xlsx`);
     } catch (err) {
-      alert(err.message || 'Sao lưu thất bại. Vui lòng thử lại.');
+      toast.error(err.message || 'Sao lưu thất bại. Vui lòng thử lại.');
     } finally {
       setBackupLoading(false);
     }
@@ -707,7 +720,7 @@ export default function CauHinhPage() {
               <div className={styles.panel}>
                 <div className={styles.panelHeader} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
                   <div className={styles.panelTitle}>
-                    <TrendingUp className={styles.panelIcon} size={20} style={{ color: '#10b981' }} />
+                    <TrendingUp className={styles.panelIcon} size={20} style={{ color: 'var(--success)' }} />
                     <h2 style={{ fontSize: '1.1rem', margin: 0 }}>Quản Lý Nhóm Thu</h2>
                   </div>
                   <button onClick={() => handleOpenAddGroup('THU')} className="btn btn-primary btn-sm" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>
@@ -734,7 +747,7 @@ export default function CauHinhPage() {
                       ) : (
                         thuGroupList.map((g) => (
                           <tr key={g.id}>
-                            <td style={{ fontWeight: 'bold', color: '#10b981' }}>{g.id}</td>
+                            <td style={{ fontWeight: 'bold', color: 'var(--success)' }}>{g.id}</td>
                             <td style={{ fontWeight: '500' }}>{g.tenNhom}</td>
                             <td style={{ textAlign: 'center' }}>{g.thuTu}</td>
                             <td style={{ textAlign: 'center' }}>
@@ -759,7 +772,7 @@ export default function CauHinhPage() {
               <div className={styles.panel}>
                 <div className={styles.panelHeader} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
                   <div className={styles.panelTitle}>
-                    <TrendingDown className={styles.panelIcon} size={20} style={{ color: '#ef4444' }} />
+                    <TrendingDown className={styles.panelIcon} size={20} style={{ color: 'var(--danger)' }} />
                     <h2 style={{ fontSize: '1.1rem', margin: 0 }}>Quản Lý Nhóm Chi</h2>
                   </div>
                   <button onClick={() => handleOpenAddGroup('CHI')} className="btn btn-primary btn-sm" style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>
@@ -786,7 +799,7 @@ export default function CauHinhPage() {
                       ) : (
                         chiGroupList.map((g) => (
                           <tr key={g.id}>
-                            <td style={{ fontWeight: 'bold', color: '#ef4444' }}>{g.id}</td>
+                            <td style={{ fontWeight: 'bold', color: 'var(--danger)' }}>{g.id}</td>
                             <td style={{ fontWeight: '500' }}>{g.tenNhom}</td>
                             <td style={{ textAlign: 'center' }}>{g.thuTu}</td>
                             <td style={{ textAlign: 'center' }}>

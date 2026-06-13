@@ -11,7 +11,7 @@
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid rgba(255,255,255,0.1);
+  border: 3px solid var(--border);
   border-top-color: var(--brand-accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -58,7 +58,7 @@
 
 .viewToggle {
   display: flex;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -81,7 +81,7 @@
   color: var(--text-muted);
 }
 
-.toggleBtn:hover { background: rgba(255,255,255,0.06); color: var(--text-main); }
+.toggleBtn:hover { background: rgba(var(--brand-brown-rgb), 0.06); color: var(--text-main); }
 
 .toggleActive {
   background: var(--brand-accent);
@@ -95,8 +95,8 @@
   gap: 0.6rem;
   flex-wrap: wrap;
   padding: 0.6rem 1rem;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(var(--brand-brown-rgb), 0.03);
+  border: 1px solid var(--border);
   border-radius: 8px;
 }
 .periodLabel {
@@ -108,7 +108,7 @@
 /* Sub-toggle trong Bảng nhập số */
 .subToggle {
   display: flex;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -125,7 +125,7 @@
   transition: background 0.2s;
 }
 .subToggleBtn { background: transparent; color: var(--text-muted); }
-.subToggleBtn:hover { background: rgba(255,255,255,0.06); color: var(--text-main); }
+.subToggleBtn:hover { background: rgba(var(--brand-brown-rgb), 0.06); color: var(--text-main); }
 .subToggleActive { background: rgba(99,102,241,0.85); color: #fff; }
 
 /* ── TOOLBAR ── */
@@ -136,8 +136,8 @@
   gap: 1rem;
   flex-wrap: wrap;
   padding: 0.6rem 1rem;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(var(--brand-brown-rgb), 0.03);
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 0.875rem;
 }
@@ -148,7 +148,7 @@
 .tableWrapper {
   overflow-x: auto;
   border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
 }
 
 .spreadsheet {
@@ -159,20 +159,20 @@
 }
 
 .spreadsheet thead th {
-  background: rgba(255,255,255,0.06);
+  background: rgba(var(--brand-brown-rgb), 0.06);
   padding: 0.6rem 0.5rem;
   font-weight: 600;
   font-size: 0.75rem;
   color: var(--text-muted);
   text-align: center;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid var(--border);
   white-space: nowrap;
 }
 
 .colKenh { text-align: left !important; min-width: 150px; padding-left: 1rem !important; }
 .colLoai { width: 90px; }
 .colThang { width: 80px; }
-.colTotal { width: 110px; background: rgba(255,255,255,0.04) !important; }
+.colTotal { width: 110px; background: rgba(var(--brand-brown-rgb), 0.04) !important; }
 
 /* Tên kênh (ô gộp 2 dòng) */
 .kenhLabel {
@@ -181,7 +181,7 @@
   font-size: 0.82rem;
   color: var(--text-main);
   border-top: 2px solid rgba(99,102,241,0.2);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
 
@@ -200,7 +200,7 @@
   font-size: 0.72rem;
   font-weight: 600;
   white-space: nowrap;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid var(--border);
 }
 .loaiChiTieu { color: #a5b4fc; border-top: 2px solid rgba(99,102,241,0.2); }
 .loaiThucTe { color: #6ee7b7; }
@@ -210,8 +210,8 @@
 
 .inputCell {
   padding: 2px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  border-left: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
 }
 
 .inputCell.dirty { background: rgba(245,158,11,0.1) !important; }
@@ -234,7 +234,7 @@
   border-radius: 4px;
 }
 
-.cellInput::placeholder { color: rgba(255,255,255,0.2); text-align: center; }
+.cellInput::placeholder { color: var(--text-muted); text-align: center; }
 
 .rowTotalCell {
   text-align: right;
@@ -242,9 +242,9 @@
   font-weight: 700;
   font-size: 0.78rem;
   color: var(--text-muted);
-  background: rgba(255,255,255,0.03);
-  border-left: 1px solid rgba(255,255,255,0.06);
-  border-bottom: 1px solid rgba(255,255,255,0.04);
+  background: rgba(var(--brand-brown-rgb), 0.03);
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 /* Ô thực tế chỉ-đọc (đồng bộ từ doanh thu ngày) */
@@ -253,8 +253,8 @@
   padding: 0.3rem 0.4rem;
   font-size: 0.8rem;
   color: #6ee7b7;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  border-left: 1px solid rgba(255,255,255,0.04);
+  border-bottom: 1px solid var(--border);
+  border-left: 1px solid var(--border);
 }
 
 /* Hàng tổng */
@@ -389,7 +389,7 @@
   min-height: 2px;
 }
 .barKH { background: #6366f1; }
-.barTT { background: #10b981; }
+.barTT { background: var(--success); }
 
 .chartLabel {
   font-size: 0.7rem;
@@ -481,7 +481,7 @@
 
 /* Tiến độ */
 .progressTrack {
-  background: rgba(255,255,255,0.08);
+  background: rgba(var(--brand-brown-rgb), 0.08);
   border-radius: 999px;
   height: 6px;
   overflow: hidden;
@@ -503,7 +503,7 @@
   border-radius: 50%;
   font-size: 0.72rem;
   font-weight: 800;
-  background: rgba(255,255,255,0.08);
+  background: rgba(var(--brand-brown-rgb), 0.08);
   color: var(--text-muted);
 }
 .rankTop { background: rgba(245,158,11,0.2); color: #fbbf24; }
@@ -519,10 +519,10 @@
   font-weight: 600;
   transition: all 0.2s ease;
 }
-.badgeGreen { background: rgba(52,211,153,0.15); color: #34d399; }
-.badgeYellow { background: rgba(245,158,11,0.15); color: #f59e0b; }
-.badgeRed { background: rgba(239,68,68,0.15); color: #f87171; }
-.badgeBlue { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badgeGreen { background: rgba(52,211,153,0.15); color: var(--success); }
+.badgeYellow { background: rgba(245,158,11,0.15); color: var(--warning); }
+.badgeRed { background: rgba(239,68,68,0.15); color: var(--danger); }
+.badgeBlue { background: rgba(59,130,246,0.15); color: var(--info); }
 .badgeGray { background: rgba(156,163,175,0.15); color: #9ca3af; }
 .badgeAlarm {
   background: rgba(239, 68, 68, 0.25);
@@ -566,7 +566,7 @@
 }
 .modalBox {
   background: var(--card-bg, #1a1d2b);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--border);
   border-radius: 14px;
   width: 100%;
   max-width: 520px;
@@ -593,21 +593,21 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid var(--border);
 }
 .kenhRowName { flex: 1; }
 .colorInput {
   width: 34px;
   height: 30px;
   padding: 0;
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid var(--border);
   border-radius: 6px;
   background: transparent;
   cursor: pointer;
 }
 .iconBtn {
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid var(--border);
   color: var(--text-muted);
   border-radius: 6px;
   padding: 0.35rem 0.5rem;
@@ -615,8 +615,8 @@
   display: inline-flex;
   align-items: center;
 }
-.iconBtn:hover { background: rgba(255,255,255,0.06); color: var(--text-main); }
-.iconBtnDanger:hover { background: rgba(239,68,68,0.12); color: #f87171; border-color: rgba(239,68,68,0.3); }
+.iconBtn:hover { background: rgba(var(--brand-brown-rgb), 0.06); color: var(--text-main); }
+.iconBtnDanger:hover { background: rgba(239,68,68,0.12); color: var(--danger); border-color: rgba(239,68,68,0.3); }
 .addKenhRow {
   display: flex;
   gap: 0.5rem;
@@ -640,8 +640,8 @@
 
 /* Drag and drop upload box */
 .uploadBox {
-  border: 2px dashed rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.02);
+  border: 2px dashed var(--border);
+  background: rgba(var(--brand-brown-rgb), 0.02);
   border-radius: 10px;
   padding: 1.5rem;
   display: flex;
@@ -708,6 +708,6 @@
 
 .importErrorsTable td {
   padding: 0.4rem 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border);
 }
 

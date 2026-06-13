@@ -2,11 +2,12 @@ import { Outfit, Quicksand } from "next/font/google";
 import "./globals.css";
 import RegisterSW from "@/components/RegisterSW";
 import PetalsTransition from "@/components/PetalsTransition";
+import Providers from "@/components/Providers";
 import Script from "next/script";
 
 const outfit = Outfit({
   variable: "--font-outfit",
-  subsets: ["latin", "vietnamese"],
+  subsets: ["latin", "latin-ext"],
   weight: ["300", "400", "500", "600", "700", "800"],
 });
 
@@ -53,7 +54,9 @@ export default function RootLayout({ children }) {
               "(function(){try{var t=localStorage.getItem('ari-theme');if(t){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();",
           }}
         />
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         <PetalsTransition />
         <RegisterSW />
       </body>

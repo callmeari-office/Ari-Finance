@@ -124,7 +124,7 @@ function DatLaiMatKhauForm() {
         {phase === 'error' && (
           <div style={{ textAlign: 'center', padding: '1rem 0' }}>
             <XCircle size={40} color="#ef4444" style={{ margin: '0 auto 0.75rem', display: 'block' }} />
-            <p style={{ color: '#ef4444', fontWeight: '600', marginBottom: '1rem' }}>{errorMsg}</p>
+            <p style={{ color: 'var(--danger)', fontWeight: '600', marginBottom: '1rem' }}>{errorMsg}</p>
             <button
               onClick={() => router.push('/login')}
               className="btn btn-primary"
@@ -139,7 +139,7 @@ function DatLaiMatKhauForm() {
         {phase === 'success' && (
           <div style={{ textAlign: 'center', padding: '1rem 0' }}>
             <CheckCircle size={40} color="#10b981" style={{ margin: '0 auto 0.75rem', display: 'block' }} />
-            <p style={{ color: '#10b981', fontWeight: '700', fontSize: '1.05rem', marginBottom: '0.5rem' }}>
+            <p style={{ color: 'var(--success)', fontWeight: '700', fontSize: '1.05rem', marginBottom: '0.5rem' }}>
               Đặt lại mật khẩu thành công!
             </p>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
@@ -167,11 +167,11 @@ function DatLaiMatKhauForm() {
 
             {formError && (
               <div style={{
-                background: 'rgba(239,68,68,0.08)',
-                border: '1px solid rgba(239,68,68,0.2)',
+                background: 'var(--danger-bg)',
+                border: '1px solid var(--danger)',
                 borderRadius: '8px',
                 padding: '0.65rem 0.875rem',
-                color: '#ef4444',
+                color: 'var(--danger)',
                 fontSize: '0.88rem',
                 marginBottom: '1rem',
               }}>

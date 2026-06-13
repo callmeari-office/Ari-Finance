@@ -11,7 +11,7 @@
 .spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid rgba(255, 255, 255, 0.05);
+  border: 4px solid var(--border);
   border-left-color: var(--primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -148,7 +148,7 @@
 .progressBarWrapper {
   width: 100%;
   height: 8px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--brand-brown-rgb), 0.05);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -178,13 +178,13 @@
   gap: 0.6rem;
   background: rgba(248, 113, 113, 0.12);
   border: 1px solid rgba(248, 113, 113, 0.35);
-  color: #f87171;
+  color: var(--danger);
   padding: 0.75rem 1rem;
   border-radius: 12px;
   font-size: 0.9rem;
   margin-bottom: 1.25rem;
 }
-.warningBanner strong { color: #f87171; }
+.warningBanner strong { color: var(--danger); }
 
 .ungBanner {
   display: flex;
@@ -198,8 +198,8 @@
   font-size: 0.88rem;
   margin-bottom: 1.5rem;
 }
-.ungBanner svg { color: #60a5fa; flex-shrink: 0; }
-.ungLink { color: #60a5fa; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.ungBanner svg { color: var(--info); flex-shrink: 0; }
+.ungLink { color: var(--info); font-weight: 700; text-decoration: none; white-space: nowrap; }
 .ungLink:hover { text-decoration: underline; }
 
 /* ===== Bộ chọn kỳ ===== */
@@ -217,8 +217,8 @@
 }
 .kyToggle {
   display: inline-flex;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(var(--brand-brown-rgb), 0.05);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 3px;
   gap: 3px;
@@ -245,14 +245,14 @@
 .compBarWrap {
   flex: 1;
   height: 7px;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(var(--brand-brown-rgb), 0.07);
   border-radius: 4px;
   overflow: hidden;
   min-width: 50px;
 }
 .compBar {
   height: 100%;
-  background: linear-gradient(90deg, var(--brand-brown), #60a5fa);
+  background: linear-gradient(90deg, var(--brand-brown), var(--info));
   border-radius: 4px;
   transition: width 0.5s ease-out;
 }
@@ -282,8 +282,8 @@
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  background: rgba(var(--brand-brown-rgb), 0.04);
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
@@ -293,8 +293,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  background: rgba(var(--brand-brown-rgb), 0.04);
   color: var(--text-muted);
   font-size: 0.78rem;
   font-weight: 600;
@@ -311,7 +311,7 @@
 }
 .detailTitle {
   font-size: 0.72rem;
-  color: #60a5fa;
+  color: var(--info);
   font-weight: 700;
   letter-spacing: 0.03em;
   margin-bottom: 0.75rem;
@@ -327,7 +327,7 @@
   border-bottom: 1px solid var(--border, rgba(0,0,0,0.07));
 }
 .diLeft { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.diCode { font-weight: 700; color: #60a5fa; font-size: 0.8rem; }
+.diCode { font-weight: 700; color: var(--info); font-size: 0.8rem; }
 .diDesc {
   font-size: 0.82rem;
   color: var(--text-main);
@@ -344,7 +344,7 @@
   align-items: center;
   gap: 5px;
   margin-top: 0.85rem;
-  color: #60a5fa;
+  color: var(--info);
   font-size: 0.82rem;
   font-weight: 700;
   text-decoration: none;
@@ -356,8 +356,8 @@
 .mobileCards { display: none; }
 
 .fundCard {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(var(--brand-brown-rgb), 0.03);
+  border: 1px solid var(--border);
   border-radius: 14px;
   padding: 1rem;
   margin-bottom: 0.85rem;
@@ -410,8 +410,8 @@
 .modalLabel { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-main); margin: 0.75rem 0 0.35rem; }
 .modalInput, .modalTextarea {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(var(--brand-brown-rgb), 0.05);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.7rem 0.9rem;
   color: var(--text-main);
@@ -424,7 +424,7 @@
   margin-top: 0.75rem;
   background: rgba(248, 113, 113, 0.12);
   border: 1px solid rgba(248, 113, 113, 0.3);
-  color: #f87171;
+  color: var(--danger);
   font-size: 0.83rem;
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
@@ -432,7 +432,7 @@
 .modalActions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.25rem; }
 .btnGhost {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--border);
   color: var(--text-muted);
   padding: 0.6rem 1.1rem;
   border-radius: 10px;

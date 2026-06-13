@@ -15,10 +15,14 @@ import {
   Mail
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 import styles from './nhan-su.module.css';
 
 export default function NhanSuPage() {
   const router = useRouter();
+  const toast = useToast();
+  const showConfirm = useConfirm();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -71,7 +75,7 @@ export default function NhanSuPage() {
       .then((data) => {
         if (data && data.authenticated) {
           if (data.user.role !== 'OWNER') {
-            alert('Bạn không có quyền truy cập trang quản lý nhân sự.');
+            toast.error('Bạn không có quyền truy cập trang quản lý nhân sự.');
             router.push('/');
             return;
           }
@@ -212,10 +216,14 @@ export default function NhanSuPage() {
 
   const handleResetPasswordByEmail = async (emp) => {
     if (!emp.email || !emp.email.includes('@')) {
-      alert(`Nhân viên "${emp.hoTen}" chưa có email hợp lệ. Hãy cập nhật email trước.`);
+      toast.error(`Nhân viên "${emp.hoTen}" chưa có email hợp lệ. Hãy cập nhật email trước.`);
       return;
     }
-    if (!confirm(`Gửi link đặt lại mật khẩu qua email "${emp.email}" cho "${emp.hoTen}"?\n\nLink có hiệu lực trong 1 giờ. Link cũ (nếu có) sẽ bị vô hiệu.`)) return;
+    const ok = await showConfirm({
+      message: `Gửi link đặt lại mật khẩu qua email "${emp.email}" cho "${emp.hoTen}"?\n\nLink có hiệu lực trong 1 giờ. Link cũ (nếu có) sẽ bị vô hiệu.`,
+      confirmLabel: 'Gửi email',
+    });
+    if (!ok) return;
 
     setResetLoadingId(emp.id);
     try {
@@ -226,9 +234,9 @@ export default function NhanSuPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Gửi email thất bại.');
-      alert(data.message || 'Đã gửi email đặt lại mật khẩu thành công!');
+      toast.success(data.message || 'Đã gửi email đặt lại mật khẩu thành công');
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message);
     } finally {
       setResetLoadingId(null);
     }
@@ -236,22 +244,25 @@ export default function NhanSuPage() {
 
   const handleDelete = async (emp) => {
     if (emp.id === user.id) {
-      alert('Không thể tự khóa tài khoản của chính mình.');
+      toast.error('Không thể tự khóa tài khoản của chính mình.');
       return;
     }
 
-    const confirmMsg = `Bạn có chắc chắn muốn KHÓA nhân viên "${emp.hoTen}" [${emp.id}]?\nTài khoản sẽ không đăng nhập được nữa, nhưng toàn bộ lịch sử phiếu/giao dịch vẫn được giữ lại. Bạn có thể mở lại bằng cách Sửa → đổi trạng thái về Hoạt động.`;
-    if (confirm(confirmMsg)) {
-      try {
-        const res = await fetch(`/api/nhan-su/${emp.id}`, { method: 'DELETE' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Khóa tài khoản thất bại.');
-
-        alert(data.message || `Đã khóa nhân viên "${emp.hoTen}".`);
-        fetchData();
-      } catch (err) {
-        alert(err.message);
-      }
+    const ok = await showConfirm({
+      title: `Khóa tài khoản "${emp.hoTen}"`,
+      message: `Tài khoản sẽ không đăng nhập được nữa, nhưng toàn bộ lịch sử phiếu/giao dịch vẫn được giữ lại. Bạn có thể mở lại bằng cách Sửa → đổi trạng thái về Hoạt động.`,
+      confirmLabel: 'Khóa tài khoản',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/nhan-su/${emp.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Khóa tài khoản thất bại.');
+      toast.success(data.message || `Đã khóa nhân viên "${emp.hoTen}"`);
+      fetchData();
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
@@ -455,7 +466,7 @@ export default function NhanSuPage() {
                               onClick={() => handleResetPasswordByEmail(emp)}
                               className={`${styles.actionBtn} ${styles.editBtn}`}
                               title="Gửi link đặt lại mật khẩu qua email"
-                              style={{ color: '#60a5fa' }}
+                              style={{ color: 'var(--info)' }}
                               disabled={resetLoadingId === emp.id}
                             >
                               <Mail size={15} />

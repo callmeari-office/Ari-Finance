@@ -18,11 +18,13 @@ import {
   Wallet
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useToast } from '@/components/Toast';
 import { defaultMenuAllowed } from '@/lib/roles';
 import styles from './quyen.module.css';
 
 export default function QuyenPage() {
   const router = useRouter();
+  const toast = useToast();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -95,7 +97,7 @@ export default function QuyenPage() {
       .then((data) => {
         if (data && data.authenticated) {
           if (data.user.role !== 'OWNER') {
-            alert('Bạn không có quyền truy cập trang phân quyền hệ thống.');
+            toast.error('Bạn không có quyền truy cập trang phân quyền hệ thống.');
             router.push('/');
             return;
           }

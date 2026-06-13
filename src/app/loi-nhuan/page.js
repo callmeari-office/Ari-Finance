@@ -11,6 +11,7 @@ import {
   Target,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useToast } from '@/components/Toast';
 import styles from '../dashboard.module.css';
 
 const THANG_LABELS = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12'];
@@ -26,6 +27,7 @@ const formatShort = (num) => {
 
 export default function LoiNhuanPage() {
   const router = useRouter();
+  const toast = useToast();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [nam, setNam] = useState(new Date().getFullYear());
@@ -43,7 +45,7 @@ export default function LoiNhuanPage() {
         const allowed = typeof u.permissions?.loiNhuan !== 'undefined'
           ? !!u.permissions.loiNhuan
           : (u.role === 'OWNER' || u.role === 'MANAGER');
-        if (!allowed) { alert('Bạn không có quyền xem trang Lợi nhuận.'); router.push('/'); return; }
+        if (!allowed) { toast.error('Bạn không có quyền xem trang Lợi nhuận.'); router.push('/'); return; }
         setUser(u);
         setLoading(false);
       })
@@ -112,7 +114,9 @@ export default function LoiNhuanPage() {
         </div>
 
         {dataLoading || !tong ? (
-          <div className={styles.loaderSmall}>Đang tính toán lãi/lỗ...</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+            {[1, 2, 3].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+          </div>
         ) : (
           <>
             {/* KPI cards */}
@@ -181,7 +185,7 @@ export default function LoiNhuanPage() {
                       {/* Nửa trên (lãi) */}
                       <div style={{ height: `${HALF}px`, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
                         {positive && (
-                          <span style={{ fontSize: '0.6rem', color: '#10b981', marginBottom: '2px', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: '0.6rem', color: 'var(--success)', marginBottom: '2px', whiteSpace: 'nowrap' }}>
                             {val !== 0 ? formatShort(val) : ''}
                           </span>
                         )}
@@ -203,7 +207,7 @@ export default function LoiNhuanPage() {
                           />
                         )}
                         {!positive && (
-                          <span style={{ fontSize: '0.6rem', color: '#ef4444', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: '0.6rem', color: 'var(--danger)', marginTop: '2px', whiteSpace: 'nowrap' }}>
                             {formatShort(val)}
                           </span>
                         )}

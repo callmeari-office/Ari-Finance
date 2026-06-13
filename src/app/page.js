@@ -29,11 +29,15 @@ import Sidebar from '@/components/Sidebar';
 import AriLoader from '@/components/AriLoader';
 import AriCameo from '@/components/AriCameo';
 import AnimatedNumber from '@/components/AnimatedNumber';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { isRestrictedToOwnProposals, canViewMenu } from '@/lib/roles';
 import styles from './dashboard.module.css';
 
 export default function Dashboard() {
   const router = useRouter();
+  const toast = useToast();
+  const showConfirm = useConfirm();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -83,28 +87,9 @@ export default function Dashboard() {
           setUser(u);
           setLoading(false);
 
-          // 2. Fetch dữ liệu Dashboard — chỉ tải những gì vai trò được xem.
-          //    Các API tài chính (/quy, /thu-chi, /loi-nhuan, /canh-bao) chỉ phục vụ
-          //    OWNER/MANAGER ở server; nếu cấp quyền widget cho vai trò khác thì cần
-          //    mở thêm quyền ở API tương ứng (ngoài phạm vi trang này).
-          fetchProposals(u);
-          const seeFunds = canViewMenu(u, 'tqQuy') || canViewMenu(u, 'tqKPITaiChinh');
-          const seeTx = canViewMenu(u, 'tqXuHuong') || canViewMenu(u, 'tqKPITaiChinh');
-          const seeInsights = canViewMenu(u, 'tqKPITaiChinh') || canViewMenu(u, 'tqCanXuLy');
-          const seeDuBao = canViewMenu(u, 'tqDuBao');
-          if (seeFunds) fetchFunds(); else setFundsLoading(false);
-          if (seeTx) fetchTransactions(); else setTxLoading(false);
-          if (seeInsights) fetchInsights(); else setInsightsLoading(false);
-          if (seeDuBao) fetchDuBao(); else setDuBaoLoading(false);
-
-          // STAFF/LEADER: ngân sách danh mục + doanh thu mini
-          const seeNganSach = isRestrictedToOwnProposals(u.role) && canViewMenu(u, 'keHoach');
-          const seeDoanhThuMini = isRestrictedToOwnProposals(u.role) && canViewMenu(u, 'doanhThuDBThang');
-          if (seeNganSach) fetchNganSach(); else setNganSachLoading(false);
-          if (seeDoanhThuMini) fetchDoanhThuSummary(); else setDoanhThuSummaryLoading(false);
-
-          // Thông báo nội bộ — mọi role
-          fetchThongBao();
+          // 2. Fetch toàn bộ dữ liệu Dashboard qua 1 request duy nhất.
+          //    Server tự kiểm tra quyền, trả null cho phần không được xem.
+          fetchDashboard(u);
         }
       })
       .catch((err) => {
@@ -113,66 +98,26 @@ export default function Dashboard() {
       });
   }, [router]);
 
-  const fetchProposals = async (u) => {
+  const fetchDashboard = async (u) => {
     try {
-      if (isRestrictedToOwnProposals(u.role)) {
-        // STAFF/LEADER: chỉ có đề xuất của mình (số lượng nhỏ) → tải về để tính thống kê
-        // cá nhân + danh sách gần đây, giữ nguyên 100% cách tính cũ.
-        const res = await fetch('/api/de-xuat?limit=200');
-        if (res.ok) {
-          const data = await res.json();
-          const list = data.data || [];
-          setProposals(list);
-          setRecentProposals(list.slice(0, 5));
-        }
-      } else {
-        // OWNER/MANAGER: KHÔNG kéo toàn bộ phiếu nữa. Chỉ tải 5 phiếu gần đây + đếm nhẹ
-        // số phiếu chờ thanh toán / chờ hoàn ứng qua pagination.total (truy vấn count ở server).
-        const [recentRes, payRes, reimRes] = await Promise.all([
-          fetch('/api/de-xuat?limit=5'),
-          fetch('/api/de-xuat?trangThai=CHO_THANH_TOAN&limit=1'),
-          fetch('/api/de-xuat?trangThai=CHO_HOAN_UNG&limit=1'),
-        ]);
-        if (recentRes.ok) {
-          const d = await recentRes.json();
-          setRecentProposals(d.data || []);
-        }
-        if (payRes.ok) {
-          const d = await payRes.json();
-          setPendingPayment(d.pagination?.total || 0);
-        }
-        if (reimRes.ok) {
-          const d = await reimRes.json();
-          setPendingReimburse(d.pagination?.total || 0);
-        }
-      }
-    } catch (e) {
-      console.error('Error fetching proposals:', e);
-    } finally {
+      const res = await fetch('/api/dashboard');
+      if (!res.ok) return;
+      const data = await res.json();
+
+      // Đề xuất
+      setProposals(data.proposals || []);
+      setRecentProposals(data.recentProposals || []);
+      setPendingPayment(data.pendingPayment || 0);
+      setPendingReimburse(data.pendingReimburse || 0);
       setProposalsLoading(false);
-    }
-  };
 
-  const fetchFunds = async () => {
-    try {
-      const res = await fetch('/api/quy');
-      if (res.ok) {
-        const data = await res.json();
-        setFunds(data);
-      }
-    } catch (e) {
-      console.error('Error fetching funds:', e);
-    } finally {
+      // Quỹ
+      if (data.funds !== null) setFunds(data.funds || []);
       setFundsLoading(false);
-    }
-  };
 
-  const fetchTransactions = async () => {
-    try {
-      const res = await fetch('/api/thu-chi/thong-ke-thang?soThang=6');
-      if (res.ok) {
-        const rawData = await res.json();
-        // Xây dựng 6 tháng gần nhất (kể cả tháng không có giao dịch)
+      // Thu-chi 6 tháng — build rolling window giống fetchTransactions cũ
+      if (data.thongKeThang !== null) {
+        const rawData = data.thongKeThang || [];
         const now = new Date();
         const months = [];
         for (let i = 5; i >= 0; i--) {
@@ -185,63 +130,36 @@ export default function Dashboard() {
         }
         setTransactions(months);
       }
-    } catch (e) {
-      console.error('Error fetching transactions:', e);
-    } finally {
       setTxLoading(false);
-    }
-  };
 
-  const fetchDuBao = async () => {
-    try {
-      const res = await fetch('/api/du-bao-dong-tien?days=thang');
-      if (res.ok) setDuBao(await res.json());
-    } catch (e) {
-      console.error('Error fetching duBao:', e);
-    } finally {
-      setDuBaoLoading(false);
-    }
-  };
-
-  const fetchInsights = async () => {
-    try {
-      const nam = new Date().getFullYear();
-      const [resLn, resCb] = await Promise.all([
-        fetch(`/api/loi-nhuan?nam=${nam}`),
-        fetch('/api/canh-bao'),
-      ]);
-      if (resLn.ok) {
-        const d = await resLn.json();
-        setProfitMonths(d.months || []);
-      }
-      if (resCb.ok) {
-        setCanhBao(await resCb.json());
-      }
-    } catch (e) {
-      console.error('Error fetching insights:', e);
-    } finally {
+      // Sức khỏe tài chính + cảnh báo
+      if (data.loiNhuan !== null) setProfitMonths(data.loiNhuan?.months || []);
+      if (data.canhBao !== null) setCanhBao(data.canhBao);
       setInsightsLoading(false);
-    }
-  };
 
-  const fetchNganSach = async () => {
-    try {
-      const res = await fetch(`/api/ke-hoach?nam=${new Date().getFullYear()}`);
-      if (res.ok) setNganSachThang(await res.json());
-    } catch (e) {
-      console.error('Error fetching nganSach:', e);
-    } finally {
+      // Dự báo dòng tiền
+      if (data.duBao !== null) setDuBao(data.duBao);
+      setDuBaoLoading(false);
+
+      // Ngân sách danh mục (STAFF/LEADER)
+      if (data.nganSach !== null) setNganSachThang(data.nganSach);
       setNganSachLoading(false);
-    }
-  };
 
-  const fetchDoanhThuSummary = async () => {
-    try {
-      const res = await fetch(`/api/doanh-thu?nam=${new Date().getFullYear()}`);
-      if (res.ok) setDoanhThuSummary(await res.json());
+      // Doanh thu mini (STAFF/LEADER)
+      if (data.doanhThu !== null) setDoanhThuSummary(data.doanhThu);
+      setDoanhThuSummaryLoading(false);
+
+      // Thông báo nội bộ
+      setThongBaoList(data.thongBao || []);
     } catch (e) {
-      console.error('Error fetching doanhThuSummary:', e);
-    } finally {
+      console.error('Error fetching dashboard:', e);
+      // Reset tất cả loading dù lỗi
+      setProposalsLoading(false);
+      setFundsLoading(false);
+      setTxLoading(false);
+      setInsightsLoading(false);
+      setDuBaoLoading(false);
+      setNganSachLoading(false);
       setDoanhThuSummaryLoading(false);
     }
   };
@@ -305,7 +223,7 @@ export default function Dashboard() {
         await fetchThongBao();
       } else {
         const d = await res.json();
-        alert(d.error || 'Lỗi khi lưu thông báo.');
+        toast.error(d.error || 'Lỗi khi lưu thông báo.');
       }
     } finally {
       setTbSaving(false);
@@ -322,12 +240,17 @@ export default function Dashboard() {
   };
 
   const deleteTB = async (id, tieuDe) => {
-    if (!confirm(`Xóa vĩnh viễn thông báo "${tieuDe}"?`)) return;
+    const ok = await showConfirm({
+      message: `Xóa vĩnh viễn thông báo "${tieuDe}"?`,
+      confirmLabel: 'Xóa',
+      danger: true,
+    });
+    if (!ok) return;
     const res = await fetch(`/api/thong-bao-noi-bo/${id}`, { method: 'DELETE' });
     if (res.ok) fetchThongBao();
     else {
       const d = await res.json();
-      alert(d.error || 'Lỗi khi xóa thông báo.');
+      toast.error(d.error || 'Lỗi khi xóa thông báo.');
     }
   };
   const thisMonth = new Date().getMonth() + 1;
@@ -595,7 +518,7 @@ export default function Dashboard() {
                           <button
                             onClick={() => deleteTB(tb.id, tb.tieuDe)}
                             title="Xóa vĩnh viễn"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '3px', borderRadius: '4px', display: 'flex', fontSize: '0.7rem', fontWeight: 700 }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '3px', borderRadius: '4px', display: 'flex', fontSize: '0.7rem', fontWeight: 700 }}
                           >
                             Xóa
                           </button>
@@ -620,7 +543,7 @@ export default function Dashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 <div>
                   <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                    Tiêu đề <span style={{ color: '#ef4444' }}>*</span> ({tbForm.tieuDe.length}/80)
+                    Tiêu đề <span style={{ color: 'var(--danger)' }}>*</span> ({tbForm.tieuDe.length}/80)
                   </label>
                   <input
                     type="text"
@@ -634,7 +557,7 @@ export default function Dashboard() {
 
                 <div>
                   <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                    Nội dung <span style={{ color: '#ef4444' }}>*</span> ({tbForm.noiDung.length}/500)
+                    Nội dung <span style={{ color: 'var(--danger)' }}>*</span> ({tbForm.noiDung.length}/500)
                   </label>
                   <textarea
                     maxLength={500}
@@ -657,7 +580,7 @@ export default function Dashboard() {
                           style={{
                             padding: '3px 10px', borderRadius: '999px', border: '2px solid',
                             borderColor: tbForm.tag === key ? m.bg : 'transparent',
-                            background: tbForm.tag === key ? m.bg : 'rgba(0,0,0,0.08)',
+                            background: tbForm.tag === key ? m.bg : 'rgba(var(--brand-brown-rgb), 0.08)',
                             color: tbForm.tag === key ? m.color : 'var(--text-muted)',
                             fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
                           }}
@@ -697,7 +620,7 @@ export default function Dashboard() {
         {/* ❶ ================= BỨC TRANH THÁNG NÀY (KPI) ================= */}
         {canKPI && (
           <>
-            <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 1rem' }}>
+            <h2 className={styles.sectionTitle}>
               Sức khỏe tài chính — Tháng {thisMonth}/{currentYear}
             </h2>
             <div className={styles.dashboardGrid} style={{ marginBottom: '1.5rem' }}>
@@ -707,17 +630,17 @@ export default function Dashboard() {
                   <span>Doanh thu tháng này</span>
                   <Target className={styles.cardIcon} style={{ color: tileColor }} />
                 </div>
-                <h3 style={{ color: tileColor }}>{insightsLoading ? '...' : <AnimatedNumber value={doanhThuThang} format={formatVND} />}</h3>
+                <h3 style={{ color: tileColor }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={doanhThuThang} format={formatVND} />}</h3>
                 <p className={styles.cardInfo}>Đạt {tileChiTieu}% chỉ tiêu ({formatVND(chiTieuThang)})</p>
               </div>
 
               {/* Chi phí vs kế hoạch */}
-              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid #ef4444' }}>
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--danger)' }}>
                 <div className={styles.cardHeader}>
                   <span>Chi phí tháng này</span>
-                  <TrendingDown className={styles.cardIcon} style={{ color: '#ef4444' }} />
+                  <TrendingDown className={styles.cardIcon} style={{ color: 'var(--danger)' }} />
                 </div>
-                <h3 style={{ color: '#ef4444' }}>{insightsLoading ? '...' : <AnimatedNumber value={chiPhiThang} format={formatVND} />}</h3>
+                <h3 style={{ color: 'var(--danger)' }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={chiPhiThang} format={formatVND} />}</h3>
                 <p className={styles.cardInfo}>
                   {chiPhiKeHoachThang > 0 ? `${tileChiPhi}% kế hoạch (${formatVND(chiPhiKeHoachThang)})` : 'Chưa đặt kế hoạch chi tháng'}
                 </p>
@@ -730,7 +653,7 @@ export default function Dashboard() {
                   <Scale className={styles.cardIcon} style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }} />
                 </div>
                 <h3 style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }}>
-                  {insightsLoading ? '...' : <AnimatedNumber value={laiLoThang} format={formatVND} />}
+                  {insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={laiLoThang} format={formatVND} />}
                 </h3>
                 <p className={styles.cardInfo}>Biên lợi nhuận {bienLoiNhuan}% · <span style={{ cursor: 'pointer', color: 'var(--info)' }} onClick={() => router.push('/loi-nhuan')}>Xem 12 tháng →</span></p>
               </div>
@@ -741,7 +664,7 @@ export default function Dashboard() {
                   <span>Tiền đang có</span>
                   <Banknote className={styles.cardIcon} style={{ color: 'var(--info)' }} />
                 </div>
-                <h3>{fundsLoading ? '...' : <AnimatedNumber value={tongSoDuQuy} format={formatVND} />}</h3>
+                <h3>{fundsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={tongSoDuQuy} format={formatVND} />}</h3>
                 <p className={styles.cardInfo}>Tổng số dư {funds.length} quỹ (thực tế dùng thanh toán)</p>
               </div>
             </div>
@@ -750,10 +673,10 @@ export default function Dashboard() {
 
         {/* ❷ ================= CẦN XỬ LÝ ================= */}
         {canXuLy && !insightsLoading && (hasPending || hasCanhBao) && (
-          <div className="glass-card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #f59e0b' }}>
+          <div className="glass-card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid var(--warning)' }}>
             <div className={styles.cardTitleBar}>
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <AlertTriangle size={20} style={{ color: '#f59e0b' }} /> Cần xử lý
+                <AlertTriangle size={20} style={{ color: 'var(--warning)' }} /> Cần xử lý
                 {hasCanhBao && (
                   <span style={{ background: '#f59e0b', color: '#fff', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px' }}>{canhBao.tongSo}</span>
                 )}
@@ -764,10 +687,11 @@ export default function Dashboard() {
             {hasPending && (
               <div
                 onClick={() => router.push('/de-xuat/duyet')}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.6rem 0.85rem', borderRadius: '10px', background: 'rgba(96,165,250,0.08)', marginBottom: '1rem', cursor: 'pointer', flexWrap: 'wrap' }}
+                className={`${styles.alertRow} ${styles.alertInfo} ${styles.alertClickable}`}
+                style={{ marginBottom: '1rem' }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
-                  <Clock size={16} style={{ color: '#60a5fa' }} />
+                  <Clock size={16} style={{ color: 'var(--info)' }} />
                   <span><b>{pendingPayment}</b> phiếu chờ thanh toán · <b>{pendingReimburse}</b> phiếu chờ hoàn ứng</span>
                 </span>
                 <span className="btn btn-secondary btn-sm" style={{ padding: '0.3rem 0.7rem', fontSize: '0.8rem' }}>Duyệt đề xuất <ArrowRight size={13} /></span>
@@ -781,9 +705,9 @@ export default function Dashboard() {
                   <CalendarClock size={15} /> Hạn thanh toán ({canhBao.nhacHan.length})
                 </p>
                 {canhBao.nhacHan.map((p) => (
-                  <div key={p.id} onClick={() => router.push('/de-xuat/duyet')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', borderRadius: '8px', background: p.quaHan ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.07)', marginBottom: '0.4rem', cursor: 'pointer', flexWrap: 'wrap' }}>
+                  <div key={p.id} onClick={() => router.push('/de-xuat/duyet')} className={`${styles.alertRow} ${styles.alertClickable} ${p.quaHan ? styles.alertCritical : styles.alertWarning}`}>
                     <div style={{ flex: 1, minWidth: '150px' }}>
-                      <span style={{ fontWeight: 600, color: '#60a5fa' }}>{p.maPhieu}</span>
+                      <span className={styles.alertCode}>{p.maPhieu}</span>
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}> — {p.noiDung}</span>
                     </div>
                     <span style={{ fontWeight: 700 }}>{formatVND(p.soTien)}</span>
@@ -800,7 +724,7 @@ export default function Dashboard() {
                   <Gauge size={15} /> Hạn mức chi tháng ({canhBao.vuotHanMuc.length})
                 </p>
                 {canhBao.vuotHanMuc.map((h) => (
-                  <div key={h.danhMucId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', borderRadius: '8px', background: h.vuot ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.07)', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                  <div key={h.danhMucId} className={`${styles.alertRow} ${h.vuot ? styles.alertCritical : styles.alertWarning}`}>
                     <span style={{ flex: 1, minWidth: '140px', fontWeight: 500 }}>{h.tenDanhMuc}</span>
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{formatVND(h.daChi)} / {formatVND(h.hanMuc)}</span>
                     <span className="badge" style={{ background: h.vuot ? '#ef4444' : '#f59e0b', color: '#fff' }}>{h.tile}%</span>
@@ -816,7 +740,7 @@ export default function Dashboard() {
                   <TrendingUp size={15} /> Vượt kế hoạch chi tháng ({canhBao.vuotKeHoach.length})
                 </p>
                 {canhBao.vuotKeHoach.map((k) => (
-                  <div key={k.danhMucId} onClick={() => router.push('/ke-hoach')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', marginBottom: '0.4rem', cursor: 'pointer', flexWrap: 'wrap' }}>
+                  <div key={k.danhMucId} onClick={() => router.push('/ke-hoach')} className={`${styles.alertRow} ${styles.alertCritical} ${styles.alertClickable}`}>
                     <span style={{ flex: 1, minWidth: '140px', fontWeight: 500 }}>{k.tenDanhMuc}</span>
                     <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Chi {formatVND(k.daChi)} / KH {formatVND(k.keHoach)}</span>
                     <span className="badge" style={{ background: '#ef4444', color: '#fff' }}>{k.tile}%</span>
@@ -846,7 +770,11 @@ export default function Dashboard() {
             </div>
 
             {duBaoLoading ? (
-              <div className={styles.loaderSmall}>Đang tính dự báo...</div>
+              <div style={{ padding: '0.25rem 0' }}>
+                <span className="skeleton skeletonTitle" style={{ display: 'block', width: '48%', marginBottom: '0.75rem' }} />
+                <span className="skeleton skeletonText" style={{ display: 'block', width: '82%', marginBottom: '0.5rem' }} />
+                <span className="skeleton skeletonText" style={{ display: 'block', width: '64%' }} />
+              </div>
             ) : !duBao ? (
               <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Không tải được dữ liệu dự báo.</p>
             ) : (
@@ -891,7 +819,7 @@ export default function Dashboard() {
                             : formatVND(Math.abs(w.soDuCuoiTuan))}
                         </span>
                         {w.chiCommitted > 0 && (
-                          <span style={{ fontSize: '0.65rem', color: '#f59e0b', textAlign: 'center' }} title={`Cam kết: ${formatVND(w.chiCommitted)}`}>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--warning)', textAlign: 'center' }} title={`Cam kết: ${formatVND(w.chiCommitted)}`}>
                             📌
                           </span>
                         )}
@@ -915,7 +843,14 @@ export default function Dashboard() {
               </button>
             </div>
             {txLoading ? (
-              <div className={styles.loaderSmall}>Đang tải dữ liệu...</div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', height: '180px', padding: '0 0.5rem' }}>
+                {[68, 85, 55, 78, 45, 72].map((h, i) => (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', height: '100%', justifyContent: 'flex-end' }}>
+                    <div className="skeleton" style={{ width: '100%', height: `${h}%`, borderRadius: '4px 4px 0 0' }} />
+                    <span className="skeleton skeletonText" style={{ width: '32px', display: 'block' }} />
+                  </div>
+                ))}
+              </div>
             ) : (
               <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', gap: '1rem', height: '180px', padding: '0 0.5rem' }}>
                 {monthlyData.map((m) => (
@@ -952,7 +887,7 @@ export default function Dashboard() {
               </div>
             )}
             {!txLoading && (
-              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '0.8rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)', fontSize: '0.8rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#10b981', display: 'inline-block' }}></span>
                   Thu vào
@@ -982,15 +917,25 @@ export default function Dashboard() {
               </button>
             </div>
             {fundsLoading ? (
-              <div className={styles.loaderSmall}>Đang tính toán số dư...</div>
+              <table className="custom-table">
+                <thead><tr><th>Tên Quỹ</th><th>Số dư đầu kỳ</th><th>Số dư hiện tại</th><th>Trạng thái</th></tr></thead>
+                <tbody>
+                  {[1, 2, 3].map((i) => (
+                    <tr key={i}>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '75%' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70%' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70%' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '52px' }} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : (
               <div className="table-responsive">
                 <table className="custom-table">
                   <thead>
                     <tr>
-                      <th>Mã Quỹ</th>
                       <th>Tên Quỹ</th>
-                      <th>Loại quỹ</th>
                       <th>Số dư đầu kỳ</th>
                       <th>Số dư hiện tại</th>
                       <th>Trạng thái</th>
@@ -999,9 +944,7 @@ export default function Dashboard() {
                   <tbody>
                     {funds.map((fund) => (
                       <tr key={fund.id}>
-                        <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{fund.id}</td>
                         <td>{fund.tenQuy}</td>
-                        <td>{fund.loaiQuy === 'TIEN_MAT' ? '💵 Tiền mặt' : fund.loaiQuy === 'NGAN_HANG' ? '🏦 Ngân hàng' : '📱 Ví điện tử / Khác'}</td>
                         <td>{formatVND(fund.soDuDauKy)}</td>
                         <td style={{ fontWeight: '700', color: fund.soDuHienTai >= 0 ? '#10b981' : '#ef4444' }}>{formatVND(fund.soDuHienTai)}</td>
                         <td><span className="badge badge-paid">Đang dùng</span></td>
@@ -1023,7 +966,7 @@ export default function Dashboard() {
                   <span>Tổng tiền bạn đề xuất</span>
                   <TrendingDown className={styles.cardIcon} />
                 </div>
-                <h3>{proposalsLoading ? '...' : formatVND(myTotalAmount)}</h3>
+                <h3>{proposalsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : formatVND(myTotalAmount)}</h3>
                 <p className={styles.cardInfo}>Tổng các phiếu bạn đã lập</p>
               </div>
 
@@ -1032,7 +975,7 @@ export default function Dashboard() {
                   <span>Đang chờ duyệt</span>
                   <Clock className={styles.cardIcon} />
                 </div>
-                <h3>{proposalsLoading ? '...' : myPending} phiếu</h3>
+                <h3>{proposalsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '55%' }} /> : `${myPending} phiếu`}</h3>
                 <p className={styles.cardInfo}>Chờ thanh toán hoặc chờ hoàn ứng</p>
               </div>
 
@@ -1041,7 +984,7 @@ export default function Dashboard() {
                   <span>Đã được thanh toán</span>
                   <CheckCircle className={styles.cardIcon} />
                 </div>
-                <h3>{proposalsLoading ? '...' : myPaid} phiếu</h3>
+                <h3>{proposalsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '55%' }} /> : `${myPaid} phiếu`}</h3>
                 <p className={styles.cardInfo}>Khoản chi đã được shop thanh toán</p>
               </div>
 
@@ -1050,16 +993,16 @@ export default function Dashboard() {
                   <span>Đề xuất bị Hủy</span>
                   <XCircle className={styles.cardIcon} />
                 </div>
-                <h3>{proposalsLoading ? '...' : myRejected.length} phiếu</h3>
+                <h3>{proposalsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '55%' }} /> : `${myRejected.length} phiếu`}</h3>
                 <p className={styles.cardInfo}>Đề xuất bị từ chối hoặc bạn đã hủy</p>
               </div>
             </div>
 
             {/* ⚠ Phiếu sắp đến hạn thanh toán */}
             {!proposalsLoading && soonDue.length > 0 && (
-              <div className="glass-card" style={{ marginTop: '1.5rem', borderLeft: '4px solid #f59e0b' }}>
+              <div className="glass-card" style={{ marginTop: '1.5rem', borderLeft: '4px solid var(--warning)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.85rem' }}>
-                  <CalendarClock size={18} style={{ color: '#f59e0b' }} />
+                  <CalendarClock size={18} style={{ color: 'var(--warning)' }} />
                   <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
                     Phiếu sắp đến hạn thanh toán
                   </span>
@@ -1072,9 +1015,9 @@ export default function Dashboard() {
                   const quaHan = diffDays < 0;
                   const label = quaHan ? `Quá hạn ${Math.abs(diffDays)} ngày` : diffDays === 0 ? 'Đến hạn hôm nay' : `Còn ${diffDays} ngày`;
                   return (
-                    <div key={p.id} onClick={() => router.push('/de-xuat')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '8px', background: quaHan ? 'rgba(239,68,68,0.07)' : 'rgba(245,158,11,0.07)', marginBottom: '0.35rem', cursor: 'pointer', flexWrap: 'wrap' }}>
+                    <div key={p.id} onClick={() => router.push('/de-xuat')} className={`${styles.alertRow} ${styles.alertClickable} ${quaHan ? styles.alertCritical : styles.alertWarning}`}>
                       <div style={{ flex: 1, minWidth: '140px' }}>
-                        <span style={{ fontWeight: 600, color: '#60a5fa', fontSize: '0.88rem' }}>{p.maPhieu}</span>
+                        <span className={styles.alertCode} style={{ fontSize: '0.88rem' }}>{p.maPhieu}</span>
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.83rem' }}> — {p.noiDung}</span>
                       </div>
                       <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{formatVND(p.soTien)}</span>
@@ -1087,19 +1030,19 @@ export default function Dashboard() {
 
             {/* Cần bổ sung — phiếu bị từ chối/hủy */}
             {!proposalsLoading && myRejected.length > 0 && (
-              <div className="glass-card" style={{ marginTop: '1.5rem', borderLeft: '4px solid #ef4444' }}>
+              <div className="glass-card" style={{ marginTop: '1.5rem', borderLeft: '4px solid var(--danger)' }}>
                 <div className={styles.cardTitleBar}>
                   <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <AlertTriangle size={20} style={{ color: '#ef4444' }} /> Cần xem lại
+                    <AlertTriangle size={20} style={{ color: 'var(--danger)' }} /> Cần xem lại
                     <span style={{ background: '#ef4444', color: '#fff', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px' }}>{myRejected.length}</span>
                   </h2>
                 </div>
                 {myRejected.slice(0, 5).map((p) => (
-                  <div key={p.id} onClick={() => router.push('/de-xuat')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', padding: '0.55rem 0.75rem', borderRadius: '8px', background: 'rgba(239,68,68,0.07)', marginBottom: '0.4rem', cursor: 'pointer', flexWrap: 'wrap' }}>
+                  <div key={p.id} onClick={() => router.push('/de-xuat')} className={`${styles.alertRow} ${styles.alertCritical} ${styles.alertClickable}`}>
                     <div style={{ flex: 1, minWidth: '150px' }}>
-                      <span style={{ fontWeight: 600, color: '#60a5fa' }}>{p.maPhieu}</span>
+                      <span className={styles.alertCode}>{p.maPhieu}</span>
                       <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}> — {p.noiDung}</span>
-                      {p.ghiChu && <span style={{ color: '#ef4444', fontSize: '0.8rem' }}> · {p.ghiChu}</span>}
+                      {p.ghiChu && <span style={{ color: 'var(--danger)', fontSize: '0.8rem' }}> · {p.ghiChu}</span>}
                     </div>
                     <span style={{ fontWeight: 700 }}>{formatVND(p.soTien)}</span>
                   </div>
@@ -1124,7 +1067,14 @@ export default function Dashboard() {
             </div>
 
             {nganSachLoading ? (
-              <div className={styles.loaderSmall}>Đang tải ngân sách...</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                {[1, 2, 3].map((i) => (
+                  <div key={i}>
+                    <span className="skeleton skeletonText" style={{ display: 'block', width: '55%', marginBottom: '0.45rem' }} />
+                    <span className="skeleton" style={{ display: 'block', height: '8px', borderRadius: '4px' }} />
+                  </div>
+                ))}
+              </div>
             ) : nganSachRows.length === 0 ? (
               <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', textAlign: 'center', padding: '1rem 0' }}>
                 Chưa có kế hoạch chi nào được đặt cho tháng này.
@@ -1140,7 +1090,7 @@ export default function Dashboard() {
                       </span>
                       <span style={{ fontSize: '0.78rem', fontWeight: 700, color: row.color, whiteSpace: 'nowrap', minWidth: '38px', textAlign: 'right' }}>{row.pct}%</span>
                     </div>
-                    <div style={{ height: '6px', borderRadius: '3px', background: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
+                    <div style={{ height: '6px', borderRadius: '3px', background: 'rgba(var(--brand-brown-rgb), 0.08)', overflow: 'hidden' }}>
                       <div style={{ width: `${Math.min(row.pct, 100)}%`, height: '100%', background: row.color, borderRadius: '3px', transition: 'width 0.35s ease' }} />
                     </div>
                     <p style={{ fontSize: '0.74rem', color: row.con >= 0 ? 'var(--text-muted)' : '#ef4444', marginTop: '0.2rem' }}>
@@ -1158,7 +1108,7 @@ export default function Dashboard() {
           <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
             <div className={styles.cardTitleBar}>
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BarChart3 size={19} style={{ color: '#10b981' }} />
+                <BarChart3 size={19} style={{ color: 'var(--success)' }} />
                 Doanh thu shop — Tháng {thisMonth}
               </h2>
               <button onClick={() => router.push('/doanh-thu')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
@@ -1168,7 +1118,16 @@ export default function Dashboard() {
             </div>
 
             {doanhThuSummaryLoading ? (
-              <div className={styles.loaderSmall}>Đang tải doanh thu...</div>
+              <div>
+                <span className="skeleton skeletonTitle" style={{ display: 'block', width: '50%', marginBottom: '1rem' }} />
+                <span className="skeleton" style={{ display: 'block', height: '8px', borderRadius: '4px', marginBottom: '1rem' }} />
+                {[1, 2, 3].map((i) => (
+                  <div key={i} style={{ marginBottom: '0.6rem' }}>
+                    <span className="skeleton skeletonText" style={{ display: 'block', width: '60%', marginBottom: '0.2rem' }} />
+                    <span className="skeleton" style={{ display: 'block', height: '4px', borderRadius: '2px' }} />
+                  </div>
+                ))}
+              </div>
             ) : !doanhThuThangMini ? (
               <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', textAlign: 'center', padding: '1rem 0' }}>
                 Chưa có chỉ tiêu doanh thu cho tháng này.
@@ -1191,7 +1150,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 {/* Progress tổng */}
-                <div style={{ height: '8px', borderRadius: '4px', background: 'rgba(0,0,0,0.07)', overflow: 'hidden', marginBottom: '1rem' }}>
+                <div style={{ height: '8px', borderRadius: '4px', background: 'rgba(var(--brand-brown-rgb), 0.08)', overflow: 'hidden', marginBottom: '1rem' }}>
                   <div style={{ width: `${Math.min(doanhThuThangMini.pct, 100)}%`, height: '100%', background: doanhThuThangMini.pctColor, borderRadius: '4px', transition: 'width 0.35s ease' }} />
                 </div>
                 {/* Per kênh */}
@@ -1207,7 +1166,7 @@ export default function Dashboard() {
                           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatVND(k.thucTe)} / {formatVND(k.chiTieu)}</span>
                           <span style={{ fontSize: '0.78rem', fontWeight: 700, color: k.color, minWidth: '36px', textAlign: 'right' }}>{k.pct}%</span>
                         </div>
-                        <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(0,0,0,0.07)', overflow: 'hidden' }}>
+                        <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(var(--brand-brown-rgb), 0.08)', overflow: 'hidden' }}>
                           <div style={{ width: `${Math.min(k.pct, 100)}%`, height: '100%', background: k.mauSac, borderRadius: '2px', transition: 'width 0.35s ease' }} />
                         </div>
                       </div>
@@ -1229,11 +1188,37 @@ export default function Dashboard() {
             </button>
           </div>
           {proposalsLoading ? (
-            <div className={styles.loaderSmall}>Đang tải danh sách...</div>
+            <div className="table-responsive">
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>Mã Phiếu</th><th>Ngày lập</th><th>Người đề xuất</th>
+                    <th>Danh mục</th><th>Nguồn tiền</th><th>Số tiền</th><th>Trạng thái</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <tr key={i}>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70px' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '60px' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '80%' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70%' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '75%' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '64px' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '80px' }} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : recentProposals.length === 0 ? (
             <div className={styles.emptyState}>
               <AriCameo size={64} className={styles.emptyCameo} />
               <p>Chưa có đề xuất chi phí nào được lập.</p>
+              <button onClick={() => router.push('/de-xuat')} className="btn btn-primary" style={{ padding: '0.5rem 1.1rem', fontSize: '0.85rem' }}>
+                <PlusCircle size={16} />
+                <span>Tạo đề xuất đầu tiên</span>
+              </button>
             </div>
           ) : (
             <div className="table-responsive">
@@ -1252,7 +1237,7 @@ export default function Dashboard() {
                 <tbody>
                   {recentProposals.slice(0, 5).map((prop) => (
                     <tr key={prop.id}>
-                      <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{prop.maPhieu}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--info)' }}>{prop.maPhieu}</td>
                       <td>{new Date(prop.ngayPhatSinh).toLocaleDateString('vi-VN')}</td>
                       <td>
                         <span style={{ fontWeight: '500' }}>{prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}</span>

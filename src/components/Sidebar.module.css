@@ -7,6 +7,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   position: sticky;
   top: 0;
   padding: 1.5rem;
@@ -121,6 +122,7 @@
 }
 
 .navItem {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.875rem;
@@ -129,27 +131,108 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-muted);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    background-color 0.2s var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1)),
+    color 0.2s var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+/* Indicator pill — pseudo-element thay cho border-left + padding-calc cũ
+   (border-left làm chữ xê dịch 3px mỗi lần chuyển trang) */
+.navItem::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 3px;
+  height: 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
+  transform: translateY(-50%);
+  transition: height 0.25s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
 }
 
 .navItem:hover {
-  background: rgba(99, 77, 62, 0.04);
+  background: rgba(var(--brand-brown-rgb), 0.05);
   color: var(--brand-brown);
 }
 
+.navItem:active {
+  transform: scale(0.985);
+}
+
 .navItem.active {
-  background: rgba(214, 168, 168, 0.15); /* Nền hồng phấn mờ active */
+  background: linear-gradient(
+    90deg,
+    rgba(var(--primary-rgb), 0.18) 0%,
+    rgba(var(--primary-rgb), 0.06) 100%
+  );
   color: var(--brand-brown); /* Chữ nâu ấm */
-  border-left: 3px solid var(--primary); /* Đường line dọc hồng phấn */
-  padding-left: calc(1rem - 3px);
+  font-weight: 700;
+}
+
+.navItem.active::before {
+  height: 60%;
 }
 
 .navIcon {
-  transition: transform 0.2s;
+  transition: transform 0.25s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
 }
 
 .navItem:hover .navIcon {
-  transform: scale(1.05);
+  transform: translateX(2px);
+}
+
+.navItem.active .navIcon {
+  color: var(--primary);
+}
+
+/* Badge số phiếu chờ duyệt trên nav item — theme-aware thay cho inline #ef4444 */
+.navBadge {
+  background: var(--danger);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 6px;
+  min-width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 4px -1px rgba(207, 141, 141, 0.6);
+}
+
+/* Badge chuông thông báo (góc trên phải nút chuông) */
+.bellBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--warning);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  min-width: 14px;
+  text-align: center;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  border: 1.5px solid var(--sidebar-bg);
+}
+
+.bellBadgeRed {
+  background: var(--danger);
+  animation: bellPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes bellPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(207, 141, 141, 0.45); }
+  50% { box-shadow: 0 0 0 4px rgba(207, 141, 141, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bellBadgeRed { animation: none; }
 }
 
 .sidebarFooter {
@@ -358,9 +441,16 @@
 :global([data-theme='pink']) .navItem.active {
   background: linear-gradient(90deg, rgba(230, 162, 197, 0.22) 0%, rgba(230, 162, 197, 0.05) 100%) !important;
   color: #73485E !important;
-  border-left: 3px solid #E6A2C5 !important;
-  padding-left: calc(1rem - 3px);
   box-shadow: 2px 2px 8px rgba(115, 72, 94, 0.04);
+}
+:global([data-theme='pink']) .navItem::before {
+  background: #E6A2C5;
+}
+:global([data-theme='pink']) .navItem.active .navIcon {
+  color: #E6A2C5;
+}
+:global([data-theme='pink']) .bellBadge {
+  border-color: #FFEBF1;
 }
 /* Logo cameo "thở sáng" ánh rose-gold dịu — gợi món nữ trang quý giá */
 :global([data-theme='pink']) .logoImg {

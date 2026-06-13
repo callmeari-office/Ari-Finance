@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useToast } from '@/components/Toast';
 import { canViewMenu } from '@/lib/roles';
 import styles from './ke-hoach.module.css';
 
@@ -39,6 +40,7 @@ const parseVND = (str) => {
 
 export default function KeHoachPage() {
   const router = useRouter();
+  const toast = useToast();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState('ke-hoach'); // 'ke-hoach' | 'db-thang' | 'db-nam'
@@ -77,7 +79,7 @@ export default function KeHoachPage() {
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (!data?.authenticated) { router.push('/login'); return; }
-        if (!canViewMenu(data.user, 'keHoach')) { alert('Bạn không có quyền truy cập.'); router.push('/'); return; }
+        if (!canViewMenu(data.user, 'keHoach')) { toast.error('Bạn không có quyền truy cập.'); router.push('/'); return; }
         setUser(data.user);
         // OWNER mặc định vào màn lập Kế Hoạch; vai trò khác vào Dashboard đầu tiên được phép.
         if (data.user.role !== 'OWNER') {
@@ -203,7 +205,7 @@ export default function KeHoachPage() {
       XLSX.writeFile(wb, `mau-ke-hoach-chi-phi-nam-${nam}.xlsx`);
     } catch (err) {
       console.error(err);
-      alert('Không tải được file mẫu.');
+      toast.error('Không tải được file mẫu.');
     }
   };
 
@@ -396,7 +398,7 @@ export default function KeHoachPage() {
             <div className={styles.toolbar}>
               <span className={styles.toolbarInfo}>
                 {hasDirty ? (
-                  <span style={{ color: '#f59e0b' }}>● Có thay đổi chưa lưu</span>
+                  <span style={{ color: 'var(--warning)' }}>● Có thay đổi chưa lưu</span>
                 ) : (
                   <span style={{ color: '#6b7280' }}>Nhấp vào ô để chỉnh sửa số tiền kế hoạch</span>
                 )}
@@ -430,7 +432,9 @@ export default function KeHoachPage() {
 
             {/* BẢNG KẾ HOẠCH */}
             {dataLoading ? (
-              <div className={styles.loaderSmall}>Đang tải dữ liệu...</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+              </div>
             ) : categories.length === 0 ? (
               <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                 Chưa có danh mục CHI nào. Hãy thêm danh mục trong Cấu hình trước.
@@ -608,7 +612,7 @@ export default function KeHoachPage() {
                     <span>{importParseError}</span>
                   </div>
                   {importErrors.length > 0 && (
-                    <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', padding: '0.5rem' }}>
+                    <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--danger)', borderRadius: '8px', padding: '0.5rem' }}>
                       <table className={styles.importErrorsTable}>
                         <thead>
                           <tr>
@@ -739,17 +743,17 @@ function DashboardThangView({ categories, groupedCats, getKH, getTT, dataLoading
             </div>
 
             <div className={`glass-card ${styles.kpiCard}`}>
-              <div className={styles.kpiLabel}><TrendingDown size={16} style={{ color: '#ef4444' }} /> Thực chi T{thang}</div>
-              <div className={styles.kpiValue} style={{ color: '#ef4444' }}>{formatVND(ttThang)}</div>
+              <div className={styles.kpiLabel}><TrendingDown size={16} style={{ color: 'var(--danger)' }} /> Thực chi T{thang}</div>
+              <div className={styles.kpiValue} style={{ color: 'var(--danger)' }}>{formatVND(ttThang)}</div>
               <div className={styles.kpiSub}>
                 {khThang === 0 ? <span style={{ color: 'var(--text-muted)' }}>Chưa lập KH</span>
-                  : conLai < 0 ? <span style={{ color: '#f87171' }}>▲ Vượt {formatVND(-conLai)}</span>
-                  : <span style={{ color: '#34d399' }}>Còn được chi {formatVND(conLai)}</span>}
+                  : conLai < 0 ? <span style={{ color: 'var(--danger)' }}>▲ Vượt {formatVND(-conLai)}</span>
+                  : <span style={{ color: 'var(--success)' }}>Còn được chi {formatVND(conLai)}</span>}
               </div>
             </div>
 
             <div className={`glass-card ${styles.kpiCard}`}>
-              <div className={styles.kpiLabel}><BarChart3 size={16} style={{ color: '#f59e0b' }} /> Tỉ lệ thực hiện</div>
+              <div className={styles.kpiLabel}><BarChart3 size={16} style={{ color: 'var(--warning)' }} /> Tỉ lệ thực hiện</div>
               <div className={styles.kpiValue} style={{ color: pct === null ? 'var(--text-muted)' : costColor(pct) }}>
                 {pct === null ? '—' : `${pct}%`}
               </div>
@@ -758,18 +762,18 @@ function DashboardThangView({ categories, groupedCats, getKH, getTT, dataLoading
 
             {isCurrentMonth && khThang > 0 ? (
               <div className={`glass-card ${styles.kpiCard}`}>
-                <div className={styles.kpiLabel}><TrendingUp size={16} style={{ color: '#10b981' }} /> Dự đoán cuối tháng</div>
+                <div className={styles.kpiLabel}><TrendingUp size={16} style={{ color: 'var(--success)' }} /> Dự đoán cuối tháng</div>
                 <div className={styles.kpiValue} style={{ color: duDoanPct === null ? 'var(--text-muted)' : costColor(duDoanPct) }}>{formatVND(duDoan)}</div>
                 <div className={styles.kpiSub}>
                   {duDoanPct !== null && duDoanPct >= 100
-                    ? <span style={{ color: '#f87171' }}>Dự kiến VƯỢT {duDoanPct - 100}% KH</span>
-                    : <span style={{ color: '#34d399' }}>Dự kiến trong KH ({duDoanPct ?? 0}%)</span>}
+                    ? <span style={{ color: 'var(--danger)' }}>Dự kiến VƯỢT {duDoanPct - 100}% KH</span>
+                    : <span style={{ color: 'var(--success)' }}>Dự kiến trong KH ({duDoanPct ?? 0}%)</span>}
                   {` · theo ${daysPassed}/${daysInM} ngày`}
                 </div>
               </div>
             ) : (
               <div className={`glass-card ${styles.kpiCard}`}>
-                <div className={styles.kpiLabel}><AlertTriangle size={16} style={{ color: '#f59e0b' }} /> {topCat ? 'Chi nhiều nhất' : 'Vượt kế hoạch'}</div>
+                <div className={styles.kpiLabel}><AlertTriangle size={16} style={{ color: 'var(--warning)' }} /> {topCat ? 'Chi nhiều nhất' : 'Vượt kế hoạch'}</div>
                 {topCat ? (
                   <>
                     <div className={styles.kpiValue} style={{ fontSize: '1.05rem', color: 'var(--brand-brown)' }}>{topCat.ten}</div>
@@ -938,7 +942,7 @@ function DashboardThangView({ categories, groupedCats, getKH, getTT, dataLoading
                                 {p !== null ? <span style={{ fontWeight: 700, color: costColor(p) }}>{p}%</span> : '—'}
                               </td>
                               <td>
-                                {kh === 0 ? <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>Chưa lập KH</span>
+                                {kh === 0 ? <span style={{ color: 'var(--warning)', fontSize: '0.8rem' }}>Chưa lập KH</span>
                                   : p >= 100 ? <span className={styles.badgeRed}><AlertTriangle size={12} /> Vượt KH</span>
                                   : p >= 80 ? <span className={styles.badgeYellow}><AlertTriangle size={12} /> Sắp chạm</span>
                                   : <span className={styles.badgeGreen}><CheckCircle2 size={12} /> Trong KH</span>}
@@ -1003,21 +1007,21 @@ function DashboardView({
 
             <div className={`glass-card ${styles.kpiCard}`}>
               <div className={styles.kpiLabel}>
-                <TrendingDown size={16} style={{ color: '#ef4444' }} /> Thực tế đã chi
+                <TrendingDown size={16} style={{ color: 'var(--danger)' }} /> Thực tế đã chi
               </div>
-              <div className={styles.kpiValue} style={{ color: '#ef4444' }}>{formatVND(tongTTNam)}</div>
+              <div className={styles.kpiValue} style={{ color: 'var(--danger)' }}>{formatVND(tongTTNam)}</div>
               <div className={styles.kpiSub}>
                 {pct >= 100 ? (
-                  <span style={{ color: '#f87171' }}>▲ Vượt {pct - 100}% kế hoạch</span>
+                  <span style={{ color: 'var(--danger)' }}>▲ Vượt {pct - 100}% kế hoạch</span>
                 ) : (
-                  <span style={{ color: '#34d399' }}>Còn lại {formatVND(tongKHNam - tongTTNam)}</span>
+                  <span style={{ color: 'var(--success)' }}>Còn lại {formatVND(tongKHNam - tongTTNam)}</span>
                 )}
               </div>
             </div>
 
             <div className={`glass-card ${styles.kpiCard}`}>
               <div className={styles.kpiLabel}>
-                <BarChart3 size={16} style={{ color: '#f59e0b' }} /> Tỉ lệ thực hiện năm
+                <BarChart3 size={16} style={{ color: 'var(--warning)' }} /> Tỉ lệ thực hiện năm
               </div>
               <div
                 className={styles.kpiValue}
@@ -1031,7 +1035,7 @@ function DashboardView({
             {thangHienTai && (
               <div className={`glass-card ${styles.kpiCard}`}>
                 <div className={styles.kpiLabel}>
-                  <TrendingUp size={16} style={{ color: '#10b981' }} /> Tháng {thangHienTai} hiện tại
+                  <TrendingUp size={16} style={{ color: 'var(--success)' }} /> Tháng {thangHienTai} hiện tại
                 </div>
                 <div
                   className={styles.kpiValue}
@@ -1165,7 +1169,7 @@ function DashboardView({
                           {kh === 0 && tt === 0 ? (
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Chưa có dữ liệu</span>
                           ) : p === null ? (
-                            <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>Chưa lập KH</span>
+                            <span style={{ color: 'var(--warning)', fontSize: '0.8rem' }}>Chưa lập KH</span>
                           ) : p >= 100 ? (
                             <span className={styles.badgeRed}><AlertTriangle size={12} /> Vượt hạn mức</span>
                           ) : p >= 80 ? (

@@ -17,13 +17,18 @@ import {
   Mail,
   Eye,
   Send,
+  Printer,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 import styles from './bao-cao.module.css';
 
 export default function BaoCaoThuChiPage() {
   const router = useRouter();
+  const toast = useToast();
+  const showConfirm = useConfirm();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -85,7 +90,7 @@ export default function BaoCaoThuChiPage() {
           // Báo cáo Thu - Chi map với key "baoCao" hoặc default cho Owner/Manager
           const hasPermission = data.user.permissions?.baoCao || data.user.role === 'OWNER' || data.user.role === 'MANAGER';
           if (!hasPermission) {
-            alert('Bạn không có quyền truy cập trang Báo cáo Thu - Chi.');
+            toast.error('Bạn không có quyền truy cập trang Báo cáo Thu - Chi.');
             router.push('/');
             return;
           }
@@ -212,7 +217,8 @@ export default function BaoCaoThuChiPage() {
   }, [loiNhuanData, filterThang]);
 
   const handleGuiThuThang = async () => {
-    if (!confirm(`Gửi Lá thư ARI tổng kết tháng ${letterThang}/${letterNam} tới tất cả quản lý?`)) return;
+    const ok = await showConfirm({ message: `Gửi Lá thư ARI tổng kết tháng ${letterThang}/${letterNam} tới tất cả quản lý?`, confirmLabel: 'Gửi' });
+    if (!ok) return;
     setLetterSending(true);
     setLetterResult(null);
     try {
@@ -250,7 +256,7 @@ export default function BaoCaoThuChiPage() {
 
   const handleExportExcel = async () => {
     if (filteredTx.length === 0) {
-      alert('Không có dữ liệu để xuất.');
+      toast.info('Không có dữ liệu để xuất.');
       return;
     }
 
@@ -315,15 +321,38 @@ export default function BaoCaoThuChiPage() {
             <h1>Báo cáo Thu - Chi</h1>
             <p className={styles.pageDesc}>Tổng hợp phân tích cơ cấu chi tiêu, doanh thu và net cashflow tích lũy của shop</p>
           </div>
-          <button
-            onClick={handleExportExcel}
-            className="btn btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
-            disabled={dataLoading}
-          >
-            <Download size={16} />
-            Xuất Excel
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={handleExportExcel}
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+              disabled={dataLoading}
+            >
+              <Download size={16} />
+              Xuất Excel
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }}
+            >
+              <Printer size={16} />
+              In báo cáo
+            </button>
+          </div>
+        </div>
+
+        {/* Header bản in — chỉ hiện khi @media print */}
+        <div className={styles.printHeader}>
+          <h2>Call Me Ari — Báo cáo Thu-Chi</h2>
+          <p>
+            Kỳ:{' '}
+            {filterThang.length > 0
+              ? `Tháng ${[...filterThang].sort((a, b) => +a - +b).join(', ')}`
+              : 'Cả năm'}{' '}
+            {filterNam || ''}
+          </p>
+          <p>Ngày in: {new Date().toLocaleDateString('vi-VN')}</p>
         </div>
 
         {/* SECTION 1: SMART FILTER GRID */}
@@ -379,17 +408,19 @@ export default function BaoCaoThuChiPage() {
               </h2>
             </div>
             {loiNhuanLoading ? (
-              <div className={styles.loaderSmall}>Đang tải...</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                {[1, 2, 3].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+              </div>
             ) : loiNhuanKy ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '1.25rem' }}>
                 <div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Doanh thu thực tế</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#10b981' }}>+{formatVND(loiNhuanKy.doanhThuThucTe)}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success)' }}>+{formatVND(loiNhuanKy.doanhThuThucTe)}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Từ kênh bán hàng</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.3rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Chi phí vận hành</div>
-                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444' }}>-{formatVND(loiNhuanKy.chiPhiThucTe)}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--danger)' }}>-{formatVND(loiNhuanKy.chiPhiThucTe)}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>ThuChi + lịch sử</div>
                 </div>
                 <div>
@@ -505,12 +536,14 @@ export default function BaoCaoThuChiPage() {
             {/* Nhóm Thu nhập */}
             <div className="glass-card">
               <div className={styles.cardHeader}>
-                <Layers size={18} className={styles.cardTitleIcon} style={{ color: '#10b981' }} />
+                <Layers size={18} className={styles.cardTitleIcon} style={{ color: 'var(--success)' }} />
                 <h2>Cơ cấu nguồn thu theo Nhóm</h2>
               </div>
               
               {dataLoading ? (
-                <div className={styles.loaderSmall}>Đang tải...</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                {[1, 2, 3].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+              </div>
               ) : sortedThuGroups.length === 0 ? (
                 <div className={styles.emptyState}>Chưa ghi nhận nguồn thu nào trong kỳ.</div>
               ) : (
@@ -542,12 +575,14 @@ export default function BaoCaoThuChiPage() {
             {/* Top danh mục Thu */}
             <div className="glass-card">
               <div className={styles.cardHeader}>
-                <PieChart size={18} className={styles.cardTitleIcon} style={{ color: '#10b981' }} />
+                <PieChart size={18} className={styles.cardTitleIcon} style={{ color: 'var(--success)' }} />
                 <h2>Top danh mục thu nhiều nhất</h2>
               </div>
               
               {dataLoading ? (
-                <div className={styles.loaderSmall}>Đang tải...</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                {[1, 2, 3].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+              </div>
               ) : sortedThuCats.length === 0 ? (
                 <div className={styles.emptyState}>Chưa có danh mục thu nào phát sinh.</div>
               ) : (
@@ -582,12 +617,14 @@ export default function BaoCaoThuChiPage() {
             {/* Nhóm Chi phí */}
             <div className="glass-card">
               <div className={styles.cardHeader}>
-                <Layers size={18} className={styles.cardTitleIcon} style={{ color: '#ef4444' }} />
+                <Layers size={18} className={styles.cardTitleIcon} style={{ color: 'var(--danger)' }} />
                 <h2>Cơ cấu chi phí theo Nhóm</h2>
               </div>
               
               {dataLoading ? (
-                <div className={styles.loaderSmall}>Đang tải...</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                {[1, 2, 3].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+              </div>
               ) : sortedChiGroups.length === 0 ? (
                 <div className={styles.emptyState}>Chưa ghi nhận chi phí nào trong kỳ.</div>
               ) : (
@@ -619,12 +656,14 @@ export default function BaoCaoThuChiPage() {
             {/* Top danh mục Chi */}
             <div className="glass-card">
               <div className={styles.cardHeader}>
-                <PieChart size={18} className={styles.cardTitleIcon} style={{ color: '#ef4444' }} />
+                <PieChart size={18} className={styles.cardTitleIcon} style={{ color: 'var(--danger)' }} />
                 <h2>Top danh mục chi nhiều nhất</h2>
               </div>
               
               {dataLoading ? (
-                <div className={styles.loaderSmall}>Đang tải...</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                {[1, 2, 3].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+              </div>
               ) : sortedChiCats.length === 0 ? (
                 <div className={styles.emptyState}>Chưa có danh mục chi nào phát sinh.</div>
               ) : (

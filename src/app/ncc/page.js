@@ -18,10 +18,14 @@ import {
   Copy
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 import styles from './ncc.module.css';
 
 export default function VendorsPage() {
   const router = useRouter();
+  const toast = useToast();
+  const showConfirm = useConfirm();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -223,18 +227,21 @@ export default function VendorsPage() {
   };
 
   const handleDelete = async (vId, vName) => {
-    if (confirm(`Bạn có chắc chắn muốn XÓA nhà cung cấp "${vName}" [${vId}]?\nHành động này chỉ thành công nếu nhà cung cấp chưa có giao dịch phát sinh.`)) {
-      try {
-        const res = await fetch(`/api/ncc/${vId}`, { method: 'DELETE' });
-        const data = await res.json();
-        
-        if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
-        
-        alert(`Đã xóa nhà cung cấp "${vName}" thành công.`);
-        fetchVendors();
-      } catch (err) {
-        alert(err.message);
-      }
+    const ok = await showConfirm({
+      title: `Xóa nhà cung cấp "${vName}"`,
+      message: `Hành động này chỉ thành công nếu nhà cung cấp chưa có giao dịch phát sinh.`,
+      confirmLabel: 'Xóa NCC',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/ncc/${vId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Xóa thất bại.');
+      toast.success(`Đã xóa nhà cung cấp "${vName}" thành công`);
+      fetchVendors();
+    } catch (err) {
+      toast.error(err.message);
     }
   };
 
@@ -295,12 +302,12 @@ export default function VendorsPage() {
           </div>
 
           <div className={`${styles.kpiCard} glass-card`}>
-            <div className={styles.kpiIcon} style={{ color: '#10b981' }}>
+            <div className={styles.kpiIcon} style={{ color: 'var(--success)' }}>
               <DollarSign size={24} />
             </div>
             <div className={styles.kpiInfo}>
               <h3>Tổng tiền đã chi cho NCC</h3>
-              <p className={styles.kpiValue} style={{ color: '#34d399' }}>{formatVND(totalSpent)}</p>
+              <p className={styles.kpiValue} style={{ color: 'var(--success)' }}>{formatVND(totalSpent)}</p>
             </div>
           </div>
         </div>
@@ -323,7 +330,9 @@ export default function VendorsPage() {
         {/* Vendors Table */}
         <div className="glass-card" style={{ marginTop: '1.5rem' }}>
           {dataLoading ? (
-            <div className={styles.loaderSmall}>Đang tải danh sách nhà cung cấp...</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+              {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+            </div>
           ) : filteredVendors.length === 0 ? (
             <div className={styles.emptyState}>Không tìm thấy nhà cung cấp nào.</div>
           ) : (
@@ -344,7 +353,7 @@ export default function VendorsPage() {
                 <tbody>
                   {filteredVendors.map((v) => (
                     <tr key={v.id}>
-                      <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{v.id}</td>
+                      <td style={{ fontWeight: 'bold', color: 'var(--info)' }}>{v.id}</td>
                       <td style={{ fontWeight: '600' }}>{v.tenNCC}</td>
                       <td style={{ fontWeight: '500', color: v.tenTaiKhoan ? 'var(--text-main)' : 'var(--text-muted)', fontStyle: v.tenTaiKhoan ? 'normal' : 'italic' }}>
                         {v.tenTaiKhoan || 'Chưa có'}
@@ -356,7 +365,7 @@ export default function VendorsPage() {
                           {v.soPhieuChi || 0} lần
                         </span>
                       </td>
-                      <td style={{ fontWeight: '800', color: '#34d399', textAlign: 'right' }}>
+                      <td style={{ fontWeight: '800', color: 'var(--success)', textAlign: 'right' }}>
                         {formatVND(v.tongDaChi || 0)}
                       </td>
                       <td style={{ textAlign: 'center' }}>
@@ -481,7 +490,7 @@ export default function VendorsPage() {
                       <button
                         type="button"
                         onClick={() => setIsQuickBankOpen(true)}
-                        style={{ color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', padding: 0 }}
+                        style={{ color: 'var(--info)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', padding: 0 }}
                       >
                         + Thêm nhanh NH
                       </button>
@@ -553,7 +562,7 @@ export default function VendorsPage() {
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.label}>Mã đối tác:</span>
-                    <span className={styles.value} style={{ color: '#60a5fa' }}>{selectedVendor.id}</span>
+                    <span className={styles.value} style={{ color: 'var(--info)' }}>{selectedVendor.id}</span>
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.label}>Số tài khoản:</span>
@@ -575,7 +584,7 @@ export default function VendorsPage() {
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.label}>Tổng tiền đã chi:</span>
-                    <span className={styles.value} style={{ color: '#34d399', fontSize: '1.05rem' }}>{formatVND(selectedVendor.tongDaChi || 0)}</span>
+                    <span className={styles.value} style={{ color: 'var(--success)', fontSize: '1.05rem' }}>{formatVND(selectedVendor.tongDaChi || 0)}</span>
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.label}>Tổng số giao dịch:</span>
@@ -629,7 +638,8 @@ export default function VendorsPage() {
                             title={`Xóa ${b.tenVietTat}`}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '2px', flexShrink: 0, opacity: deletingBankId === b.id ? 0.5 : 1 }}
                             onClick={async () => {
-                              if (!confirm(`Xóa ngân hàng "${b.tenVietTat} - ${b.tenDayDu}"?\nNCC đã lưu sẽ không bị ảnh hưởng.`)) return;
+                              const ok = await showConfirm({ message: `Xóa ngân hàng "${b.tenVietTat} - ${b.tenDayDu}"?\nNCC đã lưu sẽ không bị ảnh hưởng.`, confirmLabel: 'Xóa', danger: true });
+                              if (!ok) return;
                               setDeletingBankId(b.id);
                               try {
                                 const res = await fetch(`/api/ngan-hang/${b.id}`, { method: 'DELETE' });
@@ -755,14 +765,16 @@ export default function VendorsPage() {
             </div>
 
             {historyLoading ? (
-              <div className={styles.loaderSmall}>Đang tải lịch sử...</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                {[1, 2, 3].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+              </div>
             ) : vendorHistory.length === 0 ? (
               <div className={styles.emptyState}>Chưa có giao dịch nào với nhà cung cấp này.</div>
             ) : (
               <div style={{ overflowY: 'auto', flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{vendorHistory.length} phiếu</span>
-                  <span style={{ fontWeight: '700', color: '#34d399' }}>
+                  <span style={{ fontWeight: '700', color: 'var(--success)' }}>
                     Tổng: {formatVND(vendorHistory.reduce((s, p) => s + p.soTien, 0))}
                   </span>
                 </div>
@@ -781,7 +793,7 @@ export default function VendorsPage() {
                     <tbody>
                       {vendorHistory.map((p) => (
                         <tr key={p.id}>
-                          <td style={{ fontWeight: 'bold', color: '#60a5fa' }}>{p.maPhieu}</td>
+                          <td style={{ fontWeight: 'bold', color: 'var(--info)' }}>{p.maPhieu}</td>
                           <td suppressHydrationWarning>{new Date(p.ngayPhatSinh).toLocaleDateString('vi-VN')}</td>
                           <td>{p.noiDung}</td>
                           <td>{p.nguoiTao?.hoTen || '—'}</td>
