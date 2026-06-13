@@ -2,6 +2,9 @@
 
 Ứng dụng quản lý tài chính nội bộ cho shop **Call Me Ari**: đề xuất chi phí, duyệt thanh toán, theo dõi thu-chi, kế hoạch chi phí / doanh thu, lợi nhuận và nhân sự.
 
+- **Production:** https://callmeari-finance.vercel.app/
+- **Repo:** https://github.com/callmeari-office/Ari-Finance
+
 ## Stack
 
 | Thành phần | Công nghệ |

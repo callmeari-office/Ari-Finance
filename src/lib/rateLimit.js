@@ -1,74 +1,100 @@
-// Giới hạn số lần thử (chống dò mật khẩu brute-force).
-// Lưu trong RAM của server — đủ cho app nội bộ 1 instance.
-// Lưu ý: nếu deploy serverless nhiều instance (vd Vercel scale), mỗi instance đếm riêng;
-// khi đó nên chuyển sang lưu ở DB/Redis. Với SME <5 người, mức này là đủ.
+// Giới hạn số lần thử đăng nhập sai — lưu ở PostgreSQL để đếm xuyên instance serverless.
+// Interface: checkRateLimit / recordFailure / resetRateLimit (tất cả async).
+// Cửa sổ 15 phút / 5 lần / khóa 15 phút.
 
-const store = new Map(); // key -> { count, firstAt, blockedUntil }
+import { prisma } from './prisma';
 
-const WINDOW_MS = 15 * 60 * 1000; // cửa sổ tính số lần thử: 15 phút
-const MAX_ATTEMPTS = 5;            // tối đa 5 lần sai trong cửa sổ
-const BLOCK_MS = 15 * 60 * 1000;  // khóa tạm 15 phút sau khi vượt ngưỡng
+const WINDOW_MS = 15 * 60 * 1000;
+const MAX_ATTEMPTS = 5;
+const BLOCK_MS = 15 * 60 * 1000;
 
 /**
- * Kiểm tra một key (vd: username + IP) còn được phép thử không.
+ * Kiểm tra key (IP:username) còn được phép thử không.
  * @returns {{ allowed: boolean, retryAfterSec?: number, remaining?: number }}
  */
-export function checkRateLimit(key) {
-  const now = Date.now();
-  const rec = store.get(key);
+export async function checkRateLimit(key) {
+  try {
+    const now = Date.now();
+    const rows = await prisma.$queryRaw`
+      SELECT "count", "firstAt", "blockedUntil"
+      FROM "LoginAttempt"
+      WHERE "key" = ${key}
+    `;
 
-  if (!rec) return { allowed: true, remaining: MAX_ATTEMPTS };
+    if (!rows.length) return { allowed: true, remaining: MAX_ATTEMPTS };
 
-  // Đang trong thời gian bị khóa
-  if (rec.blockedUntil && now < rec.blockedUntil) {
-    return { allowed: false, retryAfterSec: Math.ceil((rec.blockedUntil - now) / 1000) };
-  }
+    const count = rows[0].count;
+    const firstAt = Number(rows[0].firstAt);
+    const blockedUntil = Number(rows[0].blockedUntil);
 
-  // Cửa sổ cũ đã hết hạn → reset
-  if (now - rec.firstAt > WINDOW_MS) {
-    store.delete(key);
+    if (blockedUntil > 0 && now < blockedUntil) {
+      return { allowed: false, retryAfterSec: Math.ceil((blockedUntil - now) / 1000) };
+    }
+
+    if (now - firstAt > WINDOW_MS) {
+      // Cửa sổ cũ đã hết hạn — dọn dẹp và reset
+      await prisma.$executeRaw`DELETE FROM "LoginAttempt" WHERE "key" = ${key}`;
+      return { allowed: true, remaining: MAX_ATTEMPTS };
+    }
+
+    return { allowed: true, remaining: Math.max(0, MAX_ATTEMPTS - count) };
+  } catch {
+    // Fail open nếu DB không trả lời — ưu tiên availability
     return { allowed: true, remaining: MAX_ATTEMPTS };
   }
-
-  return { allowed: true, remaining: Math.max(0, MAX_ATTEMPTS - rec.count) };
 }
 
 /**
- * Ghi nhận một lần thử THẤT BẠI. Trả về true nếu vừa bị khóa.
+ * Ghi nhận một lần thử THẤT BẠI (upsert nguyên tử).
+ * Trả về true nếu vừa bị khóa.
  */
-export function recordFailure(key) {
-  const now = Date.now();
-  const rec = store.get(key);
+export async function recordFailure(key) {
+  try {
+    const now = Date.now();
+    const nowBig = BigInt(now);
+    const windowBig = BigInt(WINDOW_MS);
+    const blockUntilBig = BigInt(now + BLOCK_MS);
 
-  if (!rec || now - rec.firstAt > WINDOW_MS) {
-    store.set(key, { count: 1, firstAt: now, blockedUntil: 0 });
+    const rows = await prisma.$queryRaw`
+      INSERT INTO "LoginAttempt" ("key", "count", "firstAt", "blockedUntil", "updatedAt")
+      VALUES (${key}, 1, ${nowBig}, ${BigInt(0)}, ${nowBig})
+      ON CONFLICT ("key") DO UPDATE SET
+        "count" = CASE
+          WHEN (${nowBig} - "LoginAttempt"."firstAt") > ${windowBig}
+            THEN 1
+          ELSE "LoginAttempt"."count" + 1
+        END,
+        "firstAt" = CASE
+          WHEN (${nowBig} - "LoginAttempt"."firstAt") > ${windowBig}
+            THEN ${nowBig}
+          ELSE "LoginAttempt"."firstAt"
+        END,
+        "blockedUntil" = CASE
+          WHEN (${nowBig} - "LoginAttempt"."firstAt") > ${windowBig}
+            THEN ${BigInt(0)}
+          WHEN ("LoginAttempt"."count" + 1) >= ${MAX_ATTEMPTS}
+            THEN ${blockUntilBig}
+          ELSE ${BigInt(0)}
+        END,
+        "updatedAt" = ${nowBig}
+      RETURNING "count", "blockedUntil"
+    `;
+
+    if (!rows.length) return false;
+    const blocked = Number(rows[0].blockedUntil);
+    return blocked > 0 && blocked > now;
+  } catch {
     return false;
   }
-
-  rec.count += 1;
-  if (rec.count >= MAX_ATTEMPTS) {
-    rec.blockedUntil = now + BLOCK_MS;
-  }
-  store.set(key, rec);
-  return rec.count >= MAX_ATTEMPTS;
 }
 
 /**
  * Xóa bộ đếm khi đăng nhập THÀNH CÔNG.
  */
-export function resetRateLimit(key) {
-  store.delete(key);
-}
-
-// Dọn rác định kỳ để Map không phình mãi (chạy 1 lần khi module nạp).
-if (typeof setInterval !== 'undefined') {
-  const timer = setInterval(() => {
-    const now = Date.now();
-    for (const [key, rec] of store.entries()) {
-      const expired = now - rec.firstAt > WINDOW_MS && (!rec.blockedUntil || now > rec.blockedUntil);
-      if (expired) store.delete(key);
-    }
-  }, WINDOW_MS);
-  // Không giữ tiến trình sống chỉ vì timer này.
-  if (timer.unref) timer.unref();
+export async function resetRateLimit(key) {
+  try {
+    await prisma.$executeRaw`DELETE FROM "LoginAttempt" WHERE "key" = ${key}`;
+  } catch {
+    // Không critical — đăng nhập đã thành công
+  }
 }

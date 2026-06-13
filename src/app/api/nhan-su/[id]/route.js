@@ -88,7 +88,13 @@ export async function PUT(request, { params }) {
 
     // Reset mật khẩu nếu có
     if (matKhau) {
-      const salt = await bcrypt.genSalt(10);
+      if (String(matKhau).length < 10) {
+        return NextResponse.json(
+          { error: 'Mật khẩu phải có ít nhất 10 ký tự.' },
+          { status: 400 }
+        );
+      }
+      const salt = await bcrypt.genSalt(12);
       updateData.matKhau = await bcrypt.hash(matKhau, salt);
     }
 

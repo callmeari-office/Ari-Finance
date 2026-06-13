@@ -33,6 +33,9 @@ model Session {
   userId    String
   expiresAt DateTime
   nhanVien  NhanVien @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model VaiTroQuyen {
@@ -272,6 +275,15 @@ model ThongBaoNoiBo {
 
   @@index([trangThai])
   @@index([ngayHetHan])
+}
+
+// Bảng đếm thử đăng nhập sai để chống brute-force xuyên instance serverless.
+model LoginAttempt {
+  key          String @id
+  count        Int    @default(0)
+  firstAt      BigInt @default(0)
+  blockedUntil BigInt @default(0)
+  updatedAt    BigInt @default(0)
 }
 
 // Nhật ký thao tác (audit log) — ghi lại ai làm gì, lúc nào.

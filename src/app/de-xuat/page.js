@@ -412,16 +412,18 @@ function DeXuatPage() {
     setAnhLoading(true);
     try {
       const { compressImage } = await import('@/lib/compressImage');
-      const compressed = await compressImage(file, { maxWidth: 1000, maxHeight: 1000, quality: 0.7 });
-      const base64 = compressed.split(',')[1] || '';
-      if (base64.length * 0.75 > 2 * 1024 * 1024) {
-        toast.error('Ảnh sau khi nén vẫn quá 2 MB. Vui lòng chọn ảnh nhỏ hơn.');
-        setAnhLoading(false);
-        return;
-      }
-      setAnhHoaDon(compressed);
+      const dataUrl = await compressImage(file, { maxWidth: 1000, maxHeight: 1000, quality: 0.7 });
+
+      const res = await fetch('/api/upload-anh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload ảnh thất bại.');
+      setAnhHoaDon(data.url);
     } catch (err) {
-      toast.error('Không thể đọc ảnh: ' + err.message);
+      toast.error('Không thể tải ảnh lên: ' + err.message);
     } finally {
       setAnhLoading(false);
     }
@@ -1650,7 +1652,7 @@ function DeXuatPage() {
                       color: 'var(--text-muted)', minWidth: '120px', transition: 'border-color 0.15s',
                     }}>
                       <Upload size={20} style={{ color: 'var(--primary)' }} />
-                      <span>{anhLoading ? 'Đang nén...' : 'Chọn ảnh'}</span>
+                      <span>{anhLoading ? 'Đang tải lên...' : 'Chọn ảnh'}</span>
                       <input type="file" accept="image/*" onChange={handleAnhHoaDonChange} style={{ display: 'none' }} disabled={formLoading || anhLoading} />
                     </label>
                     {anhHoaDon && (

@@ -222,7 +222,7 @@ export default function BaoCaoThuChiPage() {
     setLetterSending(true);
     setLetterResult(null);
     try {
-      const res = await fetch(`/api/cron/thu-thang?thang=${letterThang}&nam=${letterNam}`);
+      const res = await fetch(`/api/cron/thu-thang?thang=${letterThang}&nam=${letterNam}`, { method: 'POST' });
       const data = await res.json();
       setLetterResult(data);
     } catch {

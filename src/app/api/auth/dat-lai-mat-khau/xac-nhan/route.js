@@ -65,8 +65,8 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Thiếu token hoặc mật khẩu.' }, { status: 400 });
     }
 
-    if (typeof matKhau !== 'string' || matKhau.length < 6) {
-      return NextResponse.json({ error: 'Mật khẩu mới phải có ít nhất 6 ký tự.' }, { status: 400 });
+    if (typeof matKhau !== 'string' || matKhau.length < 10) {
+      return NextResponse.json({ error: 'Mật khẩu mới phải có ít nhất 10 ký tự.' }, { status: 400 });
     }
 
     const rows = await prisma.$queryRaw`
@@ -88,7 +88,7 @@ export async function POST(request) {
     }
 
     // Hash mật khẩu mới
-    const hash = await bcrypt.hash(matKhau, 10);
+    const hash = await bcrypt.hash(matKhau, 12);
 
     // Cập nhật mật khẩu và đánh dấu token đã dùng trong một transaction
     await prisma.$transaction([

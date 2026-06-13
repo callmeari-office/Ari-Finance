@@ -96,7 +96,7 @@ async function main() {
   });
 
   console.log('Tạo dữ liệu Nhân Viên...');
-  const salt = await bcrypt.genSalt(10);
+  const salt = await bcrypt.genSalt(12);
   const hashOwner = await bcrypt.hash('owner123', salt);
   const hashManager = await bcrypt.hash('manager123', salt);
   const hashStaff = await bcrypt.hash('staff123', salt);

@@ -5,8 +5,9 @@ import { logger } from '@/lib/logger';
 import { generateMaDeXuat } from '@/lib/generateId';
 import { notifyManagersChoThanhToan } from '@/lib/email';
 import { notifyManagers as pushNotifyManagers } from '@/lib/webpush';
-import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
+import { canViewCategory, isRestrictedToOwnProposals, getEffectiveRoles } from '@/lib/roles';
 import { ghiNhatKy } from '@/lib/audit';
+import { validateStorageImageUrl } from '@/lib/validateImage';
 
 const DEFAULT_LIMIT = 20;
 
@@ -101,6 +102,14 @@ export async function GET(request) {
       ];
     }
 
+    // [M5] Lọc quyền danh mục tại DB để count/sum/pagination nhất quán
+    if (user.role !== 'OWNER' && user.role !== 'MANAGER') {
+      const effectiveRoles = getEffectiveRoles(user.role);
+      where.danhMuc = {
+        OR: effectiveRoles.map(r => ({ chucVuDuocXem: { contains: `"${r}"` } })),
+      };
+    }
+
     const include = {
       danhMuc: { include: { nhomChiPhi: true } },
       nhaCungCap: true,
@@ -126,20 +135,10 @@ export async function GET(request) {
       })
     ]);
 
-    const filteredProposals = proposals.filter((prop) => {
-      if (user.role === 'OWNER' || user.role === 'MANAGER') return true;
-      try {
-        const allowedRoles = JSON.parse(prop.danhMuc.chucVuDuocXem);
-        return canViewCategory(user.role, allowedRoles);
-      } catch {
-        return false;
-      }
-    });
-
     const totalSum = totalSumResult._sum.soTien || 0;
 
     return NextResponse.json({
-      data: filteredProposals,
+      data: proposals,
       pagination: {
         page,
         limit,
@@ -178,20 +177,11 @@ export async function POST(request) {
       anhHoaDon,
     } = body;
 
-    // Kiểm tra ảnh hóa đơn nếu có gửi lên
+    // Kiểm tra URL ảnh hóa đơn nếu có gửi lên
     if (anhHoaDon) {
-      const MAX_BYTES = 2 * 1024 * 1024; // 2 MB sau khi decode
-      if (typeof anhHoaDon !== 'string' || !anhHoaDon.startsWith('data:image/')) {
-        return NextResponse.json({ error: 'Ảnh hóa đơn không hợp lệ (chỉ chấp nhận file ảnh).' }, { status: 400 });
-      }
-      const commaIdx = anhHoaDon.indexOf(',');
-      if (commaIdx === -1) {
-        return NextResponse.json({ error: 'Định dạng ảnh hóa đơn không hợp lệ.' }, { status: 400 });
-      }
-      const base64Data = anhHoaDon.slice(commaIdx + 1);
-      const byteLength = Math.floor(base64Data.length * 0.75);
-      if (byteLength > MAX_BYTES) {
-        return NextResponse.json({ error: 'Ảnh hóa đơn quá lớn (tối đa 2 MB). Vui lòng nén ảnh trước khi tải lên.' }, { status: 400 });
+      const imgError = validateStorageImageUrl(anhHoaDon);
+      if (imgError) {
+        return NextResponse.json({ error: imgError }, { status: 400 });
       }
     }
 

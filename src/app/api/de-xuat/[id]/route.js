@@ -6,6 +6,8 @@ import { generateMaThuChi } from '@/lib/generateId';
 import { isRestrictedToOwnProposals } from '@/lib/roles';
 import { ghiNhatKy } from '@/lib/audit';
 import { notifyUser } from '@/lib/webpush';
+import { validateStorageImageUrl } from '@/lib/validateImage';
+import { deleteStorageImage } from '@/lib/supabase';
 
 export async function GET(request, { params }) {
   try {
@@ -86,6 +88,11 @@ export async function DELETE(request, { params }) {
 
     await prisma.deXuatChiPhi.delete({ where: { id } });
 
+    // Xóa ảnh hóa đơn khỏi Storage sau khi DB đã xóa thành công
+    if (existingProposal.anhHoaDon) {
+      await deleteStorageImage(existingProposal.anhHoaDon);
+    }
+
     await ghiNhatKy({
       user,
       hanhDong: 'XOA',
@@ -119,19 +126,11 @@ export async function PUT(request, { params }) {
     const body = await request.json();
     const { action, quyThanhToanId, ngayGiaoDich, noiDung, soTien, danhMucId, nhaCungCapId, ghiChu, ngayCanThanhToan, ngayPhatSinh, nguonTien, trangThai, anhHoaDon } = body;
 
-    // Kiểm tra ảnh hóa đơn nếu có gửi lên (chỉ validate khi có giá trị khác null)
+    // Kiểm tra URL ảnh hóa đơn nếu có gửi lên (chỉ validate khi có giá trị khác null)
     if (anhHoaDon) {
-      const MAX_BYTES = 2 * 1024 * 1024;
-      if (typeof anhHoaDon !== 'string' || !anhHoaDon.startsWith('data:image/')) {
-        return NextResponse.json({ error: 'Ảnh hóa đơn không hợp lệ (chỉ chấp nhận file ảnh).' }, { status: 400 });
-      }
-      const commaIdx = anhHoaDon.indexOf(',');
-      if (commaIdx === -1) {
-        return NextResponse.json({ error: 'Định dạng ảnh hóa đơn không hợp lệ.' }, { status: 400 });
-      }
-      const byteLength = Math.floor(anhHoaDon.slice(commaIdx + 1).length * 0.75);
-      if (byteLength > MAX_BYTES) {
-        return NextResponse.json({ error: 'Ảnh hóa đơn quá lớn (tối đa 2 MB). Vui lòng nén ảnh trước khi tải lên.' }, { status: 400 });
+      const imgError = validateStorageImageUrl(anhHoaDon);
+      if (imgError) {
+        return NextResponse.json({ error: imgError }, { status: 400 });
       }
     }
 
@@ -308,7 +307,13 @@ export async function PUT(request, { params }) {
       updateData.ngayCanThanhToan = (ngayCanThanhToan && String(ngayCanThanhToan).trim() !== '') ? new Date(ngayCanThanhToan) : null;
     }
     if (anhHoaDon !== undefined) {
-      updateData.anhHoaDon = anhHoaDon || null;
+      const newUrl = anhHoaDon || null;
+      const oldUrl = existingProposal.anhHoaDon;
+      // Xóa ảnh cũ khỏi Storage khi bị thay bằng ảnh mới hoặc xóa đi
+      if (oldUrl && oldUrl !== newUrl) {
+        await deleteStorageImage(oldUrl);
+      }
+      updateData.anhHoaDon = newUrl;
     }
 
     const updatedProposal = await prisma.deXuatChiPhi.update({

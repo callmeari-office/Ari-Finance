@@ -24,7 +24,7 @@ export async function POST(request) {
       'unknown';
     const rlKey = `${ip}:${String(email).toLowerCase()}`;
 
-    const rl = checkRateLimit(rlKey);
+    const rl = await checkRateLimit(rlKey);
     if (!rl.allowed) {
       const phut = Math.ceil((rl.retryAfterSec || 0) / 60);
       return NextResponse.json(
@@ -39,7 +39,7 @@ export async function POST(request) {
     });
 
     if (!user || user.trangThai !== 'ACTIVE') {
-      recordFailure(rlKey);
+      await recordFailure(rlKey);
       return NextResponse.json(
         { error: 'Tên đăng nhập hoặc mật khẩu không chính xác.' },
         { status: 401 }
@@ -48,7 +48,7 @@ export async function POST(request) {
 
     const match = await bcrypt.compare(matKhau, user.matKhau);
     if (!match) {
-      const blocked = recordFailure(rlKey);
+      const blocked = await recordFailure(rlKey);
       return NextResponse.json(
         {
           error: blocked
@@ -60,7 +60,7 @@ export async function POST(request) {
     }
 
     // Đăng nhập thành công → xóa bộ đếm
-    resetRateLimit(rlKey);
+    await resetRateLimit(rlKey);
 
     // Tạo session
     await createSession(user.id);

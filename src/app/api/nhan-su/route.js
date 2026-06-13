@@ -81,9 +81,9 @@ export async function POST(request) {
       );
     }
 
-    if (matKhau.length < 6) {
+    if (matKhau.length < 10) {
       return NextResponse.json(
-        { error: 'Mật khẩu phải ít nhất 6 ký tự.' },
+        { error: 'Mật khẩu phải có ít nhất 10 ký tự.' },
         { status: 400 }
       );
     }
@@ -113,7 +113,7 @@ export async function POST(request) {
     const lastNum = lastUser ? parseInt(lastUser.id.replace('NV', ''), 10) : 0;
     const nextId = 'NV' + String(lastNum + 1).padStart(3, '0');
 
-    const hashPassword = await bcrypt.hash(matKhau, 10);
+    const hashPassword = await bcrypt.hash(matKhau, 12);
 
     const newNhanVien = await prisma.nhanVien.create({
       data: {

@@ -17,6 +17,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma.js';
 import { notifyManagers, notifyOwners } from '@/lib/webpush.js';
+import { logger } from '@/lib/logger';
 
 export async function GET(request) {
   // Xác thực cron secret
@@ -69,22 +70,30 @@ export async function GET(request) {
       results.push({ type: 'den-han', denHan: 0, quaHan: 0, sent: false });
     }
   } catch (err) {
-    results.push({ type: 'den-han', error: err.message });
+    logger.error('cron/thong-bao: den-han', err);
+    results.push({ type: 'den-han', error: 'Lỗi nội bộ' });
   }
 
   // ── (c) Quỹ âm ──────────────────────────────────────────────────────────
   try {
-    // Lấy tất cả quỹ ACTIVE, tính số dư = đầuKỳ + THU - CHI + điềuChỉnh
-    const quyList = await prisma.quy.findMany({
-      where: { trangThai: 'ACTIVE' },
-      include: {
-        thuChi: { select: { loaiGiaoDich: true, soTien: true } },
-      },
-    });
+    // Tổng hợp THU/CHI tại DB, tránh fetch toàn bộ giao dịch vào JS
+    const [quyList, grouped] = await Promise.all([
+      prisma.quy.findMany({ where: { trangThai: 'ACTIVE' } }),
+      prisma.thuChi.groupBy({
+        by: ['quyId', 'loaiGiaoDich'],
+        _sum: { soTien: true },
+      }),
+    ]);
+
+    const balanceMap = {};
+    for (const { quyId, loaiGiaoDich, _sum } of grouped) {
+      if (!balanceMap[quyId]) balanceMap[quyId] = { thu: 0, chi: 0 };
+      if (loaiGiaoDich === 'THU') balanceMap[quyId].thu = _sum.soTien || 0;
+      else balanceMap[quyId].chi = _sum.soTien || 0;
+    }
 
     const amQuy = quyList.filter((q) => {
-      const thu = q.thuChi.filter((t) => t.loaiGiaoDich === 'THU').reduce((s, t) => s + t.soTien, 0);
-      const chi = q.thuChi.filter((t) => t.loaiGiaoDich === 'CHI').reduce((s, t) => s + t.soTien, 0);
+      const { thu = 0, chi = 0 } = balanceMap[q.id] || {};
       return q.soDuDauKy + thu - chi + (q.soDuDieuChinh || 0) < 0;
     });
 
@@ -100,7 +109,8 @@ export async function GET(request) {
       results.push({ type: 'quy-am', count: 0, sent: false });
     }
   } catch (err) {
-    results.push({ type: 'quy-am', error: err.message });
+    logger.error('cron/thong-bao: quy-am', err);
+    results.push({ type: 'quy-am', error: 'Lỗi nội bộ' });
   }
 
   // ── (d) Nhắc nhập doanh thu ─────────────────────────────────────────────
@@ -125,7 +135,8 @@ export async function GET(request) {
       results.push({ type: 'doanh-thu', chuaNhap: 0, sent: false });
     }
   } catch (err) {
-    results.push({ type: 'doanh-thu', error: err.message });
+    logger.error('cron/thong-bao: doanh-thu', err);
+    results.push({ type: 'doanh-thu', error: 'Lỗi nội bộ' });
   }
 
   return NextResponse.json({ ok: true, ran: now.toISOString(), results });

@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { ghiNhatKy } from '@/lib/audit';
 import { sendPasswordResetEmail } from '@/lib/email';
+import { checkRateLimit, recordFailure } from '@/lib/rateLimit';
 
 const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 giờ
 
@@ -19,6 +20,15 @@ export async function POST(request) {
     }
     if (user.role !== 'OWNER') {
       return NextResponse.json({ error: 'Chỉ OWNER mới có thể đặt lại mật khẩu nhân viên.' }, { status: 403 });
+    }
+
+    const rlKey = `dat-lai-mat-khau:${user.id}`;
+    const rl = await checkRateLimit(rlKey);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: `Đã gửi quá nhiều link đặt lại. Vui lòng thử lại sau ${rl.retryAfterSec} giây.` },
+        { status: 429 }
+      );
     }
 
     const { nhanVienId } = await request.json();
@@ -55,6 +65,8 @@ export async function POST(request) {
       INSERT INTO "PasswordResetToken" ("id", "token", "nhanVienId", "expiresAt", "used", "createdAt")
       VALUES (${id}, ${token}, ${nhanVienId}, ${expiresAt}, false, NOW())
     `;
+
+    await recordFailure(rlKey); // đếm mỗi lần gửi, không phân biệt thành công/thất bại
 
     // Gửi email
     const appUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
