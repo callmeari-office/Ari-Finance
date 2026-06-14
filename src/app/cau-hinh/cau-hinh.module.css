@@ -1,6 +1,6 @@
 .mainContent {
   flex: 1;
-  padding: 2rem;
+  padding: var(--space-8);
   background: var(--background);
   min-height: 100vh;
 }
@@ -9,19 +9,19 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-8);
 }
 
 .pageHeader h1 {
   font-size: 1.75rem;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   color: var(--brand-brown);
 }
 
 .pageDesc {
   color: var(--text-muted);
   font-size: 0.9rem;
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
 }
 
 .loaderContainer {

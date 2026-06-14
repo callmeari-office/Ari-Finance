@@ -57,6 +57,67 @@
   --chart-5: #8b5cf6;
   --chart-6: #ec4899;
   --chart-7: #06b6d4;
+
+  /* ----- Spacing scale ----- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* ----- Border radius ----- */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* ----- Font ----- */
+  --font-quicksand: 'Quicksand', 'Outfit', 'Inter', sans-serif;
+
+  /* ----- Type scale ----- */
+  --text-xs: 0.72rem;
+  --text-sm: 0.8rem;
+  --text-base: 0.95rem;
+  --text-md: 1.05rem;
+  --text-lg: 1.2rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 2.5rem;
+
+  /* ----- Font weight ----- */
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  /* ----- Line height ----- */
+  --leading-tight: 1.2;
+  --leading-snug: 1.4;
+  --leading-normal: 1.5;
+
+  /* ----- Letter spacing ----- */
+  --tracking-tight: -0.015em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.05em;
+  --tracking-wider: 0.06em;
+  --tracking-widest: 0.1em;
+
+  /* ----- Layout ----- */
+  --sidebar-width: 260px;
+  --content-max: 1200px;
+
+  /* ----- Duration ----- */
+  --dur-fast: 0.15s;
+  --dur: 0.2s;
+  --dur-slow: 0.3s;
 }
 
 /* Reset & Base Styles */
@@ -78,7 +139,7 @@ body {
   font-family: var(--font-sans);
   min-height: 100vh;
   min-height: 100dvh;
-  line-height: 1.5;
+  line-height: var(--leading-normal);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   /* App tài chính: mọi chữ số đều tabular để số tiền thẳng cột,
@@ -86,7 +147,7 @@ body {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
   /* Chuyển màu mượt khi đổi Sáng/Tối */
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color var(--dur-slow) ease, color var(--dur-slow) ease;
 }
 
 ::selection {
@@ -95,7 +156,7 @@ body {
 }
 
 h1, h2, h3 {
-  letter-spacing: -0.015em;
+  letter-spacing: var(--tracking-tight);
   text-wrap: balance;
 }
 
@@ -105,7 +166,7 @@ a:focus-visible,
 [role="button"]:focus-visible {
   outline: 2px solid var(--border-focus);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 a {
@@ -120,9 +181,9 @@ button, input, select, textarea {
 
 /* Base Layout Classes */
 .container {
-  max-width: 1200px;
+  max-width: var(--content-max);
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: var(--space-6);
 }
 
 /* Glassmorphism Card styling */
@@ -131,14 +192,14 @@ button, input, select, textarea {
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 1.5rem;
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
   box-shadow: var(--shadow);
   transition:
-    border-color 0.3s var(--ease-smooth),
-    box-shadow 0.3s var(--ease-smooth),
-    transform 0.3s var(--ease-smooth),
-    background-color 0.3s ease;
+    border-color var(--dur-slow) var(--ease-smooth),
+    box-shadow var(--dur-slow) var(--ease-smooth),
+    transform var(--dur-slow) var(--ease-smooth),
+    background-color var(--dur-slow) ease;
 }
 
 .glass-card:hover {
@@ -149,27 +210,27 @@ button, input, select, textarea {
 
 /* Form Styles */
 .form-group {
-  margin-bottom: 1.25rem;
+  margin-bottom: var(--space-5);
 }
 
 .form-label {
   display: block;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--brand-brown); /* Đổi sang màu nâu ấm nhận diện */
-  margin-bottom: 0.5rem;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--brand-brown);
+  margin-bottom: var(--space-2);
 }
 
 .form-control {
   width: 100%;
-  padding: 0.75rem 1rem;
-  background: rgba(99, 77, 62, 0.03); /* Đổi sang màu kem nhạt tinh tế */
+  padding: var(--space-3) var(--space-4);
+  background: rgba(99, 77, 62, 0.03);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   color: var(--text-main);
   outline: none;
-  font-size: 0.95rem;
-  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  font-size: var(--text-base);
+  transition: border-color var(--dur) ease, background-color var(--dur) ease, box-shadow var(--dur) ease;
 }
 
 .form-control:hover:not(:focus) {
@@ -187,19 +248,19 @@ button, input, select, textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.95rem;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-base);
   border: none;
   cursor: pointer;
   transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease,
+    background-color var(--dur) ease,
+    border-color var(--dur) ease,
+    color var(--dur) ease,
     box-shadow 0.25s var(--ease-smooth),
-    transform 0.15s var(--ease-smooth);
+    transform var(--dur-fast) var(--ease-smooth);
 }
 
 .btn:active {
@@ -253,12 +314,12 @@ button, input, select, textarea {
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.625rem;
-  border-radius: 9999px;
-  font-size: 0.72rem;
-  font-weight: 700;
+  padding: var(--space-1) 0.625rem;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-wide);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -334,18 +395,18 @@ button, input, select, textarea {
 }
 
 .custom-table th {
-  padding: 0.875rem 1rem;
+  padding: 0.875rem var(--space-4);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--brand-brown); /* Chuyển th sang màu thương hiệu */
+  letter-spacing: var(--tracking-wider);
+  color: var(--brand-brown);
   border-bottom: 2px solid var(--border);
 }
 
 .custom-table td {
-  padding: 1rem;
-  font-size: 0.95rem;
+  padding: var(--space-4);
+  font-size: var(--text-base);
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
   color: var(--text-main);
@@ -353,7 +414,7 @@ button, input, select, textarea {
 }
 
 .custom-table tbody tr {
-  transition: background-color 0.15s ease;
+  transition: background-color var(--dur-fast) ease;
 }
 
 .custom-table tbody tr:hover {
@@ -519,8 +580,8 @@ button, input, select, textarea {
   --ari-gold-soft: #E7C98F;
   --ari-gold-line: linear-gradient(90deg, transparent 0%, rgba(201, 161, 74, 0.55) 20%, rgba(231, 201, 143, 0.9) 50%, rgba(201, 161, 74, 0.55) 80%, transparent 100%);
 
-  /* ADN Phông chữ - Đồng bộ font Quicksand mềm mại của website */
-  --font-sans: var(--font-quicksand), 'Outfit', 'Inter', sans-serif;
+  /* Chế độ Ari: chuyển sang Quicksand mềm mại */
+  --font-sans: var(--font-quicksand);
 }
 
 /* Tinh chỉnh riêng cho Chế độ Ari */
@@ -788,7 +849,7 @@ button, input, select, textarea {
   position: relative;
   overflow: hidden;
   background: rgba(var(--brand-brown-rgb), 0.07);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .skeleton::after {
@@ -810,10 +871,21 @@ button, input, select, textarea {
   .skeleton::after { animation: none; }
 }
 
+/* =========================================================
+   BOTTOM NAV CLEARANCE — mobile only
+   Đảm bảo nội dung main không bị che bởi BottomNav cố định.
+   .layout-wrapper main (0,1,1) > module .mainContent (0,1,0) — override đúng ý.
+   ========================================================= */
+@media (max-width: 768px) {
+  .layout-wrapper main {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* Size helpers — kết hợp với .skeleton */
 .skeletonText  { height: 0.875rem; border-radius: 4px; }
-.skeletonTitle { height: 1.75rem;  border-radius: 6px; }
-.skeletonRow   { height: 2.75rem;  border-radius: 6px; }
+.skeletonTitle { height: 1.75rem;  border-radius: var(--radius-sm); }
+.skeletonRow   { height: 2.75rem;  border-radius: var(--radius-sm); }
 
 /* ===== PRINT STYLES ===== */
 /* Ngoại lệ có chủ ý trong CLAUDE.md mục 3: @media print ĐƯỢC PHÉP hardcode đen/trắng */

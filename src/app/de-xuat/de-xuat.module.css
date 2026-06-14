@@ -23,30 +23,30 @@
 
 .mainContent {
   flex: 1;
-  padding: 2rem;
+  padding: var(--space-8);
 }
 
 .pageHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-8);
 }
 
 .pageHeader h1 {
   font-size: 1.75rem;
-  font-weight: 800;
+  font-weight: var(--weight-extrabold);
   color: var(--text-main);
-  margin-bottom: 0.25rem;
+  margin-bottom: var(--space-1);
 }
 
 .pageDesc {
   color: var(--text-muted);
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 
 .filterCard {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-6);
   position: relative;
   z-index: 10;
 }
@@ -104,12 +104,12 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: rgba(var(--brand-brown-rgb), 0.03);
   cursor: pointer;
   color: var(--text-muted);
-  transition: all 0.2s;
+  transition: background-color var(--dur) ease, border-color var(--dur) ease, color var(--dur) ease;
 }
 
 .viewBtn:hover {
@@ -151,7 +151,7 @@
   max-width: 680px;
   max-height: 90vh;
   overflow-y: auto;
-  animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: modalFadeIn var(--dur-slow) var(--ease-out);
 }
 
 @keyframes modalFadeIn {
@@ -164,13 +164,13 @@
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 1rem;
-  margin-bottom: 1.5rem;
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 
 .modalHeader h2 {
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: var(--weight-bold);
   color: var(--text-main);
 }
 
@@ -179,12 +179,12 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 0.25rem;
+  padding: var(--space-1);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: background-color var(--dur) ease, color var(--dur) ease;
 }
 
 .closeBtn:hover {
@@ -200,22 +200,22 @@
 .formActions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
+  gap: var(--space-3);
   border-top: 1px solid var(--border);
-  padding-top: 1.25rem;
-  margin-top: 1.5rem;
+  padding-top: var(--space-5);
+  margin-top: var(--space-6);
 }
 
 .errorAlert {
   background: var(--danger-bg);
   border: 1px solid rgba(207, 141, 141, 0.3);
   color: var(--alert-error-text);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1.25rem;
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-5);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   font-size: 0.9rem;
 }
 
@@ -223,24 +223,24 @@
   background: var(--success-bg);
   border: 1px solid rgba(125, 160, 142, 0.3);
   color: var(--alert-success-text);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1.25rem;
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-5);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   font-size: 0.9rem;
 }
 
 .uploadBox {
   border: 2px dashed var(--border);
   background: rgba(var(--brand-brown-rgb), 0.01);
-  border-radius: 8px;
-  padding: 1rem;
+  border-radius: var(--radius);
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   color: var(--text-muted);
   font-size: 0.85rem;
   text-align: center;
@@ -384,32 +384,32 @@
 .detailGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.25rem 1.5rem;
+  gap: var(--space-5) var(--space-6);
 }
 
 .detailItem {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--space-1);
 }
 
 .detailLabel {
-  font-size: 0.8rem;
+  font-size: var(--text-sm);
   color: var(--text-muted);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-wide);
 }
 
 .detailValue {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   color: var(--text-main);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .invoiceImgWrapper {
-  margin-top: 0.5rem;
-  border-radius: 8px;
+  margin-top: var(--space-2);
+  border-radius: var(--radius);
   overflow: hidden;
   border: 1px solid var(--border);
 }
@@ -423,9 +423,9 @@
 .modalActions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
+  gap: var(--space-3);
   border-top: 1px solid var(--border);
-  padding-top: 1.25rem;
+  padding-top: var(--space-5);
 }
 
 .loaderSmall {
@@ -452,11 +452,11 @@
 }
 
 .mobileCard {
-  border-radius: 12px;
-  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
   background: rgba(var(--brand-brown-rgb), 0.02);
   border: 1px solid var(--border);
-  transition: all 0.2s ease;
+  transition: border-color var(--dur) ease, background-color var(--dur) ease;
 }
 
 .mobileCard:hover {
@@ -537,13 +537,13 @@
   align-items: center;
   justify-content: center;
   padding: 0.4rem 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: rgba(var(--brand-brown-rgb), 0.03);
   color: var(--text-main);
   font-size: 0.85rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color var(--dur) ease, border-color var(--dur) ease, color var(--dur) ease;
   min-width: 32px;
 }
 
@@ -597,10 +597,10 @@
 
 @media (max-width: 768px) {
   .mainContent {
-    padding: 1rem 0.85rem 5.5rem; /* chừa đáy cho nút nổi + thanh điều hướng */
+    padding: var(--space-4) 0.85rem 5.5rem;
   }
   .pageHeader {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5);
   }
   .formRow {
     flex-direction: column;

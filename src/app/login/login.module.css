@@ -3,7 +3,7 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  padding: 2rem 1rem;
+  padding: var(--space-8) var(--space-4);
   position: relative;
   overflow: hidden;
 }
@@ -11,14 +11,14 @@
 .loginBox {
   width: 100%;
   max-width: 480px;
-  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fadeIn 0.6s var(--ease-out);
   position: relative;
   z-index: 1;
 }
 
 .header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-8);
   position: relative;
 }
 
@@ -31,11 +31,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
   box-shadow: 0 8px 30px rgba(214, 168, 168, 0.15);
   position: relative;
   z-index: 1;
-  transition: box-shadow 0.3s ease;
+  transition: box-shadow var(--dur-slow) ease;
 }
 
 .logoIcon {

@@ -31,6 +31,7 @@ import {
 import { useState, useEffect, useRef } from 'react';
 import ThemeToggle from './ThemeToggle';
 import PushToggle from './PushToggle';
+import BottomNav from './BottomNav';
 import { canViewMenu } from '@/lib/roles';
 import { formatDate } from '@/lib/date';
 import styles from './Sidebar.module.css';
@@ -133,6 +134,39 @@ export default function Sidebar({ user }) {
   ];
 
   const allowedMenuItems = menuItems.filter((item) => canViewMenu(user, item.key));
+
+  // BottomNav — primary 4 items + "Khác"
+  const PRIMARY_KEYS = ['tongQuan', 'deXuat', 'duyet', 'quy', 'baoCao', 'loiNhuan'];
+  const bnItems = [
+    ...PRIMARY_KEYS
+      .filter(key => allowedMenuItems.some(m => m.key === key))
+      .slice(0, 4)
+      .map(key => {
+        const it = menuItems.find(m => m.key === key);
+        const Icon = it.icon;
+        const SHORT = {
+          tongQuan: 'Tổng quan', deXuat: 'Đề xuất', duyet: 'Duyệt',
+          quy: 'Quỹ', baoCao: 'Báo cáo', loiNhuan: 'Lợi nhuận',
+        };
+        return {
+          key: it.key,
+          label: SHORT[it.key] || it.name,
+          icon: <Icon size={22} />,
+          badge: it.key === 'duyet' && pendingCount > 0 ? pendingCount : undefined,
+        };
+      }),
+    { key: 'more', label: 'Khác', icon: <Menu size={22} />, badge: bellBadge > 0 ? bellBadge : undefined },
+  ];
+
+  const activeBottomKey = (() => {
+    if (pathname === '/') return 'tongQuan';
+    if (pathname.startsWith('/de-xuat/duyet')) return 'duyet';
+    if (pathname.startsWith('/de-xuat')) return 'deXuat';
+    if (pathname.startsWith('/quy')) return 'quy';
+    if (pathname.startsWith('/bao-cao')) return 'baoCao';
+    if (pathname.startsWith('/loi-nhuan')) return 'loiNhuan';
+    return '';
+  })();
 
   return (
     <>
@@ -502,6 +536,23 @@ export default function Sidebar({ user }) {
           </button>
         </div>
       </aside>
+
+      {/* BottomNav — chỉ hiển thị trên mobile (≤768px), xem BottomNav.module.css */}
+      <BottomNav
+        items={bnItems}
+        value={activeBottomKey}
+        onChange={(key) => {
+          if (key === 'more') {
+            toggleSidebar();
+          } else {
+            const item = menuItems.find(m => m.key === key);
+            if (item) {
+              router.push(item.path);
+              setIsOpen(false);
+            }
+          }
+        }}
+      />
     </>
   );
 }

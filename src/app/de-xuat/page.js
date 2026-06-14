@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
+import Chip from '@/components/Chip';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
@@ -953,6 +954,10 @@ function DeXuatPage() {
   const availableYears = [2027, 2026, 2025, 2024];
   const availableCreators = creators;
 
+  const toggleTrangThai = (val) => setFilterTrangThai(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
+  const toggleThang = (val) => setFilterThang(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
+  const toggleNguonTien = (val) => setFilterNguonTien(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
+
   // Lọc dữ liệu hiển thị trên Client (Đã lọc ở Server, nên chỉ cần gán thẳng)
   const filteredProposals = proposals;
 
@@ -1076,9 +1081,8 @@ function DeXuatPage() {
 
         {/* Filter Section */}
         <div className={`${styles.filterCard} glass-card`}>
-          {/* Hàng 1: Tìm kiếm nhanh */}
-          <div style={{ marginBottom: '1rem' }}>
-            <label className="form-label">Tìm kiếm nhanh</label>
+          {/* Tìm kiếm nhanh */}
+          <div style={{ marginBottom: '0.85rem' }}>
             <div style={{ position: 'relative' }}>
               <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
               <input
@@ -1092,64 +1096,49 @@ function DeXuatPage() {
             </div>
           </div>
 
-          {/* Hàng 2: filter dropdowns */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'flex-end' }}>
-            {/* Năm — dropdown đơn */}
-            <div>
-              <label className="form-label" style={{ display: 'block', marginBottom: '0.35rem' }}>Năm</label>
-              <select className="form-control" style={{ minWidth: '100px' }} value={filterNam} onChange={(e) => setFilterNam(e.target.value)}>
-                <option value="">Tất cả</option>
-                {availableYears.map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
-
-            <FilterDropdown
-              label="Tháng"
-              options={Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: `Tháng ${i + 1}` }))}
-              selected={filterThang}
-              onChange={setFilterThang}
-            />
-
-            <FilterDropdown
-              label="Trạng thái"
-              options={[
-                { value: 'CHO_THANH_TOAN', label: 'Chờ thanh toán' },
-                { value: 'CHO_HOAN_UNG', label: 'Chờ hoàn ứng' },
-                { value: 'DA_THANH_TOAN', label: 'Đã thanh toán' },
-                { value: 'HUY', label: 'Đã hủy' },
-              ]}
-              selected={filterTrangThai}
-              onChange={setFilterTrangThai}
-            />
-
-            <FilterDropdown
-              label="Nguồn tiền"
-              options={[
-                { value: 'TIEN_SHOP', label: 'Tiền Shop' },
-                { value: 'TIEN_CA_NHAN', label: 'Cá nhân ứng' },
-              ]}
-              selected={filterNguonTien}
-              onChange={setFilterNguonTien}
-            />
-
-            <FilterDropdown
-              label="Danh mục"
-              options={categories.map((c) => ({ value: c.id, label: c.tenDanhMuc }))}
-              selected={filterDanhMuc}
-              onChange={setFilterDanhMuc}
-            />
-
-            {(user.role === 'OWNER' || user.role === 'MANAGER') && (
-              <FilterDropdown
-                label="Người đề xuất"
-                options={availableCreators.map((nv) => ({ value: nv.id, label: nv.tenNgan || nv.hoTen }))}
-                selected={filterNguoiTao}
-                onChange={setFilterNguoiTao}
-              />
-            )}
+          {/* Năm + Tháng chips */}
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+            <select className="form-control" style={{ minWidth: '88px', maxWidth: '108px' }} value={filterNam} onChange={(e) => setFilterNam(e.target.value)}>
+              <option value="">Tất cả năm</option>
+              {availableYears.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => (
+              <Chip key={m} active={filterThang.includes(m)} onClick={() => toggleThang(m)}>T{m}</Chip>
+            ))}
           </div>
+
+          {/* Trạng thái + Nguồn tiền chips */}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+            <Chip active={filterTrangThai.includes('CHO_THANH_TOAN')} onClick={() => toggleTrangThai('CHO_THANH_TOAN')}>Chờ thanh toán</Chip>
+            <Chip active={filterTrangThai.includes('CHO_HOAN_UNG')} onClick={() => toggleTrangThai('CHO_HOAN_UNG')}>Chờ hoàn ứng</Chip>
+            <Chip active={filterTrangThai.includes('DA_THANH_TOAN')} onClick={() => toggleTrangThai('DA_THANH_TOAN')}>Đã thanh toán</Chip>
+            <Chip active={filterTrangThai.includes('HUY')} onClick={() => toggleTrangThai('HUY')}>Đã hủy</Chip>
+            <span style={{ width: '1px', background: 'var(--border)', alignSelf: 'stretch', margin: '0 0.25rem' }} />
+            <Chip active={filterNguonTien.includes('TIEN_SHOP')} onClick={() => toggleNguonTien('TIEN_SHOP')}>Tiền Shop</Chip>
+            <Chip active={filterNguonTien.includes('TIEN_CA_NHAN')} onClick={() => toggleNguonTien('TIEN_CA_NHAN')}>Cá nhân ứng</Chip>
+          </div>
+
+          {/* Danh mục + Người đề xuất (dynamic options → giữ dropdown) */}
+          {(categories.length > 0 || (user.role === 'OWNER' || user.role === 'MANAGER')) && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'flex-end' }}>
+              <FilterDropdown
+                label="Danh mục"
+                options={categories.map((c) => ({ value: c.id, label: c.tenDanhMuc }))}
+                selected={filterDanhMuc}
+                onChange={setFilterDanhMuc}
+              />
+              {(user.role === 'OWNER' || user.role === 'MANAGER') && (
+                <FilterDropdown
+                  label="Người đề xuất"
+                  options={availableCreators.map((nv) => ({ value: nv.id, label: nv.tenNgan || nv.hoTen }))}
+                  selected={filterNguoiTao}
+                  onChange={setFilterNguoiTao}
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Proposals Table */}

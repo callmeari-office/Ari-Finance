@@ -1,0 +1,93 @@
+.nav {
+  display: flex;
+  align-items: stretch;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 16px -8px rgba(var(--brand-brown-rgb), 0.18);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  /* safe-area-inset cho notch iPhone */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0.5rem 0.25rem;
+  min-height: 56px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: var(--weight-semibold);
+  font-size: 0.64rem;
+  font-family: inherit;
+  position: relative;
+  transition: color var(--dur) ease;
+}
+
+.item:active {
+  transform: scale(0.94);
+}
+
+.active {
+  color: var(--brand-brown);
+  font-weight: var(--weight-bold);
+}
+
+/* Chỉ báo active — vạch trên đỉnh */
+.indicator {
+  position: absolute;
+  top: 0;
+  width: 26px;
+  height: 3px;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: var(--primary);
+}
+
+.iconWrap {
+  position: relative;
+  display: inline-flex;
+  line-height: 0;
+}
+
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  background: var(--danger);
+  color: #fff;
+  border-radius: var(--radius-pill);
+  font-size: 0.56rem;
+  font-weight: var(--weight-bold);
+  padding: 0 4px;
+  min-width: 14px;
+  text-align: center;
+  border: 1.5px solid var(--surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  white-space: nowrap;
+}
+
+/* Chế độ Ari: pink tint */
+:global([data-theme='pink']) .nav {
+  background: rgba(255, 235, 241, 0.88);
+  border-top-color: rgba(230, 162, 197, 0.28);
+}
+:global([data-theme='pink']) .active {
+  color: #73485E;
+}
+:global([data-theme='pink']) .indicator {
+  background: var(--primary);
+}

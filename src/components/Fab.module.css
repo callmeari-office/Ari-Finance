@@ -1,0 +1,38 @@
+.fab {
+  display: none; /* ẩn trên desktop */
+  position: fixed;
+  right: 1.1rem;
+  z-index: 99;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: #fff;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px -2px rgba(var(--primary-rgb), 0.5), var(--shadow-md);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-smooth), box-shadow var(--dur) ease;
+}
+
+.fab:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -2px rgba(var(--primary-rgb), 0.6), var(--shadow-lg);
+}
+
+.fab:active {
+  transform: scale(0.92);
+}
+
+/* Chế độ Ari: shimmer satin */
+:global([data-theme='pink']) .fab {
+  background: linear-gradient(135deg, #E6A2C5 0%, #D88CB3 100%);
+  box-shadow: 0 6px 18px -2px rgba(230, 162, 197, 0.55);
+}
+
+@media (max-width: 768px) {
+  .fab {
+    display: inline-flex;
+  }
+}

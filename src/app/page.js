@@ -618,6 +618,57 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* ❹ ================= SỐ DƯ CÁC QUỸ (Realtime) ================= */}
+        {canQuy && (
+          <div className={`glass-card ${styles.largeCard}`} style={{ marginBottom: '1.5rem' }}>
+            <div className={styles.cardTitleBar}>
+              <h2>Trạng thái số dư các Quỹ (Realtime)</h2>
+              <button onClick={() => router.push('/quy')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                <span>Chi tiết</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+            {fundsLoading ? (
+              <table className="custom-table">
+                <thead><tr><th>Tên Quỹ</th><th>Số dư đầu kỳ</th><th>Số dư hiện tại</th><th>Trạng thái</th></tr></thead>
+                <tbody>
+                  {[1, 2, 3].map((i) => (
+                    <tr key={i}>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '75%' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70%' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70%' }} /></td>
+                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '52px' }} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="table-responsive">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Tên Quỹ</th>
+                      <th>Số dư đầu kỳ</th>
+                      <th>Số dư hiện tại</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {funds.map((fund) => (
+                      <tr key={fund.id}>
+                        <td>{fund.tenQuy}</td>
+                        <td>{formatVND(fund.soDuDauKy)}</td>
+                        <td style={{ fontWeight: '700', color: fund.soDuHienTai >= 0 ? '#10b981' : '#ef4444' }}>{formatVND(fund.soDuHienTai)}</td>
+                        <td><span className="badge badge-paid">Đang dùng</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ❶ ================= BỨC TRANH THÁNG NÀY (KPI) ================= */}
         {canKPI && (
           <>
@@ -907,57 +958,6 @@ export default function Dashboard() {
                   Lãi/Lỗ
                 </span>
                 <span style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>Di chuột vào cột/điểm để xem số tiền</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ❹ ================= SỐ DƯ CÁC QUỸ (Realtime) ================= */}
-        {canQuy && (
-          <div className={`glass-card ${styles.largeCard}`} style={{ marginBottom: '1.5rem' }}>
-            <div className={styles.cardTitleBar}>
-              <h2>Trạng thái số dư các Quỹ (Realtime)</h2>
-              <button onClick={() => router.push('/quy')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                <span>Chi tiết</span>
-                <ArrowRight size={14} />
-              </button>
-            </div>
-            {fundsLoading ? (
-              <table className="custom-table">
-                <thead><tr><th>Tên Quỹ</th><th>Số dư đầu kỳ</th><th>Số dư hiện tại</th><th>Trạng thái</th></tr></thead>
-                <tbody>
-                  {[1, 2, 3].map((i) => (
-                    <tr key={i}>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '75%' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70%' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70%' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '52px' }} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="table-responsive">
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>Tên Quỹ</th>
-                      <th>Số dư đầu kỳ</th>
-                      <th>Số dư hiện tại</th>
-                      <th>Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {funds.map((fund) => (
-                      <tr key={fund.id}>
-                        <td>{fund.tenQuy}</td>
-                        <td>{formatVND(fund.soDuDauKy)}</td>
-                        <td style={{ fontWeight: '700', color: fund.soDuHienTai >= 0 ? '#10b981' : '#ef4444' }}>{formatVND(fund.soDuHienTai)}</td>
-                        <td><span className="badge badge-paid">Đang dùng</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             )}
           </div>

@@ -1,0 +1,53 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+  font-family: inherit;
+}
+
+.chip:hover {
+  border-color: rgba(var(--primary-rgb), 0.45);
+  color: var(--brand-brown);
+  background: rgba(var(--primary-rgb), 0.06);
+}
+
+.active {
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.14);
+  color: var(--brand-brown);
+  font-weight: var(--weight-bold);
+}
+
+.icon {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.count {
+  background: rgba(var(--brand-brown-rgb), 0.12);
+  color: var(--text-muted);
+  border-radius: var(--radius-pill);
+  font-size: 0.68rem;
+  font-weight: var(--weight-bold);
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
+.countActive {
+  background: var(--primary);
+  color: #fff;
+}
