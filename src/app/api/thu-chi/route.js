@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
@@ -391,7 +392,7 @@ export async function POST(request) {
         maPhieu,
         ngayGiaoDich: new Date(ngayGiaoDich),
         loaiGiaoDich,
-        soTien: Number(soTien),
+        soTien: lamTronTien(soTien),
         quyId,
         danhMucId,
         nhaCungCapId: nhaCungCapId || null,

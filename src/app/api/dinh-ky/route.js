@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { ghiNhatKy } from '@/lib/audit';
@@ -70,7 +71,7 @@ export async function POST(request) {
       INSERT INTO "PhieuDinhKy"
         ("id","tenMau","noiDung","soTien","danhMucId","nhaCungCapId","nguonTien","trangThaiMacDinh","ngayChiTrongThang","ghiChu","active","nguoiTaoId","createdAt","updatedAt")
       VALUES
-        (${id}, ${tenMau.trim()}, ${noiDung.trim()}, ${Number(soTien)}, ${danhMucId},
+        (${id}, ${tenMau.trim()}, ${noiDung.trim()}, ${lamTronTien(soTien)}, ${danhMucId},
          ${nhaCungCapId || null}, ${nguonTien}, ${trangThaiMacDinh || 'CHO_THANH_TOAN'},
          ${ngay}, ${ghiChu?.trim() || null}, true, ${user.id}, ${now}, ${now})
     `;

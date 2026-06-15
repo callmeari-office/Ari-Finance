@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { notifyManagersBulkChoThanhToan } from '@/lib/email';
@@ -113,7 +114,7 @@ export async function POST(request) {
       ngayPhatSinh: new Date(r.ngayPhatSinh),
       danhMucId: r.danhMucId,
       noiDung: r.noiDung.trim(),
-      soTien: Number(r.soTien),
+      soTien: lamTronTien(r.soTien),
       nhaCungCapId: r.nhaCungCapId || null,
       nguonTien: r.nguonTien,
       trangThai: r.trangThai,

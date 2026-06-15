@@ -10,6 +10,15 @@ export function toSoTien(v) {
 }
 
 /**
+ * Chuẩn hóa số tiền NGƯỜI DÙNG NHẬP về VND nguyên (làm tròn, bỏ phần lẻ).
+ * Dùng tại các điểm ghi DB do người dùng nhập tay (đề xuất, thu-chi, quỹ, kế hoạch,
+ * doanh thu) để không bao giờ có VND lẻ lọt vào DB. Giá trị rác → 0.
+ */
+export function lamTronTien(v) {
+  return Math.round(toSoTien(v));
+}
+
+/**
  * NGUỒN SỰ THẬT DUY NHẤT cho số dư hiện tại của một quỹ.
  *   soDuHienTai = soDuDauKy + tongThu − tongChi + soDuDieuChinh
  *

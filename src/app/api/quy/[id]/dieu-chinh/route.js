@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { ghiNhatKy } from '@/lib/audit';
@@ -23,7 +24,7 @@ export async function POST(request, { params }) {
     if (soDuMucTieu === undefined || soDuMucTieu === null || isNaN(Number(soDuMucTieu))) {
       return NextResponse.json({ error: 'Vui lòng nhập số dư thực tế hợp lệ.' }, { status: 400 });
     }
-    const target = Number(soDuMucTieu);
+    const target = lamTronTien(soDuMucTieu);
 
     const quy = await prisma.quy.findUnique({ where: { id } });
     if (!quy) return NextResponse.json({ error: 'Không tìm thấy quỹ.' }, { status: 404 });

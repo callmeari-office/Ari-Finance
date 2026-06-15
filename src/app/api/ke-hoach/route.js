@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { canViewCategory } from '@/lib/roles';
@@ -125,12 +126,12 @@ export async function POST(request) {
             danhMucId: item.danhMucId,
           },
         },
-        update: { soTien: Number(item.soTien) || 0 },
+        update: { soTien: lamTronTien(item.soTien) },
         create: {
           nam: Number(nam),
           thang: Number(item.thang),
           danhMucId: item.danhMucId,
-          soTien: Number(item.soTien) || 0,
+          soTien: lamTronTien(item.soTien),
         },
       })
     );

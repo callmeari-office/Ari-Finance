@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { ghiNhatKy } from '@/lib/audit';
@@ -69,7 +70,7 @@ export async function POST(request) {
           upsertItems.push({
             danhMucId: cat.id,
             thang: t,
-            soTien: num,
+            soTien: lamTronTien(num),
           });
         }
       }

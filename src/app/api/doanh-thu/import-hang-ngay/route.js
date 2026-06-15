@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { ghiNhatKy } from '@/lib/audit';
@@ -88,7 +89,7 @@ export async function POST(request) {
           itemsToInsert.push({
             day: dayNum,
             kenhBanId: kb.id,
-            soTien: num,
+            soTien: lamTronTien(num),
           });
         }
       });

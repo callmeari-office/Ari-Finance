@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 
@@ -72,7 +73,7 @@ export async function POST(request) {
     if (valid.length > 0) {
       const now = new Date();
       const rows = valid.map((it) =>
-        Prisma.sql`(${randomUUID()}, ${utcDay(Number(nam), Number(thang), Number(it.day))}, ${it.kenhBanId}, ${Number(it.soTien) || 0}, ${now})`
+        Prisma.sql`(${randomUUID()}, ${utcDay(Number(nam), Number(thang), Number(it.day))}, ${it.kenhBanId}, ${lamTronTien(it.soTien)}, ${now})`
       );
       await prisma.$executeRaw`
         INSERT INTO "DoanhThuHangNgay" ("id", "ngay", "kenhBanId", "soTien", "updatedAt")

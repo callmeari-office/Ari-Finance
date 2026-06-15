@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 
@@ -21,7 +22,7 @@ export async function PUT(request, { params }) {
       data: {
         tenQuy: tenQuy?.trim() ?? existing.tenQuy,
         loaiQuy: loaiQuy ?? existing.loaiQuy,
-        soDuDauKy: soDuDauKy !== undefined ? Number(soDuDauKy) : existing.soDuDauKy,
+        soDuDauKy: soDuDauKy !== undefined ? lamTronTien(soDuDauKy) : existing.soDuDauKy,
         trangThai: trangThai ?? existing.trangThai,
       }
     });

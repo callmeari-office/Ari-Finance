@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
@@ -296,7 +297,7 @@ export async function PUT(request, { params }) {
 
     const updateData = {};
     if (noiDung) updateData.noiDung = noiDung;
-    if (soTien) updateData.soTien = Number(soTien);
+    if (soTien) updateData.soTien = lamTronTien(soTien);
     if (danhMucId) updateData.danhMucId = danhMucId;
     if (nhaCungCapId !== undefined) updateData.nhaCungCapId = nhaCungCapId;
     if (ghiChu !== undefined) updateData.ghiChu = ghiChu;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toSoTien, tinhSoDuQuy, phanTramDat } from './finance';
+import { toSoTien, tinhSoDuQuy, phanTramDat, lamTronTien } from './finance';
 
 describe('toSoTien', () => {
   it('giữ nguyên số hợp lệ', () => {
@@ -42,6 +42,22 @@ describe('tinhSoDuQuy', () => {
   });
   it('cộng dồn số VND lớn vẫn chính xác', () => {
     expect(tinhSoDuQuy({ soDuDauKy: 999000000, tongThu: 1000000, tongChi: 0 })).toBe(1000000000);
+  });
+});
+
+describe('lamTronTien', () => {
+  it('làm tròn về VND nguyên', () => {
+    expect(lamTronTien(1500.4)).toBe(1500);
+    expect(lamTronTien(1500.5)).toBe(1501);
+    expect(lamTronTien(1500)).toBe(1500);
+  });
+  it('ép chuỗi số rồi làm tròn', () => {
+    expect(lamTronTien('200000.99')).toBe(200001);
+  });
+  it('giá trị rác → 0', () => {
+    expect(lamTronTien(null)).toBe(0);
+    expect(lamTronTien('abc')).toBe(0);
+    expect(lamTronTien(undefined)).toBe(0);
   });
 });
 

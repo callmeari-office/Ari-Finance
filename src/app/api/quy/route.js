@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { getFunds } from '@/lib/dashboardQueries';
@@ -29,7 +30,7 @@ export async function POST(request) {
         id: id.trim().toUpperCase(),
         tenQuy: tenQuy.trim(),
         loaiQuy,
-        soDuDauKy: Number(soDuDauKy) || 0,
+        soDuDauKy: lamTronTien(soDuDauKy),
         trangThai: 'ACTIVE',
       }
     });

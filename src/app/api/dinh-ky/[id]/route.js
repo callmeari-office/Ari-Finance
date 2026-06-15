@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { ghiNhatKy } from '@/lib/audit';
@@ -47,7 +48,7 @@ export async function PUT(request, { params }) {
       UPDATE "PhieuDinhKy" SET
         "tenMau" = ${tenMau.trim()},
         "noiDung" = ${noiDung.trim()},
-        "soTien" = ${Number(soTien)},
+        "soTien" = ${lamTronTien(soTien)},
         "danhMucId" = ${danhMucId},
         "nhaCungCapId" = ${nhaCungCapId || null},
         "nguonTien" = ${nguonTien},

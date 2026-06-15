@@ -29,6 +29,8 @@ import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
 import { formatDate, formatDateOrEmpty } from '@/lib/date';
+import { generateVietQRUrl } from '@/lib/vietqr';
+import { formatSoTienDisplay, parseDateCell } from './helpers';
 import styles from './de-xuat.module.css';
 
 function DeXuatPage() {
@@ -136,36 +138,11 @@ function DeXuatPage() {
     setSoTien(raw);
   };
 
-  const formatSoTienDisplay = (raw) => {
-    if (!raw) return '';
-    const num = parseInt(raw, 10);
-    return isNaN(num) ? '' : num.toLocaleString('vi-VN');
-  };
-
   const handleCopyText = (text, fieldName) => {
     navigator.clipboard.writeText(text);
     setCopiedField(fieldName);
     setTimeout(() => setCopiedField(''), 2000);
   };
-
-  const generateVietQRUrl = (vendor, amount, memo) => {
-    if (!vendor) return '';
-    const nameUpper = vendor.tenNganHang.toUpperCase();
-    let bankCode = nameUpper.includes('-') ? nameUpper.split('-')[0].trim() : nameUpper.trim();
-
-    const bankMap = {
-      'vcb': 'vietcombank', 'tcb': 'techcombank', 'ctg': 'vietinbank',
-      'mb': 'mb', 'mbbank': 'mb', 'vpb': 'vpbank', 'hdb': 'hdbank',
-      'stb': 'sacombank', 'tpb': 'tpbank', 'msb': 'msb', 'shb': 'shb',
-      'eib': 'eximbank', 'ocb': 'ocb', 'lpb': 'lpbank', 'abb': 'abbank',
-      'nab': 'namabank', 'cake': 'cake'
-    };
-    let qrBank = bankMap[bankCode.toLowerCase()] || bankCode.toLowerCase();
-    const accountName = vendor.tenTaiKhoan || vendor.tenNCC;
-
-    return `https://img.vietqr.io/image/${qrBank}-${vendor.soTaiKhoan}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(memo)}&accountName=${encodeURIComponent(accountName)}`;
-  };
-
 
   // Lấy thông tin danh mục đang chọn
   const currentCategory = categories.find(c => c.id === danhMucId);
@@ -532,24 +509,6 @@ function DeXuatPage() {
   };
 
   // Chuyển 1 ô ngày (Date của Excel hoặc chuỗi dd/mm/yyyy) -> 'yyyy-mm-dd'
-  const parseDateCell = (v) => {
-    if (!v && v !== 0) return null;
-    if (v instanceof Date && !isNaN(v.getTime())) {
-      const y = v.getFullYear();
-      const m = String(v.getMonth() + 1).padStart(2, '0');
-      const d = String(v.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    }
-    const s = String(v).trim();
-    // dd/mm/yyyy hoặc dd-mm-yyyy
-    const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
-    if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-    // yyyy-mm-dd
-    const m2 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    if (m2) return `${m2[1]}-${m2[2].padStart(2, '0')}-${m2[3].padStart(2, '0')}`;
-    return null;
-  };
-
   const handleImportFile = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // cho phép chọn lại cùng file

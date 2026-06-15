@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 
@@ -66,13 +67,13 @@ export async function POST(request) {
           },
         },
         update: {
-          chiTieu: Number(item.chiTieu) || 0,
+          chiTieu: lamTronTien(item.chiTieu),
         },
         create: {
           nam: Number(nam),
           thang: Number(item.thang),
           kenhBanId: item.kenhBanId,
-          chiTieu: Number(item.chiTieu) || 0,
+          chiTieu: lamTronTien(item.chiTieu),
           thucTe: 0,
         },
       })

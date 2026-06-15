@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { lamTronTien } from '@/lib/finance';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaDeXuat } from '@/lib/generateId';
@@ -266,7 +267,7 @@ export async function POST(request) {
         ngayPhatSinh: new Date(ngayPhatSinh),
         danhMucId,
         noiDung: noiDung.trim(),
-        soTien: Number(soTien),
+        soTien: lamTronTien(soTien),
         nhaCungCapId: nhaCungCapId || null,
         anhHoaDon: anhHoaDon || null,
         nguonTien,
