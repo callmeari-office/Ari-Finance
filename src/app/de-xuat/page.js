@@ -53,10 +53,10 @@ function DeXuatPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalSum, setTotalSum] = useState(0);
 
-  // Filter states (arrays = multi-select, string = single)
-  const [filterTrangThai, setFilterTrangThai] = useState([]);
+  // Filter states (string = single-select, array = multi-select)
+  const [filterTrangThai, setFilterTrangThai] = useState('');
   const [filterNguonTien, setFilterNguonTien] = useState([]);
-  const [filterThang, setFilterThang] = useState([String(new Date().getMonth() + 1)]);
+  const [filterThang, setFilterThang] = useState(String(new Date().getMonth() + 1));
   const [filterNam, setFilterNam] = useState(String(new Date().getFullYear()));
   const [filterDanhMuc, setFilterDanhMuc] = useState([]);
   const [filterNguoiTao, setFilterNguoiTao] = useState([]);
@@ -218,10 +218,10 @@ function DeXuatPage() {
       const params = new URLSearchParams();
       params.append('page', String(page));
       params.append('limit', '20');
-      if (filterTrangThai.length > 0) params.append('trangThai', filterTrangThai.join(','));
+      if (filterTrangThai) params.append('trangThai', filterTrangThai);
       if (filterNguonTien.length > 0) params.append('nguonTien', filterNguonTien.join(','));
       if (filterNam) params.append('nam', filterNam);
-      if (filterThang.length > 0) params.append('thang', filterThang.join(','));
+      if (filterThang) params.append('thang', filterThang);
       if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
       if (filterNguoiTao.length > 0) params.append('nguoiTaoId', filterNguoiTao.join(','));
       if (filterSearch) params.append('search', filterSearch);
@@ -721,10 +721,10 @@ function DeXuatPage() {
     const params = new URLSearchParams();
     params.append('page', '1');
     params.append('limit', '1000');
-    if (filterTrangThai.length > 0) params.append('trangThai', filterTrangThai.join(','));
+    if (filterTrangThai) params.append('trangThai', filterTrangThai);
     if (filterNguonTien.length > 0) params.append('nguonTien', filterNguonTien.join(','));
     if (filterNam) params.append('nam', filterNam);
-    if (filterThang.length > 0) params.append('thang', filterThang.join(','));
+    if (filterThang) params.append('thang', filterThang);
     if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
     if (filterNguoiTao.length > 0) params.append('nguoiTaoId', filterNguoiTao.join(','));
     if (filterSearch) params.append('search', filterSearch);
@@ -763,8 +763,8 @@ function DeXuatPage() {
         p.soTien,
       ]);
 
-      const filterLabel = filterThang.length === 1
-        ? `T${filterThang[0]}-${filterNam || new Date().getFullYear()}`
+      const filterLabel = filterThang
+        ? `T${filterThang}-${filterNam || new Date().getFullYear()}`
         : filterNam ? `Nam${filterNam}` : 'TatCa';
 
       const aoa = [
@@ -954,8 +954,6 @@ function DeXuatPage() {
   const availableYears = [2027, 2026, 2025, 2024];
   const availableCreators = creators;
 
-  const toggleTrangThai = (val) => setFilterTrangThai(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
-  const toggleThang = (val) => setFilterThang(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
   const toggleNguonTien = (val) => setFilterNguonTien(prev => prev.includes(val) ? prev.filter(x => x !== val) : [...prev, val]);
 
   // Lọc dữ liệu hiển thị trên Client (Đã lọc ở Server, nên chỉ cần gán thẳng)
@@ -1096,7 +1094,7 @@ function DeXuatPage() {
             </div>
           </div>
 
-          {/* Năm + Tháng chips */}
+          {/* Năm + Tháng + Trạng thái — dropdown */}
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
             <select className="form-control" style={{ minWidth: '88px', maxWidth: '108px' }} value={filterNam} onChange={(e) => setFilterNam(e.target.value)}>
               <option value="">Tất cả năm</option>
@@ -1104,18 +1102,23 @@ function DeXuatPage() {
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
-            {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => (
-              <Chip key={m} active={filterThang.includes(m)} onClick={() => toggleThang(m)}>T{m}</Chip>
-            ))}
+            <select className="form-control" style={{ minWidth: '130px', maxWidth: '160px' }} value={filterThang} onChange={(e) => setFilterThang(e.target.value)}>
+              <option value="">Tất cả tháng</option>
+              {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => (
+                <option key={m} value={m}>Tháng {m}</option>
+              ))}
+            </select>
+            <select className="form-control" style={{ minWidth: '168px', maxWidth: '200px' }} value={filterTrangThai} onChange={(e) => setFilterTrangThai(e.target.value)}>
+              <option value="">Tất cả trạng thái</option>
+              <option value="CHO_THANH_TOAN">Chờ thanh toán</option>
+              <option value="CHO_HOAN_UNG">Chờ hoàn ứng</option>
+              <option value="DA_THANH_TOAN">Đã thanh toán</option>
+              <option value="HUY">Đã hủy</option>
+            </select>
           </div>
 
-          {/* Trạng thái + Nguồn tiền chips */}
+          {/* Nguồn tiền chips */}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-            <Chip active={filterTrangThai.includes('CHO_THANH_TOAN')} onClick={() => toggleTrangThai('CHO_THANH_TOAN')}>Chờ thanh toán</Chip>
-            <Chip active={filterTrangThai.includes('CHO_HOAN_UNG')} onClick={() => toggleTrangThai('CHO_HOAN_UNG')}>Chờ hoàn ứng</Chip>
-            <Chip active={filterTrangThai.includes('DA_THANH_TOAN')} onClick={() => toggleTrangThai('DA_THANH_TOAN')}>Đã thanh toán</Chip>
-            <Chip active={filterTrangThai.includes('HUY')} onClick={() => toggleTrangThai('HUY')}>Đã hủy</Chip>
-            <span style={{ width: '1px', background: 'var(--border)', alignSelf: 'stretch', margin: '0 0.25rem' }} />
             <Chip active={filterNguonTien.includes('TIEN_SHOP')} onClick={() => toggleNguonTien('TIEN_SHOP')}>Tiền Shop</Chip>
             <Chip active={filterNguonTien.includes('TIEN_CA_NHAN')} onClick={() => toggleNguonTien('TIEN_CA_NHAN')}>Cá nhân ứng</Chip>
           </div>
@@ -1442,6 +1445,7 @@ function DeXuatPage() {
                     <input
                       id="ngayPhatSinh"
                       type="date"
+                      lang="vi"
                       className="form-control"
                       value={ngayPhatSinh}
                       onChange={(e) => setNgayPhatSinh(e.target.value)}
@@ -1455,6 +1459,7 @@ function DeXuatPage() {
                     <input
                       id="ngayCanThanhToan"
                       type="date"
+                      lang="vi"
                       className="form-control"
                       value={ngayCanThanhToan}
                       onChange={(e) => setNgayCanThanhToan(e.target.value)}
@@ -1706,6 +1711,7 @@ function DeXuatPage() {
                   <label className="form-label">Ngày phát sinh *</label>
                   <input
                     type="date"
+                    lang="vi"
                     className="form-control"
                     value={bulkCommon.ngayPhatSinh}
                     onChange={(e) => setBulkCommon((p) => ({ ...p, ngayPhatSinh: e.target.value }))}
@@ -1746,6 +1752,7 @@ function DeXuatPage() {
                   <label className="form-label">Ngày cần thanh toán</label>
                   <input
                     type="date"
+                    lang="vi"
                     className="form-control"
                     value={bulkCommon.ngayCanThanhToan}
                     onChange={(e) => setBulkCommon((p) => ({ ...p, ngayCanThanhToan: e.target.value }))}

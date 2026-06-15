@@ -302,11 +302,25 @@
   display: none;
 }
 
+.mobileHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
 .toggleBtn {
   background: transparent;
   border: none;
   color: var(--brand-brown);
   cursor: pointer;
+}
+
+.mobileBell {
+  display: none;
+}
+
+.mobileBellBadge {
+  display: none;
 }
 
 .overlay {
@@ -325,6 +339,53 @@
     position: sticky;
     top: 0;
     z-index: 110;
+  }
+
+  .mobileBell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 7px;
+    border-radius: 8px;
+    line-height: 0;
+    flex-shrink: 0;
+    transition: background-color var(--dur) ease, transform 0.12s ease;
+  }
+
+  .mobileBell:hover {
+    background: rgba(var(--brand-brown-rgb), 0.06);
+  }
+
+  .mobileBell:active {
+    transform: scale(0.9);
+  }
+
+  .mobileBellBadge {
+    display: block;
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: var(--danger);
+    color: #fff;
+    border-radius: 999px;
+    font-size: 0.58rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 1px 4px;
+    min-width: 14px;
+    text-align: center;
+    pointer-events: none;
+    font-variant-numeric: tabular-nums;
+    border: 1.5px solid var(--sidebar-bg);
+  }
+
+  .mobileBellBadgeRed {
+    animation: bellPulse 2.4s ease-in-out infinite;
   }
 
   .sidebar {

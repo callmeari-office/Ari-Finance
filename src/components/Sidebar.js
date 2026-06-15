@@ -135,8 +135,8 @@ export default function Sidebar({ user }) {
 
   const allowedMenuItems = menuItems.filter((item) => canViewMenu(user, item.key));
 
-  // BottomNav — primary 4 items + "Khác"
-  const PRIMARY_KEYS = ['tongQuan', 'deXuat', 'duyet', 'quy', 'baoCao', 'loiNhuan'];
+  // BottomNav — primary 4 items + "Báo cáo" (fixed 5th slot)
+  const PRIMARY_KEYS = ['tongQuan', 'deXuat', 'duyet', 'quy', 'loiNhuan'];
   const bnItems = [
     ...PRIMARY_KEYS
       .filter(key => allowedMenuItems.some(m => m.key === key))
@@ -155,7 +155,7 @@ export default function Sidebar({ user }) {
           badge: it.key === 'duyet' && pendingCount > 0 ? pendingCount : undefined,
         };
       }),
-    { key: 'more', label: 'Khác', icon: <Menu size={22} />, badge: bellBadge > 0 ? bellBadge : undefined },
+    { key: 'baoCao', label: 'Báo cáo', icon: <BarChart3 size={22} /> },
   ];
 
   const activeBottomKey = (() => {
@@ -180,9 +180,26 @@ export default function Sidebar({ user }) {
             <span className={styles.appSub}>Quản lý tài chính</span>
           </div>
         </Link>
-        <button onClick={toggleSidebar} className={styles.toggleBtn}>
-          {isOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className={styles.mobileHeaderRight}>
+          <button
+            className={styles.mobileBell}
+            onClick={() => {
+              if (!isOpen) setIsOpen(true);
+              setShowNotifPanel((v) => !v);
+            }}
+            title="Thông báo"
+          >
+            <Bell size={20} />
+            {bellBadge > 0 && (
+              <span className={`${styles.mobileBellBadge} ${bellRed ? styles.mobileBellBadgeRed : ''}`}>
+                {bellBadge > 99 ? '99+' : bellBadge}
+              </span>
+            )}
+          </button>
+          <button onClick={toggleSidebar} className={styles.toggleBtn}>
+            {isOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </header>
 
       {/* Sidebar Overlay on mobile */}
@@ -542,14 +559,10 @@ export default function Sidebar({ user }) {
         items={bnItems}
         value={activeBottomKey}
         onChange={(key) => {
-          if (key === 'more') {
-            toggleSidebar();
-          } else {
-            const item = menuItems.find(m => m.key === key);
-            if (item) {
-              router.push(item.path);
-              setIsOpen(false);
-            }
+          const item = menuItems.find(m => m.key === key);
+          if (item) {
+            router.push(item.path);
+            setIsOpen(false);
           }
         }}
       />

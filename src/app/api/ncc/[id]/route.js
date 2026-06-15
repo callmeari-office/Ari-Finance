@@ -12,11 +12,16 @@ export async function PUT(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const { tenNCC, tenTaiKhoan, soTaiKhoan, tenNganHang, maQR } = body;
+    const { tenNCC, tenTaiKhoan, soTaiKhoan, tenNganHang, maQR, loaiDoiTuong } = body;
 
     const existingVendor = await prisma.nhaCungCap.findUnique({ where: { id } });
     if (!existingVendor) {
       return NextResponse.json({ error: 'Không tìm thấy nhà cung cấp.' }, { status: 404 });
+    }
+
+    const isStaffOrLeader = !['OWNER', 'MANAGER'].includes(user.role);
+    if (isStaffOrLeader && existingVendor.loaiDoiTuong === 'NHAN_VIEN') {
+      return NextResponse.json({ error: 'Bạn không có quyền chỉnh sửa đối tượng Nhân viên.' }, { status: 403 });
     }
 
     const updateData = {};
@@ -25,6 +30,13 @@ export async function PUT(request, { params }) {
     if (soTaiKhoan) updateData.soTaiKhoan = soTaiKhoan.trim();
     if (tenNganHang) updateData.tenNganHang = tenNganHang.trim();
     if (maQR !== undefined) updateData.maQR = maQR;
+
+    if (loaiDoiTuong !== undefined) {
+      if (isStaffOrLeader) {
+        return NextResponse.json({ error: 'Bạn không có quyền thay đổi loại đối tượng.' }, { status: 403 });
+      }
+      updateData.loaiDoiTuong = loaiDoiTuong;
+    }
 
     const updated = await prisma.nhaCungCap.update({ where: { id }, data: updateData });
 

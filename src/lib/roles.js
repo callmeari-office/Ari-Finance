@@ -75,7 +75,7 @@ export const DEFAULT_MENU_ROLES = {
   baoCao:          ['OWNER', 'MANAGER'],
   dinhKy:          ['OWNER', 'MANAGER'],
   nhanSu:          ['OWNER'],
-  ncc:             ['OWNER', 'MANAGER'],
+  ncc:             ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
   quyen:           ['OWNER'],
   cauHinh:         ['OWNER'],
   nhatKy:          ['OWNER'],

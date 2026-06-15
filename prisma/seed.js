@@ -74,7 +74,7 @@ async function main() {
     doanhThuDBNam: true,
     loiNhuan: false,
     baoCao: false,
-    ncc: false,
+    ncc: true,
     nhanSu: false,
     quyen: false,
     cauHinh: false

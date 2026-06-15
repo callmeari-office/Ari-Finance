@@ -27,7 +27,6 @@ import {
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import AriLoader from '@/components/AriLoader';
-import AriCameo from '@/components/AriCameo';
 import AnimatedNumber from '@/components/AnimatedNumber';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
@@ -45,7 +44,6 @@ export default function Dashboard() {
   // Dashboard states
   const [funds, setFunds] = useState([]);
   const [proposals, setProposals] = useState([]); // chỉ dùng cho thống kê cá nhân (STAFF/LEADER)
-  const [recentProposals, setRecentProposals] = useState([]); // 5 phiếu gần đây (mọi vai trò)
   const [pendingPayment, setPendingPayment] = useState(0); // OWNER/MANAGER: đếm nhẹ
   const [pendingReimburse, setPendingReimburse] = useState(0); // OWNER/MANAGER: đếm nhẹ
   const [proposalsLoading, setProposalsLoading] = useState(true);
@@ -107,7 +105,6 @@ export default function Dashboard() {
 
       // Đề xuất
       setProposals(data.proposals || []);
-      setRecentProposals(data.recentProposals || []);
       setPendingPayment(data.pendingPayment || 0);
       setPendingReimburse(data.pendingReimburse || 0);
       setProposalsLoading(false);
@@ -618,107 +615,58 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ❹ ================= SỐ DƯ CÁC QUỸ (Realtime) ================= */}
+        {/* ❹ ================= FUND HERO + FUND STRIP ================= */}
         {canQuy && (
-          <div className={`glass-card ${styles.largeCard}`} style={{ marginBottom: '1.5rem' }}>
-            <div className={styles.cardTitleBar}>
-              <h2>Trạng thái số dư các Quỹ (Realtime)</h2>
-              <button onClick={() => router.push('/quy')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                <span>Chi tiết</span>
+          <>
+            {/* Fund Hero — tổng tiền đang có */}
+            <div className={styles.fundHero}>
+              <div>
+                <div className={styles.fundHeroLabel}>
+                  Tiền đang có · tổng {funds.length} quỹ
+                </div>
+                <div className={styles.fundHeroVal}>
+                  {fundsLoading
+                    ? <span className="skeleton" style={{ display: 'block', width: '200px', height: '2.2rem', borderRadius: '6px', background: 'rgba(255,255,255,0.2)' }} />
+                    : formatVND(tongSoDuQuy)
+                  }
+                </div>
+                <div className={styles.fundHeroMeta}>
+                  Cập nhật realtime
+                  {pendingReimburse > 0 && ` · ${pendingReimburse} phiếu NV đang ứng chưa hoàn`}
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/quy')}
+                className="btn"
+                style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', flexShrink: 0 }}
+              >
+                <span>Chi tiết quỹ</span>
                 <ArrowRight size={14} />
               </button>
             </div>
-            {fundsLoading ? (
-              <table className="custom-table">
-                <thead><tr><th>Tên Quỹ</th><th>Số dư đầu kỳ</th><th>Số dư hiện tại</th><th>Trạng thái</th></tr></thead>
-                <tbody>
-                  {[1, 2, 3].map((i) => (
-                    <tr key={i}>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '75%' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70%' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70%' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '52px' }} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="table-responsive">
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>Tên Quỹ</th>
-                      <th>Số dư đầu kỳ</th>
-                      <th>Số dư hiện tại</th>
-                      <th>Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {funds.map((fund) => (
-                      <tr key={fund.id}>
-                        <td>{fund.tenQuy}</td>
-                        <td>{formatVND(fund.soDuDauKy)}</td>
-                        <td style={{ fontWeight: '700', color: fund.soDuHienTai >= 0 ? '#10b981' : '#ef4444' }}>{formatVND(fund.soDuHienTai)}</td>
-                        <td><span className="badge badge-paid">Đang dùng</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
 
-        {/* ❶ ================= BỨC TRANH THÁNG NÀY (KPI) ================= */}
-        {canKPI && (
-          <>
-            <h2 className={styles.sectionTitle}>
-              Sức khỏe tài chính — Tháng {thisMonth}/{currentYear}
-            </h2>
-            <div className={styles.dashboardGrid} style={{ marginBottom: '1.5rem' }}>
-              {/* Doanh thu vs chỉ tiêu */}
-              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${tileColor}` }}>
-                <div className={styles.cardHeader}>
-                  <span>Doanh thu tháng này</span>
-                  <Target className={styles.cardIcon} style={{ color: tileColor }} />
-                </div>
-                <h3 style={{ color: tileColor }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={doanhThuThang} format={formatVND} />}</h3>
-                <p className={styles.cardInfo}>Đạt {tileChiTieu}% chỉ tiêu ({formatVND(chiTieuThang)})</p>
-              </div>
-
-              {/* Chi phí vs kế hoạch */}
-              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--danger)' }}>
-                <div className={styles.cardHeader}>
-                  <span>Chi phí tháng này</span>
-                  <TrendingDown className={styles.cardIcon} style={{ color: 'var(--danger)' }} />
-                </div>
-                <h3 style={{ color: 'var(--danger)' }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={chiPhiThang} format={formatVND} />}</h3>
-                <p className={styles.cardInfo}>
-                  {chiPhiKeHoachThang > 0 ? `${tileChiPhi}% kế hoạch (${formatVND(chiPhiKeHoachThang)})` : 'Chưa đặt kế hoạch chi tháng'}
-                </p>
-              </div>
-
-              {/* Lãi/Lỗ tháng + biên lợi nhuận */}
-              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${laiLoThang >= 0 ? '#10b981' : '#ef4444'}` }}>
-                <div className={styles.cardHeader}>
-                  <span>{laiLoThang >= 0 ? 'Lãi tháng này' : 'Lỗ tháng này'}</span>
-                  <Scale className={styles.cardIcon} style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }} />
-                </div>
-                <h3 style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }}>
-                  {insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={laiLoThang} format={formatVND} />}
-                </h3>
-                <p className={styles.cardInfo}>Biên lợi nhuận {bienLoiNhuan}% · <span style={{ cursor: 'pointer', color: 'var(--info)' }} onClick={() => router.push('/loi-nhuan')}>Xem 12 tháng →</span></p>
-              </div>
-
-              {/* Tiền đang có (số dư quỹ) */}
-              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--info)' }}>
-                <div className={styles.cardHeader}>
-                  <span>Tiền đang có</span>
-                  <Banknote className={styles.cardIcon} style={{ color: 'var(--info)' }} />
-                </div>
-                <h3>{fundsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={tongSoDuQuy} format={formatVND} />}</h3>
-                <p className={styles.cardInfo}>Tổng số dư {funds.length} quỹ (thực tế dùng thanh toán)</p>
-              </div>
+            {/* Fund Strip — chip từng quỹ */}
+            <div className={styles.fundStrip}>
+              {fundsLoading
+                ? [1, 2, 3].map((i) => (
+                    <div key={i} className={styles.fundChip}>
+                      <span className="skeleton skeletonText" style={{ display: 'block', width: '80%', marginBottom: '0.4rem' }} />
+                      <span className="skeleton skeletonText" style={{ display: 'block', width: '60%' }} />
+                    </div>
+                  ))
+                : funds.map((fund) => (
+                    <div
+                      key={fund.id}
+                      className={`${styles.fundChip} ${fund.soDuHienTai < 0 ? styles.fundChipNeg : ''}`}
+                    >
+                      <div className={styles.fundChipName}>
+                        <Wallet size={13} />
+                        {fund.tenQuy}
+                      </div>
+                      <div className={styles.fundChipVal}>{formatVND(fund.soDuHienTai)}</div>
+                    </div>
+                  ))
+              }
             </div>
           </>
         )}
@@ -801,6 +749,60 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+        )}
+
+        {/* ❶ ================= BỨC TRANH THÁNG NÀY (KPI) ================= */}
+        {canKPI && (
+          <>
+            <h2 className={styles.sectionTitle}>
+              Sức khỏe tài chính — Tháng {thisMonth}/{currentYear}
+            </h2>
+            <div className={styles.dashboardGrid} style={{ marginBottom: '1.5rem' }}>
+              {/* Doanh thu vs chỉ tiêu */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${tileColor}` }}>
+                <div className={styles.cardHeader}>
+                  <span>Doanh thu tháng này</span>
+                  <Target className={styles.cardIcon} style={{ color: tileColor }} />
+                </div>
+                <h3 style={{ color: tileColor }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={doanhThuThang} format={formatVND} />}</h3>
+                <p className={styles.cardInfo}>Đạt {tileChiTieu}% chỉ tiêu ({formatVND(chiTieuThang)})</p>
+              </div>
+
+              {/* Chi phí vs kế hoạch */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--danger)' }}>
+                <div className={styles.cardHeader}>
+                  <span>Chi phí tháng này</span>
+                  <TrendingDown className={styles.cardIcon} style={{ color: 'var(--danger)' }} />
+                </div>
+                <h3 style={{ color: 'var(--danger)' }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={chiPhiThang} format={formatVND} />}</h3>
+                <p className={styles.cardInfo}>
+                  {chiPhiKeHoachThang > 0 ? `${tileChiPhi}% kế hoạch (${formatVND(chiPhiKeHoachThang)})` : 'Chưa đặt kế hoạch chi tháng'}
+                </p>
+              </div>
+
+              {/* Lãi/Lỗ tháng + biên lợi nhuận */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${laiLoThang >= 0 ? '#10b981' : '#ef4444'}` }}>
+                <div className={styles.cardHeader}>
+                  <span>{laiLoThang >= 0 ? 'Lãi tháng này' : 'Lỗ tháng này'}</span>
+                  <Scale className={styles.cardIcon} style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }} />
+                </div>
+                <h3 style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }}>
+                  {insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={laiLoThang} format={formatVND} />}
+                </h3>
+                <p className={styles.cardInfo}>Biên lợi nhuận {bienLoiNhuan}% · <span style={{ cursor: 'pointer', color: 'var(--info)' }} onClick={() => router.push('/loi-nhuan')}>Xem 12 tháng →</span></p>
+              </div>
+
+              {/* Tiền đang có (số dư quỹ) */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--info)' }}>
+                <div className={styles.cardHeader}>
+                  <span>Tiền đang có</span>
+                  <Banknote className={styles.cardIcon} style={{ color: 'var(--info)' }} />
+                </div>
+                <h3>{fundsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={tongSoDuQuy} format={formatVND} />}</h3>
+                <p className={styles.cardInfo}>Tổng số dư {funds.length} quỹ (thực tế dùng thanh toán)</p>
+              </div>
+            </div>
+          </>
         )}
 
         {/* ❷.5 ================= DỰ BÁO DÒNG TIỀN ================= */}
@@ -1184,94 +1186,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ================= ĐỀ XUẤT GẦN ĐÂY (chung) ================= */}
-        <div className="glass-card" style={{ marginTop: '1.5rem' }}>
-          <div className={styles.cardTitleBar}>
-            <h2>Đề xuất chi phí gần đây</h2>
-            <button onClick={() => router.push('/de-xuat')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-              <span>Tất cả đề xuất</span>
-              <ArrowRight size={14} />
-            </button>
-          </div>
-          {proposalsLoading ? (
-            <div className="table-responsive">
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th>Mã Phiếu</th><th>Ngày lập</th><th>Người đề xuất</th>
-                    <th>Danh mục</th><th>Nguồn tiền</th><th>Số tiền</th><th>Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <tr key={i}>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70px' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '60px' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '80%' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '70%' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '75%' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '64px' }} /></td>
-                      <td><span className="skeleton skeletonText" style={{ display: 'block', width: '80px' }} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : recentProposals.length === 0 ? (
-            <div className={styles.emptyState}>
-              <AriCameo size={64} className={styles.emptyCameo} />
-              <p>Chưa có đề xuất chi phí nào được lập.</p>
-              <button onClick={() => router.push('/de-xuat')} className="btn btn-primary" style={{ padding: '0.5rem 1.1rem', fontSize: '0.85rem' }}>
-                <PlusCircle size={16} />
-                <span>Tạo đề xuất đầu tiên</span>
-              </button>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th>Mã Phiếu</th>
-                    <th>Ngày lập</th>
-                    <th>Người đề xuất</th>
-                    <th>Danh mục</th>
-                    <th>Nguồn tiền</th>
-                    <th>Số tiền</th>
-                    <th>Trạng thái</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentProposals.slice(0, 5).map((prop) => (
-                    <tr key={prop.id}>
-                      <td style={{ fontWeight: 700, color: 'var(--info)' }}>{prop.maPhieu}</td>
-                      <td>{formatDate(prop.ngayPhatSinh)}</td>
-                      <td>
-                        <span style={{ fontWeight: '500' }}>{prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}</span>
-                        <br />
-                        <small style={{ color: 'var(--text-muted)' }}>{prop.nguoiTao.role}</small>
-                      </td>
-                      <td>{prop.danhMuc.tenDanhMuc}</td>
-                      <td>
-                        {prop.nguonTien === 'TIEN_SHOP' ? (
-                          <span style={{ color: 'var(--info)' }}>🏦 Tiền Shop</span>
-                        ) : (
-                          <span style={{ color: 'var(--success)' }}>👤 Cá nhân ứng</span>
-                        )}
-                      </td>
-                      <td style={{ fontWeight: '700' }}>{formatVND(prop.soTien)}</td>
-                      <td>
-                        {prop.trangThai === 'DA_THANH_TOAN' && <span className="badge badge-paid">Đã thanh toán</span>}
-                        {prop.trangThai === 'CHO_THANH_TOAN' && <span className="badge badge-pending">Chờ thanh toán</span>}
-                        {prop.trangThai === 'CHO_HOAN_UNG' && <span className="badge badge-reimburse">Chờ hoàn ứng</span>}
-                        {prop.trangThai === 'HUY' && <span className="badge badge-cancelled">Đã hủy</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
       </main>
     </div>
   );

@@ -141,6 +141,7 @@ model NhaCungCap {
   soTaiKhoan   String
   tenNganHang  String
   maQR         String?
+  loaiDoiTuong String         @default("NCC") // NCC hoặc NHAN_VIEN
 
   deXuatChiPhi DeXuatChiPhi[]
   thuChi       ThuChi[]

@@ -11,7 +11,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
+    const isOwnerOrManager = ['OWNER', 'MANAGER'].includes(user.role);
+    const whereClause = isOwnerOrManager ? {} : { loaiDoiTuong: { not: 'NHAN_VIEN' } };
+
     const vendors = await prisma.nhaCungCap.findMany({
+      where: whereClause,
       include: {
         thuChi: {
           where: { loaiGiaoDich: 'CHI' },
@@ -30,6 +34,7 @@ export async function GET() {
         soTaiKhoan: v.soTaiKhoan,
         tenNganHang: v.tenNganHang,
         maQR: v.maQR,
+        loaiDoiTuong: v.loaiDoiTuong,
         tongDaChi,
         soPhieuChi: v.thuChi.length
       };
@@ -52,15 +57,18 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
-    if (!['OWNER', 'MANAGER'].includes(user.role)) {
+    const body = await request.json();
+    const { id, tenNCC, tenTaiKhoan, soTaiKhoan, tenNganHang, maQR, loaiDoiTuong } = body;
+
+    const isStaffOrLeader = !['OWNER', 'MANAGER'].includes(user.role);
+    if (isStaffOrLeader && loaiDoiTuong === 'NHAN_VIEN') {
       return NextResponse.json(
-        { error: 'Bạn không có quyền thêm nhà cung cấp.' },
+        { error: 'Bạn không có quyền tạo đối tượng Nhân viên.' },
         { status: 403 }
       );
     }
 
-    const body = await request.json();
-    const { id, tenNCC, tenTaiKhoan, soTaiKhoan, tenNganHang, maQR } = body;
+    const finalLoaiDoiTuong = isStaffOrLeader ? 'NCC' : (loaiDoiTuong || 'NCC');
 
     if (!tenNCC || !soTaiKhoan || !tenNganHang) {
       return NextResponse.json({ error: 'Thiếu thông tin bắt buộc (Tên NCC, STK, Ngân hàng).' }, { status: 400 });
@@ -87,7 +95,8 @@ export async function POST(request) {
         tenTaiKhoan: tenTaiKhoan ? tenTaiKhoan.trim() : null,
         soTaiKhoan: soTaiKhoan.trim(),
         tenNganHang: tenNganHang.trim(),
-        maQR: maQR || null
+        maQR: maQR || null,
+        loaiDoiTuong: finalLoaiDoiTuong
       }
     });
 

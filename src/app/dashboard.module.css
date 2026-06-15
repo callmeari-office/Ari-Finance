@@ -425,6 +425,97 @@
   line-height: 1.2;
 }
 
+/* ============ Fund Hero + Fund Strip ============ */
+.fundHero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem 1.25rem;
+  background: linear-gradient(135deg, var(--brand-brown) 0%, var(--brand-brown-hover) 100%);
+  border-radius: var(--radius-xl);
+  color: #fff;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow);
+  margin-bottom: 0.75rem;
+}
+:global([data-theme='dark']) .fundHero { color: #2a231d; }
+:global([data-theme='pink']) .fundHero {
+  background: linear-gradient(135deg, #73485E 0%, #5d3a4c 100%);
+  color: #fff;
+}
+
+.fundHeroLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+
+.fundHeroVal {
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  margin-top: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fundHeroMeta {
+  font-size: 0.72rem;
+  opacity: 0.85;
+  margin-top: 0.25rem;
+}
+
+.fundStrip {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  margin-bottom: 0.75rem;
+}
+
+.fundChip {
+  flex: 0 0 auto;
+  min-width: 142px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 0.9rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.fundChipNeg {
+  border-color: rgba(207, 141, 141, 0.4);
+}
+
+.fundChipName {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.fundChipVal {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--brand-brown);
+  margin-top: 0.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.fundChipNeg .fundChipVal {
+  color: var(--danger);
+}
+
+@media (max-width: 768px) {
+  .fundHeroVal { font-size: 1.7rem; }
+}
+
 @media (max-width: 1024px) {
   .dashboardGrid {
     grid-template-columns: repeat(2, 1fr);

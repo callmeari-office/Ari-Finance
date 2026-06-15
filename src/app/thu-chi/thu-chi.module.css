@@ -431,6 +431,25 @@
   color: var(--text-muted);
   margin: 0 0.5rem;
 }
+.cancelTxBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(var(--brand-brown-rgb), 0.03);
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+.cancelTxBtn:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.3);
+}
 
 @media (max-width: 768px) {
   .formRow {

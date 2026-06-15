@@ -14,17 +14,20 @@ import {
   AlertCircle,
   Clock,
   Layers,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Trash2
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
 import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { formatDate } from '@/lib/date';
 import styles from './thu-chi.module.css';
 
 export default function ThuChiPage() {
   const router = useRouter();
   const toast = useToast();
+  const showConfirm = useConfirm();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -243,6 +246,35 @@ export default function ThuChiPage() {
     }
   };
 
+  const handleCancelTransaction = async (id, maPhieu, soTien, loaiGiaoDich) => {
+    const loaiText = loaiGiaoDich === 'THU' ? 'Phiếu Thu' : 'Phiếu Chi';
+    const ok = await showConfirm({
+      title: `Hủy/Xóa ${loaiText}`,
+      message: `Bạn có chắc chắn muốn hủy/xóa ${loaiText} ${maPhieu} (${soTien.toLocaleString('vi-VN')} ₫)?\n\n` +
+        (loaiGiaoDich === 'CHI'
+          ? 'Hệ thống sẽ xóa phiếu chi này và tự động khôi phục trạng thái các đề xuất chi phí liên quan trở lại trạng thái chờ duyệt (Chờ thanh toán hoặc Chờ hoàn ứng), đồng thời số dư quỹ sẽ được hoàn trả lại.'
+          : 'Hệ thống sẽ xóa vĩnh viễn phiếu thu này và giảm số dư quỹ tương ứng.'),
+      confirmLabel: 'Xác nhận hủy',
+      danger: true,
+    });
+    if (!ok) return;
+
+    setDataLoading(true);
+    try {
+      const res = await fetch(`/api/thu-chi/${id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Hủy giao dịch thất bại.');
+
+      toast.success(data.message || `Đã hủy ${loaiText} ${maPhieu} thành công.`);
+      fetchData(currentPage);
+    } catch (err) {
+      toast.error(err.message);
+      setDataLoading(false);
+    }
+  };
+
   // Lọc danh sách trên client (Đã lọc ở Server, nên chỉ cần gán thẳng)
   const filteredTransactions = transactions;
 
@@ -363,7 +395,7 @@ export default function ThuChiPage() {
                       <th>Số tiền</th>
                       <th>Người tạo</th>
                       <th>Nguồn gốc</th>
-                      <th style={{ textAlign: 'center' }}>Chi tiết</th>
+                      <th style={{ textAlign: 'center' }}>Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -421,12 +453,24 @@ export default function ThuChiPage() {
                           )}
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <button 
-                            onClick={() => setSelectedTx(tx)}
-                            className={styles.viewDetailBtn}
-                          >
-                            <Eye size={16} />
-                          </button>
+                          <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                            <button 
+                              onClick={() => setSelectedTx(tx)}
+                              className={styles.viewDetailBtn}
+                              title="Xem chi tiết"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            {user?.role === 'OWNER' && (
+                              <button 
+                                onClick={() => handleCancelTransaction(tx.id, tx.maPhieu, tx.soTien, tx.loaiGiaoDich)}
+                                className={styles.cancelTxBtn}
+                                title="Hủy/Xóa giao dịch"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -496,13 +540,26 @@ export default function ThuChiPage() {
                           <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Ghi trực tiếp (TH4)</span>
                         )}
                       </div>
-                      <button 
-                        onClick={() => setSelectedTx(tx)}
-                        className={styles.viewDetailBtn}
-                        style={{ width: '28px', height: '28px' }}
-                      >
-                        <Eye size={14} />
-                      </button>
+                      <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                        <button 
+                          onClick={() => setSelectedTx(tx)}
+                          className={styles.viewDetailBtn}
+                          style={{ width: '28px', height: '28px' }}
+                          title="Xem chi tiết"
+                        >
+                          <Eye size={14} />
+                        </button>
+                        {user?.role === 'OWNER' && (
+                          <button 
+                            onClick={() => handleCancelTransaction(tx.id, tx.maPhieu, tx.soTien, tx.loaiGiaoDich)}
+                            className={styles.cancelTxBtn}
+                            style={{ width: '28px', height: '28px' }}
+                            title="Hủy/Xóa giao dịch"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

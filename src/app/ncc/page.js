@@ -57,6 +57,7 @@ export default function VendorsPage() {
   const [tenTaiKhoan, setTenTaiKhoan] = useState('');
   const [soTaiKhoan, setSoTaiKhoan] = useState('');
   const [tenNganHang, setTenNganHang] = useState('');
+  const [loaiDoiTuong, setLoaiDoiTuong] = useState('NCC');
 
   // Detail Modal State
   const [selectedVendor, setSelectedVendor] = useState(null);
@@ -164,6 +165,7 @@ export default function VendorsPage() {
     setTenTaiKhoan('');
     setSoTaiKhoan('');
     setTenNganHang('');
+    setLoaiDoiTuong('NCC');
     setFormError('');
     setFormSuccess('');
     setIsModalOpen(true);
@@ -176,6 +178,7 @@ export default function VendorsPage() {
     setTenTaiKhoan(v.tenTaiKhoan || '');
     setSoTaiKhoan(v.soTaiKhoan);
     setTenNganHang(v.tenNganHang);
+    setLoaiDoiTuong(v.loaiDoiTuong || 'NCC');
     setFormError('');
     setFormSuccess('');
     setIsModalOpen(true);
@@ -199,6 +202,7 @@ export default function VendorsPage() {
       tenTaiKhoan: tenTaiKhoan.trim() || null,
       soTaiKhoan: soTaiKhoan.trim(),
       tenNganHang: tenNganHang.trim(),
+      loaiDoiTuong: loaiDoiTuong
     };
 
     try {
@@ -317,8 +321,8 @@ export default function VendorsPage() {
         <div className={`${styles.filterCard} glass-card`}>
           <div className={styles.searchBox}>
             <Search className={styles.searchIcon} size={20} />
-            <input 
-              type="text" 
+            <input
+              type="text"
               placeholder="Tìm kiếm nhà cung cấp theo mã, tên, số tài khoản hoặc ngân hàng..."
               className="form-control search-input"
               value={searchQuery}
@@ -355,7 +359,26 @@ export default function VendorsPage() {
                   {filteredVendors.map((v) => (
                     <tr key={v.id}>
                       <td style={{ fontWeight: 'bold', color: 'var(--info)' }}>{v.id}</td>
-                      <td style={{ fontWeight: '600' }}>{v.tenNCC}</td>
+                      <td style={{ fontWeight: '600' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {v.tenNCC}
+                          {v.loaiDoiTuong === 'NHAN_VIEN' && (
+                            <span
+                              className="badge"
+                              style={{
+                                backgroundColor: 'var(--info-bg)',
+                                color: 'var(--info)',
+                                fontSize: '0.7rem',
+                                padding: '0.1rem 0.4rem',
+                                borderRadius: '4px',
+                                fontWeight: '600'
+                              }}
+                            >
+                              Nhân viên
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td style={{ fontWeight: '500', color: v.tenTaiKhoan ? 'var(--text-main)' : 'var(--text-muted)', fontStyle: v.tenTaiKhoan ? 'normal' : 'italic' }}>
                         {v.tenTaiKhoan || 'Chưa có'}
                       </td>
@@ -456,6 +479,21 @@ export default function VendorsPage() {
                   />
                 </div>
 
+                {['OWNER', 'MANAGER'].includes(user?.role) && (
+                  <div className={styles.formGroup}>
+                    <label className="form-label">Loại Đối Tượng</label>
+                    <select
+                      className="form-control"
+                      value={loaiDoiTuong}
+                      onChange={(e) => setLoaiDoiTuong(e.target.value)}
+                      disabled={formLoading}
+                    >
+                      <option value="NCC">Nhà Cung Cấp (NCC)</option>
+                      <option value="NHAN_VIEN">Nhân Viên (Staff - chi lương)</option>
+                    </select>
+                  </div>
+                )}
+
                 <div className={styles.formGroup}>
                   <label className="form-label">Tên Chủ Tài Khoản Ngân Hàng</label>
                   <input
@@ -555,6 +593,22 @@ export default function VendorsPage() {
                     <span className={styles.label}>Tên đối tác:</span>
                     <span className={styles.value}>{selectedVendor.tenNCC}</span>
                   </div>
+                  {['OWNER', 'MANAGER'].includes(user?.role) && (
+                    <div className={styles.detailRow}>
+                      <span className={styles.label}>Loại đối tượng:</span>
+                      <span className={styles.value}>
+                        {selectedVendor.loaiDoiTuong === 'NHAN_VIEN' ? (
+                          <span className="badge" style={{ backgroundColor: 'var(--info-bg)', color: 'var(--info)', fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: '600' }}>
+                            Nhân viên (Chi lương)
+                          </span>
+                        ) : (
+                          <span className="badge" style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: '600' }}>
+                            Nhà cung cấp (NCC)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
                   <div className={styles.detailRow}>
                     <span className={styles.label}>Tên chủ TK:</span>
                     <span className={styles.value} style={{ fontWeight: selectedVendor.tenTaiKhoan ? '600' : '400', color: selectedVendor.tenTaiKhoan ? 'var(--text-main)' : 'var(--text-muted)', fontStyle: selectedVendor.tenTaiKhoan ? 'normal' : 'italic' }}>
@@ -669,9 +723,9 @@ export default function VendorsPage() {
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label className="form-label">Tên viết tắt (Ví dụ: VCB, TCB, MB) *</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
+                <input
+                  type="text"
+                  className="form-control"
                   placeholder="Viết hoa liền không dấu..."
                   value={quickBankVietTat}
                   onChange={(e) => setQuickBankVietTat(e.target.value)}
@@ -681,9 +735,9 @@ export default function VendorsPage() {
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label className="form-label">Tên đầy đủ (Ví dụ: Vietcombank, Techcombank) *</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
+                <input
+                  type="text"
+                  className="form-control"
                   placeholder="Nhập tên đầy đủ..."
                   value={quickBankDayDu}
                   onChange={(e) => setQuickBankDayDu(e.target.value)}
@@ -695,8 +749,8 @@ export default function VendorsPage() {
                 <button type="button" onClick={() => setIsQuickBankOpen(false)} className="btn btn-secondary" disabled={quickBankLoading}>
                   Hủy bỏ
                 </button>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={async () => {
                     setQuickBankError('');
                     if (!quickBankVietTat || !quickBankDayDu) {
