@@ -3,6 +3,8 @@
 // Không có auth check, không import NextResponse.
 // Các route gốc vẫn giữ nguyên URL + response shape, chỉ đổi ruột thành gọi hàm này.
 
+import { tinhSoDuQuy } from './finance';
+
 /**
  * Tổng hợp lãi/lỗ theo tháng cho cả năm.
  * Nguồn chi: ThuChi(CHI) + DeXuatChiPhi(laLichSu=true) — COALESCE(ngayThanhToan, ngayPhatSinh).
@@ -313,7 +315,7 @@ export async function getDuBao(prisma, daysParam = 'thang') {
   let soDuHomNay = 0;
   funds.forEach((q) => {
     const tc = thuChiMap[q.id] || { thu: 0, chi: 0 };
-    soDuHomNay += q.soDuDauKy + tc.thu - tc.chi + (q.soDuDieuChinh || 0);
+    soDuHomNay += tinhSoDuQuy({ soDuDauKy: q.soDuDauKy, tongThu: tc.thu, tongChi: tc.chi, soDuDieuChinh: q.soDuDieuChinh });
   });
 
   const avgChiNgay = Number(avgChiRaw[0]?.total || 0) / 30;
@@ -424,7 +426,7 @@ export async function getFunds(prisma) {
       tongThu,
       tongChi,
       soPhieu,
-      soDuHienTai: quy.soDuDauKy + tongThu - tongChi + soDuDieuChinh,
+      soDuHienTai: tinhSoDuQuy({ soDuDauKy: quy.soDuDauKy, tongThu, tongChi, soDuDieuChinh }),
     };
   });
 }

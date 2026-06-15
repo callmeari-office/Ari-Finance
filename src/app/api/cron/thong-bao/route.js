@@ -18,6 +18,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma.js';
 import { notifyManagers, notifyOwners } from '@/lib/webpush.js';
 import { logger } from '@/lib/logger';
+import { tinhSoDuQuy } from '@/lib/finance';
 
 export async function GET(request) {
   // Xác thực cron secret
@@ -94,7 +95,7 @@ export async function GET(request) {
 
     const amQuy = quyList.filter((q) => {
       const { thu = 0, chi = 0 } = balanceMap[q.id] || {};
-      return q.soDuDauKy + thu - chi + (q.soDuDieuChinh || 0) < 0;
+      return tinhSoDuQuy({ soDuDauKy: q.soDuDauKy, tongThu: thu, tongChi: chi, soDuDieuChinh: q.soDuDieuChinh }) < 0;
     });
 
     if (amQuy.length > 0) {

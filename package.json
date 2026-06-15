@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:check": "node scripts/check-schema-drift.mjs",
     "postinstall": "prisma generate"
   },
@@ -27,11 +29,13 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "cross-env": "^10.1.0",
     "eslint": "^10",
     "eslint-config-next": "16.2.6",
     "playwright": "^1.60.0",
     "prisma": "^7.8.0",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "vitest": "^4.1.9"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
