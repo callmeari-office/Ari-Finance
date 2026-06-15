@@ -421,12 +421,16 @@ export default function Dashboard() {
             <p>Hôm nay là ngày {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
             <p className="brand-motto" style={{ display: 'none' }}>{getAriMotto()}</p>
           </div>
-          <div className={styles.actions}>
-            <button onClick={() => router.push('/de-xuat?open=new')} className="btn btn-primary">
-              <PlusCircle size={18} />
-              <span>Tạo đề xuất chi</span>
-            </button>
-          </div>
+          {/* Nút tạo trên banner: ẩn cho Staff/Leader vì thẻ "Gửi một khoản chi mới"
+              bên dưới đã có nút này (tránh trùng lặp). OWNER/MANAGER vẫn giữ. */}
+          {!canPersonal && (
+            <div className={styles.actions}>
+              <button onClick={() => router.push('/de-xuat?open=new')} className="btn btn-primary">
+                <PlusCircle size={18} />
+                <span>Tạo đề xuất chi</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ===== THẺ HÀNH ĐỘNG CHO NHÂN VIÊN (STAFF/LEADER) ===== */}

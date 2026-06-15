@@ -559,7 +559,8 @@ export default function Sidebar({ user }) {
             <span>Đổi mật khẩu</span>
           </Link>
           <ThemeToggle />
-          {(user?.role === 'OWNER' || user?.role === 'MANAGER') && <PushToggle compact />}
+          {/* Mọi vai trò đều nhận push (auto-subscribe khi đăng nhập) → giữ nút Bật/Tắt cho tất cả. */}
+          <PushToggle compact />
           <button onClick={handleLogout} className={styles.logoutBtn}>
             <LogOut size={20} />
             <span>Đăng xuất</span>

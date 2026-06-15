@@ -1,0 +1,92 @@
+/* Banner mời bật thông báo — tự xuất hiện khi quyền đang ở trạng thái "chưa quyết định".
+   Theme-aware: chỉ dùng biến CSS, không hardcode màu theo theme. */
+.banner {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 1rem;
+  z-index: 850;
+  width: calc(100% - 2rem);
+  max-width: 460px;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  animation: pushBannerIn 0.28s var(--ease-out, ease);
+}
+
+@keyframes pushBannerIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.icon {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.text strong {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.text span {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.allowBtn {
+  flex-shrink: 0;
+  background: var(--primary);
+  color: #fff; /* chữ trắng trên nền primary bão hòa — ngoại lệ chip có chủ ý */
+  border: none;
+  border-radius: 9px;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  min-height: 38px;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.allowBtn:hover { filter: brightness(1.05); }
+.allowBtn:active { transform: scale(0.96); }
+.allowBtn:disabled { opacity: 0.7; cursor: default; }
+
+.dismissBtn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 8px;
+  line-height: 0;
+  display: flex;
+}
+.dismissBtn:hover { background: rgba(var(--brand-brown-rgb), 0.08); }
+
+.spin { animation: pushSpin 0.8s linear infinite; }
+@keyframes pushSpin { to { transform: rotate(360deg); } }
+
+/* Trên mobile: nằm trên thanh BottomNav (cao 56px, bottom:0) + chừa safe-area iPhone. */
+@media (max-width: 768px) {
+  .banner {
+    bottom: calc(56px + 0.75rem + env(safe-area-inset-bottom));
+  }
+}

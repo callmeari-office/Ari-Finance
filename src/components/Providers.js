@@ -3,6 +3,7 @@
 import { ToastProvider } from './Toast';
 import { ConfirmProvider } from './ConfirmDialog';
 import Onboarding from './Onboarding';
+import AutoPushSubscribe from './AutoPushSubscribe';
 
 export default function Providers({ children }) {
   return (
@@ -10,6 +11,7 @@ export default function Providers({ children }) {
       <ConfirmProvider>
         {children}
         <Onboarding />
+        <AutoPushSubscribe />
       </ConfirmProvider>
     </ToastProvider>
   );

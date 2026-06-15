@@ -5,6 +5,7 @@ import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
+import { notifyManagers } from '@/lib/webpush';
 
 const DEFAULT_LIMIT = 50;
 
@@ -409,6 +410,24 @@ export async function POST(request) {
       maDoiTuong: maPhieu,
       moTa: `Tạo phiếu ${loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'} "${newThuChi.noiDung}" — ${Number(newThuChi.soTien).toLocaleString('vi-VN')}đ (quỹ ${quy.tenQuy})`,
     });
+
+    // Thông báo Web Push khi ghi nhận phiếu THU → các OWNER/MANAGER khác (trừ người vừa tạo).
+    // Bọc try/catch riêng: lỗi push KHÔNG được làm hỏng luồng tạo phiếu.
+    if (loaiGiaoDich === 'THU') {
+      try {
+        await notifyManagers(
+          {
+            title: '💰 Có phiếu Thu mới',
+            body: `${maPhieu} · ${Number(newThuChi.soTien).toLocaleString('vi-VN')}đ — ${newThuChi.noiDung}`,
+            url: '/thu-chi',
+            tag: 'thu-chi-thu',
+          },
+          { excludeUserId: user.id }
+        );
+      } catch (pushErr) {
+        logger.error('notifyManagers (phiếu Thu)', pushErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -52,15 +52,23 @@ async function sendToOne(sub, payload) {
 
 /**
  * Gửi push tới toàn bộ OWNER + MANAGER đang ACTIVE có subscription.
+ * @param {object} payload - { title, body, url?, icon?, tag? }
+ * @param {object} [opts]
+ * @param {string} [opts.excludeUserId] - bỏ qua subscription của user này (vd: người vừa tạo phiếu).
  */
-export async function notifyManagers(payload) {
-  const subs = await prisma.pushSubscription.findMany({
-    where: {
-      nhanVien: {
-        trangThai: 'ACTIVE',
-        role: { in: ['OWNER', 'MANAGER'] },
-      },
+export async function notifyManagers(payload, opts = {}) {
+  const where = {
+    nhanVien: {
+      trangThai: 'ACTIVE',
+      role: { in: ['OWNER', 'MANAGER'] },
     },
+  };
+  if (opts.excludeUserId) {
+    where.userId = { not: opts.excludeUserId };
+  }
+
+  const subs = await prisma.pushSubscription.findMany({
+    where,
     select: { endpoint: true, p256dh: true, auth: true },
   });
 

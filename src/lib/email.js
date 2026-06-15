@@ -13,6 +13,14 @@ import { ghiNhatKy } from './audit';
  *   APP_URL    = địa chỉ web app để tạo link bấm vào, vd: http://localhost:3000 hoặc https://...
  */
 
+/**
+ * Cờ tạm tắt email "phiếu chi Chờ thanh toán" (đơn lẻ + tổng hợp).
+ * Hiện app đã có thông báo qua app/Web Push nên tạm ngưng gửi email loại này.
+ * Bật lại sau này: đổi thành `true` (hoặc đặt env EMAIL_CHO_THANH_TOAN=on).
+ * KHÔNG ảnh hưởng các email khác (đặt lại mật khẩu, Lá thư tổng kết tháng).
+ */
+const EMAIL_CHO_THANH_TOAN_ENABLED = process.env.EMAIL_CHO_THANH_TOAN === 'on';
+
 let cachedTransporter = null;
 
 function getTransporter() {
@@ -423,6 +431,9 @@ function buildBulkEmailHtml(proposals, link) {
  */
 export async function notifyManagersBulkChoThanhToan(proposalIds) {
   try {
+    // Tạm tắt: đã có thông báo qua app/Web Push (xem cờ ở đầu file).
+    if (!EMAIL_CHO_THANH_TOAN_ENABLED) return;
+
     const ids = (proposalIds || []).filter(Boolean);
     if (ids.length === 0) return;
 
@@ -788,6 +799,9 @@ export async function sendMonthlyReport({ thang, nam, user = null, preview = fal
  */
 export async function notifyManagersChoThanhToan(proposalId) {
   try {
+    // Tạm tắt: đã có thông báo qua app/Web Push (xem cờ ở đầu file).
+    if (!EMAIL_CHO_THANH_TOAN_ENABLED) return;
+
     const transporter = getTransporter();
     if (!transporter) {
       logger.warn(
