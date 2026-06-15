@@ -79,6 +79,7 @@ export const DEFAULT_MENU_ROLES = {
   quyen:           ['OWNER'],
   cauHinh:         ['OWNER'],
   nhatKy:          ['OWNER'],
+  huongDan:        ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
 };
 
 /**

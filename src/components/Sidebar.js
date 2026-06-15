@@ -27,7 +27,7 @@ import {
   AlertTriangle,
   Clock,
   ChevronRight,
-  HelpCircle,
+  BookOpen,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import ThemeToggle from './ThemeToggle';
@@ -139,6 +139,7 @@ export default function Sidebar({ user }) {
     { key: 'quyen', name: 'Quản lý Quyền', path: '/quyen', icon: Lock },
     { key: 'cauHinh', name: 'Cấu hình', path: '/cau-hinh', icon: Settings },
     { key: 'nhatKy', name: 'Nhật ký hệ thống', path: '/nhat-ky', icon: ScrollText },
+    { key: 'huongDan', name: 'Hướng dẫn sử dụng', path: '/huong-dan', icon: BookOpen },
   ];
 
   const allowedMenuItems = menuItems.filter((item) => canViewMenu(user, item.key));
@@ -557,18 +558,6 @@ export default function Sidebar({ user }) {
             <KeyRound size={20} className={styles.navIcon} />
             <span>Đổi mật khẩu</span>
           </Link>
-          <button
-            type="button"
-            className={styles.navItem}
-            onClick={() => {
-              setIsOpen(false);
-              window.dispatchEvent(new CustomEvent('ari:show-onboarding', { detail: { role: user.role } }));
-            }}
-            style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit' }}
-          >
-            <HelpCircle size={20} className={styles.navIcon} />
-            <span>Xem lại hướng dẫn</span>
-          </button>
           <ThemeToggle />
           {(user?.role === 'OWNER' || user?.role === 'MANAGER') && <PushToggle compact />}
           <button onClick={handleLogout} className={styles.logoutBtn}>

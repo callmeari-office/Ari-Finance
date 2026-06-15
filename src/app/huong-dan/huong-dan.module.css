@@ -1,0 +1,300 @@
+.loaderContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 1.5rem;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid var(--border);
+  border-left-color: var(--primary);
+  border-radius: 50%;
+  animation: hd-spin 1s linear infinite;
+}
+
+@keyframes hd-spin {
+  to { transform: rotate(360deg); }
+}
+
+.mainContent {
+  flex: 1;
+  padding: 2rem;
+  max-width: 920px;
+}
+
+/* ===== Header ===== */
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+}
+
+.pageTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.75rem;
+  font-weight: var(--weight-extrabold);
+  color: var(--brand-brown);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.25rem;
+}
+
+.pageDesc {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* ===== Section card ===== */
+.section {
+  margin-bottom: 1.25rem;
+  padding: 1.5rem 1.75rem;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.15rem;
+  font-weight: var(--weight-bold);
+  color: var(--text-main);
+  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.sectionNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: var(--weight-bold);
+}
+
+.sectionBadge {
+  font-size: 0.7rem;
+  font-weight: var(--weight-bold);
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--info-bg);
+  color: var(--info);
+  border: 1px solid var(--info);
+  letter-spacing: 0.02em;
+}
+
+.lead {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  margin-bottom: 1.1rem;
+}
+
+/* ===== Sơ đồ luồng dạng các bước ngang ===== */
+.flowRow {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.flowStep {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  text-align: center;
+  padding: 1rem 0.5rem;
+  border-radius: var(--radius);
+  background: rgba(var(--brand-brown-rgb), 0.04);
+  border: 1px solid var(--border);
+}
+
+.flowIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(var(--primary-rgb), 0.12);
+  color: var(--primary);
+}
+
+.flowLabel {
+  font-size: 0.82rem;
+  font-weight: var(--weight-semibold);
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+.flowArrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ===== Danh sách bước ===== */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-bottom: 1.25rem;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.stepNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(var(--primary-rgb), 0.14);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: var(--weight-bold);
+}
+
+.stepText {
+  font-size: 0.9rem;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+.stepText strong { color: var(--brand-brown); font-weight: var(--weight-bold); }
+
+/* ===== Khối "Ai trả khoản này?" ===== */
+.payerGuide {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0 0 1.25rem;
+}
+
+.payerItem {
+  padding: 0.8rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(var(--brand-brown-rgb), 0.03);
+}
+
+.payerHead {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: var(--weight-bold);
+  font-size: 0.9rem;
+  color: var(--text-main);
+  margin-bottom: 0.3rem;
+}
+
+.payerFlow {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.payerFlow strong { color: var(--brand-brown); font-weight: var(--weight-semibold); }
+
+/* ===== Sơ đồ luồng trạng thái (chip) ===== */
+.statusFlow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.9rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 1.25rem;
+}
+
+.statusChip {
+  font-size: 0.78rem;
+  font-weight: var(--weight-semibold);
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.statusArrow {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+/* ===== Hộp lưu ý ===== */
+.noteBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.noteBox svg { color: var(--warning); flex-shrink: 0; margin-top: 1px; }
+
+/* ===== Ô chứa ảnh minh họa (tùy chọn) ===== */
+.imgSlot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 1.1rem;
+  padding: 1.5rem;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  text-align: center;
+}
+.imgSlot .imgSlotHint { font-size: 0.78rem; }
+
+/* ===== Nút "Xem lại tour" ===== */
+.replayBtn {
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 1.25rem 0.85rem 5.5rem;
+  }
+  .pageTitle { font-size: 1.4rem; }
+  .section { padding: 1.1rem 1.1rem; }
+  .flowRow {
+    flex-direction: column;
+  }
+  .flowStep {
+    flex-direction: row;
+    justify-content: flex-start;
+    text-align: left;
+    gap: 0.75rem;
+    padding: 0.7rem 0.9rem;
+  }
+  .flowArrow {
+    transform: rotate(90deg);
+    align-self: center;
+  }
+}
