@@ -33,20 +33,7 @@ export async function GET() {
       nguoiDuyet: { select: { id: true, hoTen: true, tenNgan: true, email: true } },
     };
 
-    const [
-      loiNhuan,
-      canhBao,
-      thongKeThang,
-      duBao,
-      funds,
-      recentProposalsRaw,
-      staffProposalsRaw,
-      pendingPaymentCount,
-      pendingReimburseCount,
-      thongBao,
-      nganSachData,
-      doanhThuData,
-    ] = await Promise.all([
+    const settled = await Promise.allSettled([
       // Lợi nhuận + cảnh báo (OWNER/MANAGER với tqKPITaiChinh hoặc tqCanXuLy)
       seeInsights ? getLoiNhuanNam(prisma, nam) : Promise.resolve(null),
       seeInsights ? getCanhBao(prisma, 3) : Promise.resolve(null),
@@ -177,6 +164,25 @@ export async function GET() {
         return { kenhBan, data, nam };
       })() : Promise.resolve(null),
     ]);
+
+    // Resilience: 1 query hỏng (vd lệch schema, timeout) KHÔNG được kéo sập cả Dashboard.
+    // Log lỗi từng phần, phần hỏng trả null (hoặc 0 cho các bộ đếm) để UI vẫn hiện phần còn lại.
+    settled.forEach((r, i) => {
+      if (r.status === 'rejected') logger.error(`GET /api/dashboard query[${i}]`, r.reason);
+    });
+    const pick = (i, fallback = null) => (settled[i].status === 'fulfilled' ? settled[i].value : fallback);
+    const loiNhuan = pick(0);
+    const canhBao = pick(1);
+    const thongKeThang = pick(2);
+    const duBao = pick(3);
+    const funds = pick(4);
+    const recentProposalsRaw = pick(5);
+    const staffProposalsRaw = pick(6);
+    const pendingPaymentCount = pick(7, 0);
+    const pendingReimburseCount = pick(8, 0);
+    const thongBao = pick(9);
+    const nganSachData = pick(10);
+    const doanhThuData = pick(11);
 
     return NextResponse.json({
       loiNhuan,
