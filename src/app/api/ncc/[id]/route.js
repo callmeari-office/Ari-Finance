@@ -2,6 +2,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { ghiNhatKy } from '@/lib/audit';
+import { canViewNcc, parseChucVuDuocXem } from '@/lib/roles';
+
+const ALL_VIEW_ROLES = ['MANAGER', 'LEADER', 'STAFF'];
+
+function normalizeChucVu(input) {
+  if (!Array.isArray(input)) return null;
+  const clean = [...new Set(input.filter((r) => ALL_VIEW_ROLES.includes(r)))];
+  if (clean.length >= ALL_VIEW_ROLES.length) return null;
+  return JSON.stringify(clean);
+}
 
 export async function PUT(request, { params }) {
   try {
@@ -12,16 +23,18 @@ export async function PUT(request, { params }) {
 
     const { id } = await params;
     const body = await request.json();
-    const { tenNCC, tenTaiKhoan, soTaiKhoan, tenNganHang, maQR, loaiDoiTuong } = body;
+    const { tenNCC, tenTaiKhoan, soTaiKhoan, tenNganHang, maQR, chucVuDuocXem } = body;
 
     const existingVendor = await prisma.nhaCungCap.findUnique({ where: { id } });
     if (!existingVendor) {
       return NextResponse.json({ error: 'Không tìm thấy nhà cung cấp.' }, { status: 404 });
     }
 
-    const isStaffOrLeader = !['OWNER', 'MANAGER'].includes(user.role);
-    if (isStaffOrLeader && existingVendor.loaiDoiTuong === 'NHAN_VIEN') {
-      return NextResponse.json({ error: 'Bạn không có quyền chỉnh sửa đối tượng Nhân viên.' }, { status: 403 });
+    const isOwnerOrManager = ['OWNER', 'MANAGER'].includes(user.role);
+
+    // Staff/Leader không được sửa NCC mà họ không có quyền xem (phòng vệ phía server)
+    if (!isOwnerOrManager && !canViewNcc(user.role, parseChucVuDuocXem(existingVendor.chucVuDuocXem))) {
+      return NextResponse.json({ error: 'Bạn không có quyền chỉnh sửa nhà cung cấp này.' }, { status: 403 });
     }
 
     const updateData = {};
@@ -31,14 +44,23 @@ export async function PUT(request, { params }) {
     if (tenNganHang) updateData.tenNganHang = tenNganHang.trim();
     if (maQR !== undefined) updateData.maQR = maQR;
 
-    if (loaiDoiTuong !== undefined) {
-      if (isStaffOrLeader) {
-        return NextResponse.json({ error: 'Bạn không có quyền thay đổi loại đối tượng.' }, { status: 403 });
-      }
-      updateData.loaiDoiTuong = loaiDoiTuong;
+    // Chỉ OWNER/MANAGER được đổi quyền xem
+    let quyenXemThayDoi = false;
+    if (chucVuDuocXem !== undefined && isOwnerOrManager) {
+      updateData.chucVuDuocXem = normalizeChucVu(chucVuDuocXem);
+      quyenXemThayDoi = updateData.chucVuDuocXem !== existingVendor.chucVuDuocXem;
     }
 
     const updated = await prisma.nhaCungCap.update({ where: { id }, data: updateData });
+
+    if (isOwnerOrManager) {
+      const moTa = quyenXemThayDoi
+        ? `Sửa NCC ${updated.tenNCC} (đổi quyền xem)`
+        : `Sửa NCC ${updated.tenNCC}`;
+      try {
+        await ghiNhatKy({ user, hanhDong: 'SUA', doiTuong: 'NCC', maDoiTuong: id, moTa });
+      } catch { /* ghi nhật ký lỗi không làm hỏng nghiệp vụ */ }
+    }
 
     return NextResponse.json({
       success: true,

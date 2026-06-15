@@ -57,7 +57,8 @@ export default function VendorsPage() {
   const [tenTaiKhoan, setTenTaiKhoan] = useState('');
   const [soTaiKhoan, setSoTaiKhoan] = useState('');
   const [tenNganHang, setTenNganHang] = useState('');
-  const [loaiDoiTuong, setLoaiDoiTuong] = useState('NCC');
+  // Vai trò được xem NCC này (Owner luôn xem). Mặc định tick hết = mọi vai trò.
+  const [chucVuXem, setChucVuXem] = useState(['MANAGER', 'LEADER', 'STAFF']);
 
   // Detail Modal State
   const [selectedVendor, setSelectedVendor] = useState(null);
@@ -165,7 +166,7 @@ export default function VendorsPage() {
     setTenTaiKhoan('');
     setSoTaiKhoan('');
     setTenNganHang('');
-    setLoaiDoiTuong('NCC');
+    setChucVuXem(['MANAGER', 'LEADER', 'STAFF']);
     setFormError('');
     setFormSuccess('');
     setIsModalOpen(true);
@@ -178,7 +179,8 @@ export default function VendorsPage() {
     setTenTaiKhoan(v.tenTaiKhoan || '');
     setSoTaiKhoan(v.soTaiKhoan);
     setTenNganHang(v.tenNganHang);
-    setLoaiDoiTuong(v.loaiDoiTuong || 'NCC');
+    // API trả chucVuDuocXem dạng mảng (cho OWNER/MANAGER) hoặc null = mọi vai trò
+    setChucVuXem(Array.isArray(v.chucVuDuocXem) ? v.chucVuDuocXem : ['MANAGER', 'LEADER', 'STAFF']);
     setFormError('');
     setFormSuccess('');
     setIsModalOpen(true);
@@ -202,7 +204,7 @@ export default function VendorsPage() {
       tenTaiKhoan: tenTaiKhoan.trim() || null,
       soTaiKhoan: soTaiKhoan.trim(),
       tenNganHang: tenNganHang.trim(),
-      loaiDoiTuong: loaiDoiTuong
+      chucVuDuocXem: chucVuXem,
     };
 
     try {
@@ -263,6 +265,15 @@ export default function VendorsPage() {
     return num.toLocaleString('vi-VN') + ' ₫';
   };
 
+  // OWNER/MANAGER mới thấy số liệu chi tiêu nhạy cảm + chỉnh quyền xem
+  const isOM = user && ['OWNER', 'MANAGER'].includes(user.role);
+
+  const toggleChucVuXem = (role) => {
+    setChucVuXem((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
+    );
+  };
+
   // Filter vendors on client
   const filteredVendors = vendors.filter(v => {
     const q = searchQuery.toLowerCase().trim();
@@ -306,15 +317,17 @@ export default function VendorsPage() {
             </div>
           </div>
 
-          <div className={`${styles.kpiCard} glass-card`}>
-            <div className={styles.kpiIcon} style={{ color: 'var(--success)' }}>
-              <DollarSign size={24} />
+          {isOM && (
+            <div className={`${styles.kpiCard} glass-card`}>
+              <div className={styles.kpiIcon} style={{ color: 'var(--success)' }}>
+                <DollarSign size={24} />
+              </div>
+              <div className={styles.kpiInfo}>
+                <h3>Tổng tiền đã chi cho NCC</h3>
+                <p className={styles.kpiValue} style={{ color: 'var(--success)' }}>{formatVND(totalSpent)}</p>
+              </div>
             </div>
-            <div className={styles.kpiInfo}>
-              <h3>Tổng tiền đã chi cho NCC</h3>
-              <p className={styles.kpiValue} style={{ color: 'var(--success)' }}>{formatVND(totalSpent)}</p>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Filter / Search section */}
@@ -350,8 +363,8 @@ export default function VendorsPage() {
                     <th>Tên TK ngân hàng</th>
                     <th>Số tài khoản</th>
                     <th>Ngân hàng</th>
-                    <th style={{ textAlign: 'center', width: '100px' }}>Giao dịch</th>
-                    <th style={{ textAlign: 'right', width: '160px' }}>Tổng đã chi</th>
+                    {isOM && <th style={{ textAlign: 'center', width: '100px' }}>Giao dịch</th>}
+                    {isOM && <th style={{ textAlign: 'right', width: '160px' }}>Tổng đã chi</th>}
                     <th style={{ textAlign: 'center', width: '140px' }}>Thao tác</th>
                   </tr>
                 </thead>
@@ -359,39 +372,24 @@ export default function VendorsPage() {
                   {filteredVendors.map((v) => (
                     <tr key={v.id}>
                       <td style={{ fontWeight: 'bold', color: 'var(--info)' }}>{v.id}</td>
-                      <td style={{ fontWeight: '600' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {v.tenNCC}
-                          {v.loaiDoiTuong === 'NHAN_VIEN' && (
-                            <span
-                              className="badge"
-                              style={{
-                                backgroundColor: 'var(--info-bg)',
-                                color: 'var(--info)',
-                                fontSize: '0.7rem',
-                                padding: '0.1rem 0.4rem',
-                                borderRadius: '4px',
-                                fontWeight: '600'
-                              }}
-                            >
-                              Nhân viên
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                      <td style={{ fontWeight: '600' }}>{v.tenNCC}</td>
                       <td style={{ fontWeight: '500', color: v.tenTaiKhoan ? 'var(--text-main)' : 'var(--text-muted)', fontStyle: v.tenTaiKhoan ? 'normal' : 'italic' }}>
                         {v.tenTaiKhoan || 'Chưa có'}
                       </td>
                       <td style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}>{v.soTaiKhoan}</td>
                       <td style={{ fontWeight: '500' }}>{v.tenNganHang}</td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className="badge badge-reimburse" style={{ backgroundColor: 'rgba(251,191,36,0.06)', color: '#fbbf24', fontSize: '0.75rem' }}>
-                          {v.soPhieuChi || 0} lần
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: '800', color: 'var(--success)', textAlign: 'right' }}>
-                        {formatVND(v.tongDaChi || 0)}
-                      </td>
+                      {isOM && (
+                        <td style={{ textAlign: 'center' }}>
+                          <span className="badge badge-reimburse" style={{ backgroundColor: 'rgba(251,191,36,0.06)', color: '#fbbf24', fontSize: '0.75rem' }}>
+                            {v.soPhieuChi || 0} lần
+                          </span>
+                        </td>
+                      )}
+                      {isOM && (
+                        <td style={{ fontWeight: '800', color: 'var(--success)', textAlign: 'right' }}>
+                          {formatVND(v.tongDaChi || 0)}
+                        </td>
+                      )}
                       <td style={{ textAlign: 'center' }}>
                         <div className={styles.actionButtons}>
                           <button
@@ -402,14 +400,16 @@ export default function VendorsPage() {
                             <Eye size={16} />
                           </button>
 
-                          <button
-                            onClick={() => handleOpenHistory(v)}
-                            className={`${styles.actionBtn} ${styles.editBtn}`}
-                            title="Lịch sử giao dịch"
-                            style={{ color: '#a78bfa' }}
-                          >
-                            <History size={16} />
-                          </button>
+                          {isOM && (
+                            <button
+                              onClick={() => handleOpenHistory(v)}
+                              className={`${styles.actionBtn} ${styles.editBtn}`}
+                              title="Lịch sử giao dịch"
+                              style={{ color: '#a78bfa' }}
+                            >
+                              <History size={16} />
+                            </button>
+                          )}
 
                           <button
                             onClick={() => handleOpenEdit(v)}
@@ -479,18 +479,39 @@ export default function VendorsPage() {
                   />
                 </div>
 
-                {['OWNER', 'MANAGER'].includes(user?.role) && (
+                {isOM && (
                   <div className={styles.formGroup}>
-                    <label className="form-label">Loại Đối Tượng</label>
-                    <select
-                      className="form-control"
-                      value={loaiDoiTuong}
-                      onChange={(e) => setLoaiDoiTuong(e.target.value)}
-                      disabled={formLoading}
-                    >
-                      <option value="NCC">Nhà Cung Cấp (NCC)</option>
-                      <option value="NHAN_VIEN">Nhân Viên (Staff - chi lương)</option>
-                    </select>
+                    <label className="form-label">Ai được xem nhà cung cấp này?</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.25rem' }}>
+                      {[
+                        { key: 'MANAGER', label: 'Quản lý' },
+                        { key: 'LEADER', label: 'Trưởng nhóm' },
+                        { key: 'STAFF', label: 'Nhân viên' },
+                      ].map((r) => {
+                        const checked = chucVuXem.includes(r.key);
+                        return (
+                          <button
+                            type="button"
+                            key={r.key}
+                            onClick={() => toggleChucVuXem(r.key)}
+                            disabled={formLoading}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                              padding: '0.4rem 0.75rem', borderRadius: '999px', cursor: 'pointer',
+                              fontSize: '0.85rem', fontWeight: 600, fontFamily: 'inherit',
+                              border: `1.5px solid ${checked ? 'var(--primary)' : 'var(--border)'}`,
+                              background: checked ? 'rgba(var(--primary-rgb), 0.12)' : 'transparent',
+                              color: checked ? 'var(--primary)' : 'var(--text-muted)',
+                            }}
+                          >
+                            {checked ? <Check size={15} /> : <X size={15} />} {r.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '0.4rem' }}>
+                      Chủ shop luôn xem được. Bỏ tick để ẩn nhà cung cấp này với vai trò đó. Mặc định: mọi vai trò đều xem được.
+                    </small>
                   </div>
                 )}
 
@@ -593,19 +614,17 @@ export default function VendorsPage() {
                     <span className={styles.label}>Tên đối tác:</span>
                     <span className={styles.value}>{selectedVendor.tenNCC}</span>
                   </div>
-                  {['OWNER', 'MANAGER'].includes(user?.role) && (
+                  {isOM && (
                     <div className={styles.detailRow}>
-                      <span className={styles.label}>Loại đối tượng:</span>
-                      <span className={styles.value}>
-                        {selectedVendor.loaiDoiTuong === 'NHAN_VIEN' ? (
-                          <span className="badge" style={{ backgroundColor: 'var(--info-bg)', color: 'var(--info)', fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: '600' }}>
-                            Nhân viên (Chi lương)
-                          </span>
-                        ) : (
-                          <span className="badge" style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: '600' }}>
-                            Nhà cung cấp (NCC)
-                          </span>
-                        )}
+                      <span className={styles.label}>Ai được xem:</span>
+                      <span className={styles.value} style={{ fontWeight: 600 }}>
+                        {Array.isArray(selectedVendor.chucVuDuocXem)
+                          ? (selectedVendor.chucVuDuocXem.length
+                              ? selectedVendor.chucVuDuocXem
+                                  .map((r) => ({ MANAGER: 'Quản lý', LEADER: 'Trưởng nhóm', STAFF: 'Nhân viên' }[r] || r))
+                                  .join(', ')
+                              : 'Chỉ chủ shop')
+                          : 'Mọi vai trò'}
                       </span>
                     </div>
                   )}
@@ -637,14 +656,18 @@ export default function VendorsPage() {
                     <span className={styles.label}>Ngân hàng:</span>
                     <span className={styles.value}>{selectedVendor.tenNganHang}</span>
                   </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.label}>Tổng tiền đã chi:</span>
-                    <span className={styles.value} style={{ color: 'var(--success)', fontSize: '1.05rem' }}>{formatVND(selectedVendor.tongDaChi || 0)}</span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.label}>Tổng số giao dịch:</span>
-                    <span className={styles.value}>{selectedVendor.soPhieuChi || 0} lần</span>
-                  </div>
+                  {isOM && (
+                    <>
+                      <div className={styles.detailRow}>
+                        <span className={styles.label}>Tổng tiền đã chi:</span>
+                        <span className={styles.value} style={{ color: 'var(--success)', fontSize: '1.05rem' }}>{formatVND(selectedVendor.tongDaChi || 0)}</span>
+                      </div>
+                      <div className={styles.detailRow}>
+                        <span className={styles.label}>Tổng số giao dịch:</span>
+                        <span className={styles.value}>{selectedVendor.soPhieuChi || 0} lần</span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <button onClick={() => setSelectedVendor(null)} className="btn btn-secondary" style={{ width: '100%', marginTop: '0.5rem' }}>

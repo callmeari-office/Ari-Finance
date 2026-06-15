@@ -34,6 +34,33 @@ export function isRestrictedToOwnProposals(role) {
 }
 
 /**
+ * Vai trò có được xem một Nhà cung cấp không, theo danh sách vai trò được phép.
+ * - OWNER: luôn xem được.
+ * - allowedRoles là null / không phải mảng / mảng rỗng: mọi vai trò xem được
+ *   (mặc định cho dữ liệu cũ + NCC tạo nhanh).
+ * - Ngược lại: chỉ vai trò nằm trong danh sách (LEADER khớp như STAFF).
+ */
+export function canViewNcc(role, allowedRoles) {
+  if (role === 'OWNER') return true;
+  // null / không phải mảng = mặc định mọi vai trò xem được.
+  // Mảng (kể cả rỗng) = giới hạn rõ ràng → chỉ vai trò trong danh sách (rỗng = chỉ Owner).
+  if (!Array.isArray(allowedRoles)) return true;
+  return getEffectiveRoles(role).some((r) => allowedRoles.includes(r));
+}
+
+/** Parse an toàn chuỗi JSON chucVuDuocXem → mảng vai trò hoặc null. */
+export function parseChucVuDuocXem(raw) {
+  if (raw == null) return null;
+  if (Array.isArray(raw)) return raw;
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * NGUỒN SỰ THẬT DUY NHẤT cho quyền hiển thị menu / tính năng theo vai trò mặc định.
  * Dùng chung bởi Sidebar (lọc menu), trang Quản lý Quyền (khởi tạo toggle) và các
  * page guard. Trang /quyen có thể override từng key cho từng vai trò (lưu vào

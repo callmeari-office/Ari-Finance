@@ -141,7 +141,8 @@ model NhaCungCap {
   soTaiKhoan   String
   tenNganHang  String
   maQR         String?
-  loaiDoiTuong String         @default("NCC") // NCC hoặc NHAN_VIEN
+  loaiDoiTuong String         @default("NCC") // (Cột cũ - không còn dùng trong code; giữ lại để tránh migration phá trên Windows)
+  chucVuDuocXem String?       // JSON mảng vai trò được xem (vd ["MANAGER","LEADER"]); NULL = mọi vai trò xem được
 
   deXuatChiPhi DeXuatChiPhi[]
   thuChi       ThuChi[]
