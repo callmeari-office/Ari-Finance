@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/don-phien",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/bao-cao-sang",
+      "schedule": "0 1 * * *"
     }
   ]
 }

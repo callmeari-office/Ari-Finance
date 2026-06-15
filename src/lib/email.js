@@ -2,6 +2,7 @@ import nodemailer from 'nodemailer';
 import { prisma } from './prisma';
 import { logger } from './logger';
 import { ghiNhatKy } from './audit';
+import { buildMorningBriefingHTML } from './morningBriefing';
 
 /**
  * Gửi email qua Gmail SMTP (nodemailer).
@@ -856,5 +857,46 @@ export async function notifyManagersChoThanhToan(proposalId) {
     );
   } catch (error) {
     logger.error('notifyManagersChoThanhToan', error);
+  }
+}
+
+/**
+ * Gửi email "Báo cáo sáng" cho Owner + Manager.
+ * @param {{ data: object, ai: object|null, preview?: boolean, previewEmail?: string|null }} p
+ * @returns {Promise<{ sent: boolean, to?: number, reason?: string }>}
+ */
+export async function sendMorningBriefing({ data, ai, preview = false, previewEmail = null }) {
+  try {
+    const transporter = getTransporter();
+    if (!transporter) {
+      logger.warn('sendMorningBriefing: chưa cấu hình SMTP → bỏ qua.');
+      return { sent: false, reason: 'no-smtp' };
+    }
+
+    const toList = preview
+      ? (previewEmail && previewEmail.includes('@') ? [previewEmail] : [])
+      : await getManagerRecipients();
+
+    if (!toList.length) {
+      logger.warn('sendMorningBriefing: không có người nhận hợp lệ.');
+      return { sent: false, reason: 'no-recipients' };
+    }
+
+    const d = data?.ngay instanceof Date ? data.ngay : new Date();
+    const subject = `☀️ Báo cáo sáng ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} · Call Me Ari`;
+    const from = process.env.SMTP_FROM || `ARI Finance <${process.env.SMTP_USER}>`;
+
+    await transporter.sendMail({
+      from,
+      to: toList.join(', '),
+      subject,
+      html: buildMorningBriefingHTML(data, ai),
+    });
+
+    logger.info(`sendMorningBriefing: đã gửi tới ${toList.length} người${preview ? ' (preview)' : ''}.`);
+    return { sent: true, to: toList.length };
+  } catch (error) {
+    logger.error('sendMorningBriefing', error);
+    return { sent: false, reason: 'send-error' };
   }
 }
