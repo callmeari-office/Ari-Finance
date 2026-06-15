@@ -60,19 +60,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickLogin = (role) => {
-    if (role === 'owner') {
-      setEmail('owner');
-      setMatKhau('owner123');
-    } else if (role === 'manager') {
-      setEmail('manager');
-      setMatKhau('manager123');
-    } else if (role === 'staff') {
-      setEmail('staff');
-      setMatKhau('staff123');
-    }
-  };
-
   return (
     <div className={styles.loginContainer}>
       {/* Ảnh nền cameo mờ — chỉ hiện ở Chế độ Ari */}
@@ -203,27 +190,6 @@ export default function LoginPage() {
           <span>Call Me ARI</span>
         </div>
 
-        {/* Quick Login Section (Hidden for Production) */}
-        {/*
-        <div className={styles.quickLoginBox}>
-          <h3>TÀI KHOẢN NGHIỆM THU (QUICK TEST)</h3>
-          <p>Nhấp vào vai trò dưới đây để tự động điền ID & Mật khẩu mẫu:</p>
-          <div className={styles.quickButtons}>
-            <button onClick={() => handleQuickLogin('owner')} className={`${styles.quickBtn} ${styles.ownerBtn}`}>
-              <span>Owner (Chủ shop)</span>
-              <small>ID: owner | MK: owner123</small>
-            </button>
-            <button onClick={() => handleQuickLogin('manager')} className={`${styles.quickBtn} ${styles.managerBtn}`}>
-              <span>Manager (Quản lý)</span>
-              <small>ID: manager | MK: manager123</small>
-            </button>
-            <button onClick={() => handleQuickLogin('staff')} className={`${styles.quickBtn} ${styles.staffBtn}`}>
-              <span>Staff (Nhân viên)</span>
-              <small>ID: staff | MK: staff123</small>
-            </button>
-          </div>
-        </div>
-        */}
       </div>
     </div>
   );

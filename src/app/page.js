@@ -422,12 +422,42 @@ export default function Dashboard() {
             <p className="brand-motto" style={{ display: 'none' }}>{getAriMotto()}</p>
           </div>
           <div className={styles.actions}>
-            <button onClick={() => router.push('/de-xuat')} className="btn btn-primary">
+            <button onClick={() => router.push('/de-xuat?open=new')} className="btn btn-primary">
               <PlusCircle size={18} />
               <span>Tạo đề xuất chi</span>
             </button>
           </div>
         </div>
+
+        {/* ===== THẺ HÀNH ĐỘNG CHO NHÂN VIÊN (STAFF/LEADER) ===== */}
+        {canPersonal && (
+          <div className={`glass-card ${styles.staffAction}`}>
+            <div className={styles.staffActionMain}>
+              <h2 className={styles.staffActionTitle}>Gửi một khoản chi mới</h2>
+              <p className={styles.staffActionDesc}>Chỉ vài bước đơn giản, Ari lo phần còn lại giúp bạn.</p>
+              <button onClick={() => router.push('/de-xuat?open=new')} className="btn btn-primary">
+                <PlusCircle size={20} />
+                <span>Tạo đề xuất chi phí</span>
+              </button>
+            </div>
+            <div className={styles.staffActionStats}>
+              <button className={styles.staffStat} onClick={() => router.push('/de-xuat')} title="Xem các phiếu đang chờ duyệt">
+                <span className={styles.staffStatNum}>{proposalsLoading ? '–' : myPending}</span>
+                <span className={styles.staffStatLbl}>Chờ duyệt</span>
+              </button>
+              <button className={styles.staffStat} onClick={() => router.push('/de-xuat')} title="Xem các phiếu đã được duyệt">
+                <span className={styles.staffStatNum}>{proposalsLoading ? '–' : myPaid}</span>
+                <span className={styles.staffStatLbl}>Đã duyệt</span>
+              </button>
+              {!proposalsLoading && myRejected.length > 0 && (
+                <button className={`${styles.staffStat} ${styles.staffStatWarn}`} onClick={() => router.push('/de-xuat')} title="Xem các phiếu bị từ chối">
+                  <span className={styles.staffStatNum}>{myRejected.length}</span>
+                  <span className={styles.staffStatLbl}>Bị từ chối</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ===== BẢNG THÔNG BÁO NỘI BỘ ===== */}
         {(thongBaoList.length > 0 || canManageTB) && (

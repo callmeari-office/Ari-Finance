@@ -1,0 +1,118 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(0, 0, 0, 0.5); /* scrim chuẩn — ngoại lệ có chủ ý */
+  animation: ob-fade 0.2s var(--ease-out, ease) both;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: var(--shadow-lg, 0 20px 60px rgba(0, 0, 0, 0.25));
+  padding: 1.75rem 1.5rem 1.5rem;
+  text-align: center;
+  animation: ob-pop 0.28s var(--ease-out, ease) both;
+}
+
+.skip {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.85rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+}
+.skip:hover { color: var(--text-main); background: rgba(var(--brand-brown-rgb), 0.06); }
+
+.cameo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.25rem;
+}
+
+.iconBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  margin: 0.5rem auto 0.75rem;
+  border-radius: 50%;
+  color: var(--primary);
+  background: rgba(var(--brand-brown-rgb), 0.08);
+  border: 1px solid var(--border);
+}
+
+.title {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--brand-brown);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.body {
+  margin: 0 auto;
+  max-width: 36ch;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 1.1rem 0 1.25rem;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(var(--brand-brown-rgb), 0.2);
+  transition: width var(--ease-smooth, ease) 0.2s, background var(--ease-smooth, ease) 0.2s;
+}
+.dotActive {
+  width: 20px;
+  background: var(--primary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.actions :global(.btn) {
+  flex: 1;
+  justify-content: center;
+}
+
+@keyframes ob-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ob-pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .card { animation: none; }
+  .dot { transition: none; }
+}

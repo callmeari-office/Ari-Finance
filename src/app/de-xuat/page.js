@@ -20,15 +20,23 @@ import {
   FileSpreadsheet,
   Rows3,
   Plus,
-  CheckSquare
+  CheckSquare,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Wallet,
+  Building2,
+  HandCoins
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
 import Chip from '@/components/Chip';
+import HelpTip from '@/components/HelpTip';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
 import { formatDate, formatDateOrEmpty } from '@/lib/date';
+import { docSoTienVND } from '@/lib/docSo';
 import { generateVietQRUrl } from '@/lib/vietqr';
 import { formatSoTienDisplay, parseDateCell } from './helpers';
 import styles from './de-xuat.module.css';
@@ -82,6 +90,8 @@ function DeXuatPage() {
   const [ngayCanThanhToan, setNgayCanThanhToan] = useState('');
   const [formType, setFormType] = useState('ADD'); // 'ADD' hoặc 'EDIT'
   const [editingId, setEditingId] = useState(null);
+  // Progressive disclosure: ẩn bớt trường nâng cao cho form gọn, dễ thở trên mobile
+  const [showMore, setShowMore] = useState(false);
 
   // Ảnh hóa đơn đính kèm
   const [anhHoaDon, setAnhHoaDon] = useState('');
@@ -136,6 +146,47 @@ function DeXuatPage() {
   const handleSoTienChange = (e) => {
     const raw = e.target.value.replace(/\D/g, '');
     setSoTien(raw);
+  };
+
+  // ===== "Ai trả khoản này?" — gộp Nguồn tiền + Trạng thái thành 1 lựa chọn dễ hiểu =====
+  // Bên dưới vẫn lưu đúng nguonTien + trangThai như cũ → luồng dữ liệu KHÔNG đổi.
+  const getTinhHuong = () => {
+    // Phiếu đã hủy: không highlight thẻ nào — buộc người dùng chọn lại có chủ ý (sẽ kích hoạt lại phiếu)
+    if (trangThai === 'HUY') return '';
+    if (nguonTien === 'TIEN_CA_NHAN') return 'CA_NHAN';
+    if (nguonTien === 'TIEN_SHOP' && trangThai === 'DA_THANH_TOAN') return 'SHOP_DA_TRA';
+    return 'SHOP_CHUA_TRA';
+  };
+  const chonTinhHuong = (key) => {
+    if (key === 'CA_NHAN') {
+      setNguonTien('TIEN_CA_NHAN');
+      setTrangThai('CHO_HOAN_UNG');
+    } else if (key === 'SHOP_DA_TRA') {
+      setNguonTien('TIEN_SHOP');
+      setTrangThai('DA_THANH_TOAN');
+    } else {
+      setNguonTien('TIEN_SHOP');
+      setTrangThai('CHO_THANH_TOAN');
+    }
+  };
+
+  // Câu mô tả tình huống bằng lời người — dùng cho màn xác nhận
+  const moTaTinhHuong = () => {
+    const t = getTinhHuong();
+    if (t === 'CA_NHAN') return 'Bạn ứng tiền trước, shop sẽ hoàn lại cho bạn.';
+    if (t === 'SHOP_DA_TRA') return 'Shop đã trả khoản này rồi (ghi nhận lại).';
+    return 'Shop sẽ trả khoản này.';
+  };
+
+  // Timeline trạng thái phiếu cho modal chi tiết
+  const buildTimeline = (p) => {
+    const daDuyet = p.trangThai === 'DA_THANH_TOAN';
+    const lastLabel = p.nguonTien === 'TIEN_CA_NHAN' ? 'Đã hoàn ứng' : 'Đã chi & ghi sổ';
+    return [
+      { label: 'Đã gửi', status: 'done' },
+      { label: daDuyet ? 'Đã duyệt' : 'Chờ duyệt', status: daDuyet ? 'done' : 'current' },
+      { label: lastLabel, status: daDuyet ? 'done' : 'upcoming' },
+    ];
   };
 
   const handleCopyText = (text, fieldName) => {
@@ -302,6 +353,12 @@ function DeXuatPage() {
     const openId = searchParams.get('open');
     if (!openId) return;
     openHandledRef.current = true;
+    // ?open=new → mở thẳng form tạo đề xuất (dùng cho nút từ Trang chủ)
+    if (openId === 'new') {
+      handleOpenAdd();
+      router.replace('/de-xuat');
+      return;
+    }
     const target = proposals.find((p) => p.id === openId);
     if (target) {
       setSelectedProp(target);
@@ -421,6 +478,7 @@ function DeXuatPage() {
     setGhiChu('');
     setNoiDung('');
     setAnhHoaDon('');
+    setShowMore(false);
 
     setFormError('');
     setFormSuccess('');
@@ -440,6 +498,8 @@ function DeXuatPage() {
     setGhiChu(prop.ghiChu || '');
     setNoiDung(prop.noiDung);
     setAnhHoaDon(prop.anhHoaDon || '');
+    // Mở sẵn khối "Thêm chi tiết" nếu phiếu đang sửa có dùng tới các trường nâng cao
+    setShowMore(!!(prop.nhaCungCapId || prop.anhHoaDon || prop.ngayCanThanhToan || prop.ghiChu));
     setFormError('');
     setFormSuccess('');
     setIsModalOpen(true);
@@ -861,6 +921,19 @@ function DeXuatPage() {
       return;
     }
 
+    // Xác nhận bằng lời người trước khi gửi — giúp người dùng nontech an tâm, hết sợ bấm nhầm
+    const catName = currentCategory?.tenDanhMuc || '';
+    const xacNhan = await showConfirm({
+      title: formType === 'ADD' ? 'Xác nhận gửi đề xuất' : 'Xác nhận lưu thay đổi',
+      message:
+        `Bạn sắp ${formType === 'ADD' ? 'gửi đề xuất' : 'lưu'} chi ` +
+        `${Number(soTien).toLocaleString('vi-VN')} ₫${catName ? ` cho “${catName}”` : ''}.\n` +
+        `${moTaTinhHuong()}\n\nThông tin đã đúng chưa?`,
+      confirmLabel: formType === 'ADD' ? 'Gửi đề xuất' : 'Lưu thay đổi',
+      cancelLabel: 'Để mình xem lại',
+    });
+    if (!xacNhan) return;
+
     setFormLoading(true);
 
     try {
@@ -887,8 +960,12 @@ function DeXuatPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Lưu đề xuất thất bại.');
 
-      setFormSuccess(data.message || (formType === 'ADD' ? 'Đã tạo đề xuất thành công!' : 'Đã cập nhật đề xuất thành công!'));
-      
+      const successMsg = formType === 'ADD'
+        ? 'Đã gửi đề xuất! Quản lý sẽ duyệt sớm — bạn theo dõi ở danh sách “Đề xuất” nhé.'
+        : 'Đã lưu thay đổi cho phiếu của bạn.';
+      setFormSuccess(successMsg);
+      toast.success(successMsg);
+
       // Reset form
       setDanhMucId('');
       setNoiDung('');
@@ -1414,7 +1491,10 @@ function DeXuatPage() {
                   </div>
 
                   <div className="form-group" style={{ flex: 1 }}>
-                    <label className="form-label" htmlFor="ngayCanThanhToan">Ngày cần thanh toán (Nếu có)</label>
+                    <label className="form-label" htmlFor="ngayCanThanhToan" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                      Ngày cần thanh toán (Nếu có)
+                      <HelpTip text="Hạn chót cần chi khoản này. Để trống nếu không gấp. Ari sẽ nhắc quản lý khi gần đến hạn." />
+                    </label>
                     <input
                       id="ngayCanThanhToan"
                       type="date"
@@ -1427,41 +1507,46 @@ function DeXuatPage() {
                   </div>
                 </div>
 
-                <div className={styles.formRow}>
-                  <div className="form-group" style={{ flex: 1 }}>
-                    <label className="form-label" htmlFor="nguonTien">Nguồn tiền *</label>
-                    <select
-                      id="nguonTien"
-                      className="form-control"
-                      value={nguonTien}
-                      onChange={(e) => setNguonTien(e.target.value)}
-                      required
+                {/* AI TRẢ KHOẢN NÀY? — thay 2 ô "Nguồn tiền" + "Trạng thái" khó hiểu.
+                    Bên dưới vẫn lưu đúng nguonTien + trangThai như cũ. */}
+                <div className="form-group">
+                  <label className="form-label" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    Ai trả khoản này? *
+                    <HelpTip text="Chọn đúng để Ari ghi sổ giúp bạn. “Shop trả” = tiền của shop. “Mình ứng trước” = bạn bỏ tiền túi, shop sẽ hoàn lại sau khi quản lý duyệt." />
+                  </label>
+                  {formType === 'EDIT' && trangThai === 'HUY' && (
+                    <small style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--warning)', fontWeight: 600 }}>
+                      ⚠ Phiếu đang ở trạng thái <strong>Đã hủy</strong>. Chọn một mục bên dưới sẽ kích hoạt lại phiếu.
+                    </small>
+                  )}
+                  <div className={styles.payerChoice}>
+                    <button
+                      type="button"
+                      className={`${styles.payerOption} ${getTinhHuong() === 'SHOP_CHUA_TRA' ? styles.payerOptionActive : ''}`}
+                      onClick={() => chonTinhHuong('SHOP_CHUA_TRA')}
                       disabled={formLoading}
                     >
-                      <option value="TIEN_SHOP">🏦 Tiền Shop (Shop chi trả)</option>
-                      <option value="TIEN_CA_NHAN">👤 Tiền cá nhân (Nhân viên ứng trước)</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group" style={{ flex: 1 }}>
-                    <label className="form-label" htmlFor="trangThai">Trạng thái ban đầu *</label>
-                    <select
-                      id="trangThai"
-                      className="form-control"
-                      value={trangThai}
-                      onChange={(e) => setTrangThai(e.target.value)}
-                      required
-                      disabled={formLoading || nguonTien === 'TIEN_CA_NHAN'} // Khóa nếu là tiền cá nhân ứng (bắt buộc hoàn ứng)
+                      <span className={styles.payerOptionHead}><Building2 size={17} /> Shop trả</span>
+                      <span className={styles.payerOptionDesc}>Shop sẽ chi khoản này (chờ duyệt thanh toán).</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.payerOption} ${getTinhHuong() === 'SHOP_DA_TRA' ? styles.payerOptionActive : ''}`}
+                      onClick={() => chonTinhHuong('SHOP_DA_TRA')}
+                      disabled={formLoading}
                     >
-                      {nguonTien === 'TIEN_SHOP' ? (
-                        <>
-                          <option value="CHO_THANH_TOAN">Chờ thanh toán (TH1)</option>
-                          <option value="DA_THANH_TOAN">Đã thanh toán sẵn (TH2)</option>
-                        </>
-                      ) : (
-                        <option value="CHO_HOAN_UNG">Chờ hoàn ứng (TH3)</option>
-                      )}
-                    </select>
+                      <span className={styles.payerOptionHead}><Wallet size={17} /> Shop đã trả rồi</span>
+                      <span className={styles.payerOptionDesc}>Khoản này shop đã trả, chỉ ghi nhận lại.</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.payerOption} ${getTinhHuong() === 'CA_NHAN' ? styles.payerOptionActive : ''}`}
+                      onClick={() => chonTinhHuong('CA_NHAN')}
+                      disabled={formLoading}
+                    >
+                      <span className={styles.payerOptionHead}><HandCoins size={17} /> Mình ứng trước</span>
+                      <span className={styles.payerOptionDesc}>Bạn trả trước, shop sẽ hoàn lại cho bạn.</span>
+                    </button>
                   </div>
                 </div>
 
@@ -1513,9 +1598,36 @@ function DeXuatPage() {
                         = {Number(soTien).toLocaleString('vi-VN')} ₫
                       </div>
                     )}
+                    {soTien && Number(soTien) > 0 && (
+                      <div style={{ marginTop: '0.15rem', fontSize: '0.74rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        {docSoTienVND(soTien)}
+                      </div>
+                    )}
                   </div>
                 </div>
 
+                {/* NỘI DUNG CHI TIẾT — đưa lên thành thông tin thiết yếu */}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="noiDung">Nội dung chi tiết *</label>
+                  <textarea
+                    id="noiDung"
+                    placeholder="Chi cho việc gì? Ví dụ: Mua túi đựng hàng cho khách..."
+                    className="form-control"
+                    rows={2}
+                    value={noiDung}
+                    onChange={(e) => setNoiDung(e.target.value)}
+                    required
+                    disabled={formLoading}
+                  />
+                </div>
+
+                {/* THÊM CHI TIẾT (NẾU CẦN) — progressive disclosure: gói trường nâng cao cho form đỡ ngợp */}
+                {!(showMore || currentCategory?.yeuCauNCC) ? (
+                  <button type="button" className={styles.moreToggle} onClick={() => setShowMore(true)}>
+                    <ChevronDown size={16} /> Thêm chi tiết (nhà cung cấp, ảnh hóa đơn)
+                  </button>
+                ) : (
+                <div className={styles.moreBody}>
                 <div className={styles.formRow}>
                   <div className="form-group" style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
@@ -1549,8 +1661,8 @@ function DeXuatPage() {
                         const selVendor = vendors.find(v => v.id === nhaCungCapId);
                         if (selVendor) {
                           return (
-                            <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.15)', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--info)' }}>
-                              👉 <strong>{selVendor.tenNCC}</strong> | STK: <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#fbbf24' }}>{selVendor.soTaiKhoan}</span> | {selVendor.tenNganHang}
+                            <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.75rem', background: 'var(--info-bg)', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--info)' }}>
+                              👉 <strong>{selVendor.tenNCC}</strong> | STK: <span style={{ fontFamily: 'monospace', fontWeight: 'bold', color: 'var(--warning)' }}>{selVendor.soTaiKhoan}</span> | {selVendor.tenNganHang}
                             </div>
                           );
                         }
@@ -1560,8 +1672,9 @@ function DeXuatPage() {
                   </div>
 
                   <div className="form-group" style={{ flex: 1 }}>
-                    <label className="form-label" htmlFor="ghiChu">
+                    <label className="form-label" htmlFor="ghiChu" style={{ display: 'inline-flex', alignItems: 'center' }}>
                       Nội dung CK {nhaCungCapId && <span style={{ color: 'var(--danger)' }}>*</span>}
+                      <HelpTip text="Là dòng chữ ghi trong nội dung chuyển khoản, hiện ra khi quét mã QR để trả tiền nhà cung cấp." />
                     </label>
                     <input
                       id="ghiChu"
@@ -1579,20 +1692,6 @@ function DeXuatPage() {
                       </small>
                     )}
                   </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="noiDung">Nội dung chi tiết *</label>
-                  <textarea
-                    id="noiDung"
-                    placeholder="Mô tả cụ thể lý do đề xuất chi chi tiết..."
-                    className="form-control"
-                    rows={2}
-                    value={noiDung}
-                    onChange={(e) => setNoiDung(e.target.value)}
-                    required
-                    disabled={formLoading}
-                  />
                 </div>
 
                 {/* Upload ảnh hóa đơn */}
@@ -1626,6 +1725,13 @@ function DeXuatPage() {
                     )}
                   </div>
                 </div>
+                {showMore && !currentCategory?.yeuCauNCC && (
+                  <button type="button" className={styles.moreToggle} onClick={() => setShowMore(false)}>
+                    <ChevronUp size={16} /> Thu gọn
+                  </button>
+                )}
+                </div>
+                )}
 
                 <div className={styles.formActions}>
                   <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn-secondary" disabled={formLoading}>
@@ -2018,6 +2124,27 @@ function DeXuatPage() {
                   <X size={20} />
                 </button>
               </div>
+
+              {/* Phiếu của bạn đang ở bước nào — để người gửi luôn biết tiến trình */}
+              {selectedProp.trangThai === 'HUY' ? (
+                <div className={styles.timelineCancelled}>
+                  <X size={16} /> Phiếu này đã bị hủy.
+                </div>
+              ) : (
+                <div className={styles.timeline}>
+                  {buildTimeline(selectedProp).map((st, i) => (
+                    <div
+                      key={i}
+                      className={`${styles.timelineStep} ${st.status === 'done' ? styles.timelineStepDone : ''} ${st.status === 'current' ? styles.timelineStepCurrent : ''}`}
+                    >
+                      <span className={styles.timelineDot}>
+                        {st.status === 'done' ? <Check size={15} /> : st.status === 'current' ? <Clock size={14} /> : i + 1}
+                      </span>
+                      <span className={styles.timelineLabel}>{st.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className={styles.detailGrid}>
                 <div className={styles.detailItem}>

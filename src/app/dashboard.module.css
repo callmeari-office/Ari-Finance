@@ -111,6 +111,100 @@
   font-size: 0.95rem;
 }
 
+/* ============ Thẻ hành động cho Nhân viên (STAFF/LEADER) ============ */
+.staffAction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-8);
+  padding: 1.25rem 1.5rem;
+}
+
+.staffActionMain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 220px;
+  flex: 1;
+}
+
+.staffActionTitle {
+  font-size: 1.15rem;
+  font-weight: var(--weight-bold);
+  color: var(--brand-brown);
+  letter-spacing: -0.01em;
+}
+
+.staffActionDesc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.staffActionMain :global(.btn) {
+  align-self: flex-start;
+  font-size: 0.95rem;
+  padding: 0.7rem 1.4rem;
+}
+
+.staffActionStats {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.staffStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 76px;
+  padding: 0.6rem 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(var(--brand-brown-rgb), 0.03);
+  cursor: pointer;
+  transition: border-color var(--dur) ease, background-color var(--dur) ease;
+  font-family: inherit;
+}
+.staffStat:hover {
+  border-color: var(--primary);
+  background: rgba(var(--brand-brown-rgb), 0.06);
+}
+
+.staffStatNum {
+  font-size: 1.35rem;
+  font-weight: var(--weight-extrabold);
+  color: var(--text-main);
+  line-height: 1.1;
+}
+.staffStatLbl {
+  font-size: 0.7rem;
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.staffStatWarn .staffStatNum { color: var(--danger); }
+
+@media (max-width: 768px) {
+  .staffAction {
+    padding: 1.1rem 1.1rem;
+    gap: 1rem;
+  }
+  .staffActionMain :global(.btn) {
+    align-self: stretch;
+    width: 100%;
+    justify-content: center;
+  }
+  .staffActionStats {
+    width: 100%;
+  }
+  .staffStat { flex: 1; }
+}
+
 .dashboardGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

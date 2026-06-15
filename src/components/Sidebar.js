@@ -27,11 +27,13 @@ import {
   AlertTriangle,
   Clock,
   ChevronRight,
+  HelpCircle,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import ThemeToggle from './ThemeToggle';
 import PushToggle from './PushToggle';
 import BottomNav from './BottomNav';
+import { useConfirm } from './ConfirmDialog';
 import { canViewMenu } from '@/lib/roles';
 import { formatDate } from '@/lib/date';
 import styles from './Sidebar.module.css';
@@ -45,6 +47,7 @@ const TAG_STYLE = {
 export default function Sidebar({ user }) {
   const pathname = usePathname();
   const router = useRouter();
+  const showConfirm = useConfirm();
   const [isOpen, setIsOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [tbList, setTbList] = useState([]);
@@ -98,12 +101,17 @@ export default function Sidebar({ user }) {
   }, [showNotifPanel]);
 
   const handleLogout = async () => {
-    if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
-      const res = await fetch('/api/auth/logout', { method: 'POST' });
-      if (res.ok) {
-        router.push('/login');
-        router.refresh();
-      }
+    const ok = await showConfirm({
+      title: 'Đăng xuất',
+      message: 'Bạn có chắc chắn muốn đăng xuất khỏi Ari Finance?',
+      confirmLabel: 'Đăng xuất',
+      cancelLabel: 'Ở lại',
+    });
+    if (!ok) return;
+    const res = await fetch('/api/auth/logout', { method: 'POST' });
+    if (res.ok) {
+      router.push('/login');
+      router.refresh();
     }
   };
 
@@ -155,7 +163,11 @@ export default function Sidebar({ user }) {
           badge: it.key === 'duyet' && pendingCount > 0 ? pendingCount : undefined,
         };
       }),
-    { key: 'baoCao', label: 'Báo cáo', icon: <BarChart3 size={22} /> },
+    // Slot thứ 5: "Báo cáo" nếu có quyền, ngược lại "Khác" mở menu đầy đủ
+    // (tránh đưa người dùng tới trang họ không được xem).
+    allowedMenuItems.some((m) => m.key === 'baoCao')
+      ? { key: 'baoCao', label: 'Báo cáo', icon: <BarChart3 size={22} /> }
+      : { key: '__more', label: 'Khác', icon: <Menu size={22} /> },
   ];
 
   const activeBottomKey = (() => {
@@ -545,6 +557,18 @@ export default function Sidebar({ user }) {
             <KeyRound size={20} className={styles.navIcon} />
             <span>Đổi mật khẩu</span>
           </Link>
+          <button
+            type="button"
+            className={styles.navItem}
+            onClick={() => {
+              setIsOpen(false);
+              window.dispatchEvent(new CustomEvent('ari:show-onboarding', { detail: { role: user.role } }));
+            }}
+            style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit' }}
+          >
+            <HelpCircle size={20} className={styles.navIcon} />
+            <span>Xem lại hướng dẫn</span>
+          </button>
           <ThemeToggle />
           {(user?.role === 'OWNER' || user?.role === 'MANAGER') && <PushToggle compact />}
           <button onClick={handleLogout} className={styles.logoutBtn}>
@@ -559,6 +583,10 @@ export default function Sidebar({ user }) {
         items={bnItems}
         value={activeBottomKey}
         onChange={(key) => {
+          if (key === '__more') {
+            setIsOpen(true);
+            return;
+          }
           const item = menuItems.find(m => m.key === key);
           if (item) {
             router.push(item.path);

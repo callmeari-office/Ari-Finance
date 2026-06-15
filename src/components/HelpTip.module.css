@@ -1,0 +1,79 @@
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-left: 0.25rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 0;
+  transition: color var(--ease-smooth, ease) 0.15s, background var(--ease-smooth, ease) 0.15s;
+}
+
+.trigger:hover,
+.trigger[aria-expanded='true'] {
+  color: var(--primary);
+  background: rgba(var(--brand-brown-rgb), 0.08);
+}
+
+.bubble {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  width: max-content;
+  max-width: 260px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md, 0 6px 24px rgba(var(--brand-brown-rgb), 0.18));
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: normal;
+  animation: helptip-in 0.16s var(--ease-out, ease) both;
+}
+
+/* Mũi nhọn chỉ lên nút ? */
+.bubble::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 8px;
+  width: 10px;
+  height: 10px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
+@keyframes helptip-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Trên màn rất hẹp, neo bubble theo mép phải để không tràn */
+@media (max-width: 480px) {
+  .bubble {
+    max-width: min(78vw, 260px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble { animation: none; }
+}
