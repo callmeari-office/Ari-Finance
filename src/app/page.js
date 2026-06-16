@@ -57,6 +57,7 @@ export default function Dashboard() {
   // Dự báo dòng tiền
   const [duBao, setDuBao] = useState(null);
   const [duBaoLoading, setDuBaoLoading] = useState(true);
+  const [chiPhiDuKien, setChiPhiDuKien] = useState(null);
   // Ngân sách danh mục + doanh thu mini (STAFF/LEADER)
   const [nganSachThang, setNganSachThang] = useState(null);
   const [nganSachLoading, setNganSachLoading] = useState(true);
@@ -138,6 +139,9 @@ export default function Dashboard() {
       // Dự báo dòng tiền
       if (data.duBao !== null) setDuBao(data.duBao);
       setDuBaoLoading(false);
+
+      // Chi phí dự kiến cả tháng
+      if (data.chiPhiDuKien != null) setChiPhiDuKien(data.chiPhiDuKien);
 
       // Ngân sách danh mục (STAFF/LEADER)
       if (data.nganSach !== null) setNganSachThang(data.nganSach);
@@ -319,6 +323,9 @@ export default function Dashboard() {
   const tileColor = tileChiTieu >= 90 ? '#10b981' : tileChiTieu >= 70 ? '#f59e0b' : '#ef4444';
   const tileChiPhi = chiPhiKeHoachThang > 0 ? Math.round((chiPhiThang / chiPhiKeHoachThang) * 100) : 0;
   const bienLoiNhuan = doanhThuThang > 0 ? Math.round((laiLoThang / doanhThuThang) * 100) : 0;
+  const conLaiCoDinh = chiPhiDuKien?.conLaiCoDinh || 0;
+  const duKienCaThang = chiPhiDuKien ? chiPhiDuKien.duKienCaThang : chiPhiThang;
+  const laiDuKienCaThang = doanhThuThang - duKienCaThang;
 
   // ===== Ngân sách theo danh mục — STAFF/LEADER =====
   const nganSachRows = (() => {
@@ -812,6 +819,11 @@ export default function Dashboard() {
                 <p className={styles.cardInfo}>
                   {chiPhiKeHoachThang > 0 ? `${tileChiPhi}% kế hoạch (${formatVND(chiPhiKeHoachThang)})` : 'Chưa đặt kế hoạch chi tháng'}
                 </p>
+                {conLaiCoDinh > 0 && (
+                  <p className={styles.cardInfo} style={{ marginTop: '0.15rem' }}>
+                    đã chi {formatVND(chiPhiThang)} · dự kiến thêm ~{formatVND(conLaiCoDinh)} → ước cả tháng ~{formatVND(duKienCaThang)}
+                  </p>
+                )}
               </div>
 
               {/* Lãi/Lỗ tháng + biên lợi nhuận */}
@@ -824,6 +836,11 @@ export default function Dashboard() {
                   {insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={laiLoThang} format={formatVND} />}
                 </h3>
                 <p className={styles.cardInfo}>Biên lợi nhuận {bienLoiNhuan}% · <span style={{ cursor: 'pointer', color: 'var(--info)' }} onClick={() => router.push('/loi-nhuan')}>Xem 12 tháng →</span></p>
+                {conLaiCoDinh > 0 && (
+                  <p className={styles.cardInfo} style={{ marginTop: '0.15rem', color: laiDuKienCaThang >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    Lãi ước cả tháng ~{formatVND(laiDuKienCaThang)}
+                  </p>
+                )}
               </div>
 
               {/* Tiền đang có (số dư quỹ) */}

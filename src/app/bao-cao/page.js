@@ -62,6 +62,8 @@ export default function BaoCaoThuChiPage() {
   const [loiNhuanData, setLoiNhuanData] = useState(null);
   const [loiNhuanLoading, setLoiNhuanLoading] = useState(false);
 
+  const [chiPhiDuKien, setChiPhiDuKien] = useState(null);
+
   // Lá thư ARI — state gửi thư tháng (chỉ OWNER)
   const [letterThang, setLetterThang] = useState(() => {
     const d = new Date();
@@ -75,6 +77,15 @@ export default function BaoCaoThuChiPage() {
   });
   const [letterSending, setLetterSending] = useState(false);
   const [letterResult, setLetterResult] = useState(null);
+
+  // Chi phí dự kiến cả tháng (khoản cố định/chờ trả còn lại) — chỉ tải khi đã có user
+  useEffect(() => {
+    if (!user) return;
+    fetch('/api/chi-phi-du-kien')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d && !d.error) setChiPhiDuKien(d); })
+      .catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     // 1. Kiểm tra session & vai trò (Chỉ OWNER/MANAGER được vào dựa trên permissions)
@@ -488,6 +499,35 @@ export default function BaoCaoThuChiPage() {
             </div>
           );
         })()}
+
+        {/* SECTION 1.8: CHI PHÍ DỰ KIẾN SẮP TỚI (gộp danh mục) */}
+        {chiPhiDuKien && chiPhiDuKien.conLaiCoDinh > 0 && (
+          <div className={`glass-card ${styles.duKienCard}`}>
+            <h3 className={styles.duKienTitle}>Chi phí dự kiến sắp tới</h3>
+            <p className={styles.duKienNote}>
+              Các khoản cố định / đang chờ trả còn lại trong tháng — chưa tính vào “đã chi”.
+            </p>
+            <table className="custom-table">
+              <thead>
+                <tr><th>Danh mục</th><th style={{ textAlign: 'right' }}>Số tiền</th></tr>
+              </thead>
+              <tbody>
+                {chiPhiDuKien.conLaiTheoDanhMuc.map((d) => (
+                  <tr key={d.danhMucId}>
+                    <td>{d.tenDanhMuc || '(Chưa rõ danh mục)'}</td>
+                    <td style={{ textAlign: 'right' }}>{formatVND(d.soTien)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td><strong>Tổng dự kiến còn lại</strong></td>
+                  <td style={{ textAlign: 'right' }}><strong>{formatVND(chiPhiDuKien.conLaiCoDinh)}</strong></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
 
         {/* SECTION 2: STATS SUMMARY WIDGET */}
         <div className={styles.summaryGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginTop: '1.5rem', marginBottom: '1.5rem' }}>

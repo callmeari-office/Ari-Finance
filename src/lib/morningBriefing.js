@@ -3,7 +3,7 @@
 // thuThapDuLieuBaoCao: cần prisma (dùng đúng nguồn dữ liệu chuẩn §4 CLAUDE.md).
 // buildMorningBriefingHTML + formatTrieu: THUẦN (không đụng DB) → test được.
 
-import { getFunds, getDuBao, getLoiNhuanNam, getCanhBao } from './dashboardQueries';
+import { getFunds, getDuBao, getLoiNhuanNam, getCanhBao, getChiPhiDuKienThang } from './dashboardQueries';
 import { phanTramDat } from './finance';
 
 const ONE_DAY = 24 * 60 * 60 * 1000;
@@ -38,7 +38,7 @@ export async function thuThapDuLieuBaoCao(prisma) {
   const startToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const startYesterday = new Date(startToday.getTime() - ONE_DAY);
 
-  const [funds, duBao, loiNhuan, canhBao, dtHomQua, choTT, choHU, quaHan, kenhActive, dtYesterdayRows] =
+  const [funds, duBao, loiNhuan, canhBao, dtHomQua, choTT, choHU, quaHan, kenhActive, dtYesterdayRows, chiPhiDuKien] =
     await Promise.all([
       getFunds(prisma),
       getDuBao(prisma, 'thang'),
@@ -50,6 +50,7 @@ export async function thuThapDuLieuBaoCao(prisma) {
       prisma.deXuatChiPhi.aggregate({ where: { trangThai: { in: ['CHO_THANH_TOAN', 'CHO_HOAN_UNG'] }, laLichSu: false, ngayCanThanhToan: { lt: startToday } }, _count: { _all: true }, _sum: { soTien: true } }),
       prisma.kenhBan.count({ where: { trangThai: 'ACTIVE' } }),
       prisma.doanhThuHangNgay.findMany({ where: { ngay: startYesterday }, select: { kenhBanId: true } }),
+      getChiPhiDuKienThang(prisma),
     ]);
 
   const tongTien = (funds || []).reduce((s, q) => s + (q.soDuHienTai || 0), 0);
@@ -80,6 +81,9 @@ export async function thuThapDuLieuBaoCao(prisma) {
       chiPhiThang,
       laiThang,
       doanhThuHomQua: Number(dtHomQua?._sum?.soTien || 0),
+      chiPhiDuKienThang: chiPhiDuKien?.duKienCaThang || chiPhiThang,
+      conLaiCoDinh: chiPhiDuKien?.conLaiCoDinh || 0,
+      laiDuKienThang: doanhThuThang - (chiPhiDuKien?.duKienCaThang || chiPhiThang),
     },
     canXuLy: {
       choThanhToan: { count: choTT._count._all, tong: choTT._sum.soTien || 0 },
@@ -166,9 +170,9 @@ export function buildMorningBriefingHTML(data, ai) {
     </div>
     <table width="100%" cellpadding="0" cellspacing="0"><tr>
       ${metricCell('Doanh thu tháng', formatTrieu(h.doanhThuThang), `đạt ${h.pctDat}% mục tiêu`, C.good)}
-      ${metricCell('Chi phí tháng', formatTrieu(h.chiPhiThang), null)}
+      ${metricCell('Chi phí tháng', formatTrieu(h.chiPhiThang), h.conLaiCoDinh > 0 ? `dự kiến cả tháng ~${formatTrieu(h.chiPhiDuKienThang)}` : null)}
     </tr><tr>
-      ${metricCell('Lãi tạm tính', (h.laiThang >= 0 ? '+' : '') + formatTrieu(h.laiThang), null, h.laiThang >= 0 ? C.good : C.danger)}
+      ${metricCell('Lãi tạm tính', (h.laiThang >= 0 ? '+' : '') + formatTrieu(h.laiThang), h.conLaiCoDinh > 0 ? `ước cả tháng ~${formatTrieu(h.laiDuKienThang)}` : null, h.laiThang >= 0 ? C.good : C.danger)}
       ${metricCell('Doanh thu hôm qua', formatTrieu(h.doanhThuHomQua), null)}
     </tr></table>
   `);

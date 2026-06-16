@@ -80,3 +80,29 @@ describe('buildMorningBriefingHTML', () => {
     expect(html).not.toContain('<script>alert(1)</script>');
   });
 });
+
+function mkDataDuKien(over = {}) {
+  return {
+    ngay: new Date('2026-06-16'),
+    tien: { tongTien: 12_000_897, quyList: [], soNgayConTru: 8, canhBaoAm: false, ngayCoTheAm: null },
+    hieuSuat: {
+      doanhThuThang: 182_000_000, mucTieuThang: 400_000_000, pctDat: 46,
+      chiPhiThang: 84_000_000, laiThang: 98_000_000, doanhThuHomQua: 21_000_000,
+      chiPhiDuKienThang: 144_000_000, conLaiCoDinh: 60_000_000, laiDuKienThang: 38_000_000,
+      ...over,
+    },
+    canXuLy: { choThanhToan: { count: 0, tong: 0 }, choHoanUng: { count: 0, tong: 0 }, quaHan: { count: 0, tong: 0 }, chuaNhapDoanhThu: { soKenh: 0 } },
+    canhBao: { nhacHan: [], vuotHanMuc: [], vuotKeHoach: [], tongSo: 0 },
+  };
+}
+
+describe('morningBriefing — chi phí dự kiến', () => {
+  it('hiện "dự kiến cả tháng" khi conLaiCoDinh > 0', () => {
+    const html = buildMorningBriefingHTML(mkDataDuKien(), null);
+    expect(html).toContain('dự kiến cả tháng');
+  });
+  it('ẩn dòng dự kiến khi conLaiCoDinh = 0', () => {
+    const html = buildMorningBriefingHTML(mkDataDuKien({ conLaiCoDinh: 0 }), null);
+    expect(html).not.toContain('dự kiến cả tháng');
+  });
+});

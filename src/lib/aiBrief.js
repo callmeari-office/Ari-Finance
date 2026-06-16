@@ -17,7 +17,8 @@ Yêu cầu:
 - Trả về DUY NHẤT một JSON hợp lệ, không kèm chữ nào khác, dạng:
   {"nhanDinh":"...","deXuat":["...","...","..."]}
 - "nhanDinh": 3-5 câu tóm tắt tổng quan hiện trạng (tiền, doanh thu so mục tiêu, việc cần làm, rủi ro nổi bật).
-- "deXuat": 2-3 gợi ý hành động cụ thể, thực tế, ưu tiên cho hôm nay.`;
+- "deXuat": 2-3 gợi ý hành động cụ thể, thực tế, ưu tiên cho hôm nay.
+- LƯU Ý dòng tiền theo kỳ: nếu "chi_phi_co_dinh_con_lai" > 0, ĐỪNG kết luận lời/lỗ dựa trên "lai_tam_tinh_thang"; hãy nói theo "lai_du_kien_ca_thang" và nhắc còn khoản cố định (lương/thuê...) chưa chi trong tháng.`;
 
 /** Rút gọn data thành object nhỏ chỉ chứa số cần cho AI (không gửi mảng lớn). */
 function summarizeForAI(data) {
@@ -31,6 +32,9 @@ function summarizeForAI(data) {
     phan_tram_dat_muc_tieu: h.pctDat,
     chi_phi_thang: h.chiPhiThang,
     lai_tam_tinh_thang: h.laiThang,
+    chi_phi_du_kien_ca_thang: h.chiPhiDuKienThang,
+    chi_phi_co_dinh_con_lai: h.conLaiCoDinh,
+    lai_du_kien_ca_thang: h.laiDuKienThang,
     doanh_thu_hom_qua: h.doanhThuHomQua,
     phieu_cho_duyet: x.choThanhToan.count,
     phieu_cho_hoan_ung: x.choHoanUng.count,
