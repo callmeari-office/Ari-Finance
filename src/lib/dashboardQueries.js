@@ -430,3 +430,70 @@ export async function getFunds(prisma) {
     };
   });
 }
+
+/**
+ * Gộp các dòng "còn lại" theo danh mục → tổng + mảng sắp giảm dần.
+ * rows: [{ danhMucId, tenDanhMuc, soTien }]
+ * Pure — test được (xem chiPhiDuKien.test.js).
+ */
+export function gomConLaiTheoDanhMuc(rows) {
+  const map = {};
+  for (const r of rows || []) {
+    const id = r.danhMucId;
+    if (!map[id]) map[id] = { danhMucId: id, tenDanhMuc: r.tenDanhMuc || '', soTien: 0 };
+    map[id].soTien += Number(r.soTien || 0);
+  }
+  const conLaiTheoDanhMuc = Object.values(map).sort((a, b) => b.soTien - a.soTien);
+  const conLaiCoDinh = conLaiTheoDanhMuc.reduce((s, d) => s + d.soTien, 0);
+  return { conLaiCoDinh, conLaiTheoDanhMuc };
+}
+
+/**
+ * Chi phí dự kiến cả tháng (tháng hiện tại) — lớp phái sinh, KHÔNG đụng invariant §4.
+ *   daChiThang  : đã chi thực tế tháng (ThuChi CHI + DeXuat laLichSu) — KHỚP getLoiNhuanNam.
+ *   conLaiCoDinh: Σ phiếu Chờ thanh toán/Chờ hoàn ứng (laLichSu=false, chưa thành ThuChi),
+ *                 COALESCE(ngayCanThanhToan, ngayPhatSinh) trong tháng hiện tại.
+ *   duKienCaThang = daChiThang + conLaiCoDinh.
+ */
+export async function getChiPhiDuKienThang(prisma) {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  const [chiThuChiRows, chiLichSuRows, conLaiRows] = await Promise.all([
+    prisma.$queryRaw`
+      SELECT COALESCE(SUM("soTien"), 0) AS total
+      FROM "ThuChi"
+      WHERE "ngayGiaoDich" >= ${startOfMonth} AND "ngayGiaoDich" < ${endOfMonth}
+        AND "loaiGiaoDich" = 'CHI'
+    `,
+    prisma.$queryRaw`
+      SELECT COALESCE(SUM("soTien"), 0) AS total
+      FROM "DeXuatChiPhi"
+      WHERE "laLichSu" = true
+        AND COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startOfMonth}
+        AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endOfMonth}
+    `,
+    prisma.$queryRaw`
+      SELECT d."danhMucId", dm."tenDanhMuc", SUM(d."soTien") AS "soTien"
+      FROM "DeXuatChiPhi" d
+      LEFT JOIN "DanhMuc" dm ON dm."id" = d."danhMucId"
+      WHERE d."laLichSu" = false
+        AND d."thuChiId" IS NULL
+        AND d."trangThai" IN ('CHO_THANH_TOAN', 'CHO_HOAN_UNG')
+        AND COALESCE(d."ngayCanThanhToan", d."ngayPhatSinh") >= ${startOfMonth}
+        AND COALESCE(d."ngayCanThanhToan", d."ngayPhatSinh") < ${endOfMonth}
+      GROUP BY d."danhMucId", dm."tenDanhMuc"
+    `,
+  ]);
+
+  const daChiThang = Number(chiThuChiRows[0]?.total || 0) + Number(chiLichSuRows[0]?.total || 0);
+  const { conLaiCoDinh, conLaiTheoDanhMuc } = gomConLaiTheoDanhMuc(conLaiRows);
+
+  return {
+    daChiThang: Math.round(daChiThang),
+    conLaiCoDinh: Math.round(conLaiCoDinh),
+    duKienCaThang: Math.round(daChiThang + conLaiCoDinh),
+    conLaiTheoDanhMuc: conLaiTheoDanhMuc.map((d) => ({ ...d, soTien: Math.round(d.soTien) })),
+  };
+}
