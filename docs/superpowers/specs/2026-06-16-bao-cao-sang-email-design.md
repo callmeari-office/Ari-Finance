@@ -47,8 +47,9 @@ Nguồn:
 Số tiền hiển thị chuẩn hóa qua `lamTronTien`/`formatTrieu` đã có.
 
 ## 5. AI — `taoNhanDinhAI(data)`
-- Model: `claude-haiku-4-5-20251001` qua `@anthropic-ai/sdk`. `max_tokens` ~600.
-- Không có `ANTHROPIC_API_KEY` → trả `null` ngay (không gọi API).
+> Cập nhật 2026-06-16: dùng **DeepSeek** thay vì Claude (chủ shop có credit ở DeepSeek). Gọi bằng `fetch` OpenAI-compatible, không thêm SDK.
+- Model: `deepseek-chat` (route tới `deepseek-v4-flash`, rẻ) qua `POST https://api.deepseek.com/chat/completions`. `max_tokens` 800, `temperature` 0.5, timeout 20s (AbortController).
+- Không có `DEEPSEEK_API_KEY` → trả `null` ngay (không gọi API).
 - System prompt (tiếng Việt): persona trợ lý của Call Me Ari; văn phong ấm, **đơn giản, dễ hiểu** cho chủ shop không rành tài chính; **CHỈ diễn giải các con số được cung cấp, TUYỆT ĐỐI không bịa số mới**; trả về **JSON** `{ "nhanDinh": "...", "deXuat": ["...","...","..."] }`; `nhanDinh` 3–5 câu; `deXuat` 2–3 gợi ý hành động cụ thể.
 - Input: JSON gọn của `data` (đã có sẵn mọi số) trong user message.
 - Parse JSON an toàn; lỗi/parse fail/timeout → trả `null`. Bọc try/catch, log qua `logger`.

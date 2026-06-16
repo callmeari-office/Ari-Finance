@@ -1,12 +1,14 @@
 // src/lib/aiBrief.js
-// Tạo đoạn "nhận định" + "đề xuất" bằng Claude Haiku 4.5.
-// AN TOÀN: thiếu key / lỗi / parse fail → trả null (email vẫn gửi, chỉ bỏ phần AI).
+// Tạo đoạn "nhận định" + "đề xuất" bằng DeepSeek (API kiểu OpenAI-compatible).
+// Gọi thẳng bằng fetch — không cần SDK. Model: deepseek-chat (route tới bản mới nhất, rẻ).
+// AN TOÀN: thiếu key / lỗi / timeout / parse fail → trả null (email vẫn gửi, bỏ phần AI).
 // AI CHỈ diễn giải số liệu được cấp, KHÔNG bịa số.
 
-import Anthropic from '@anthropic-ai/sdk';
 import { logger } from './logger';
 
-const MODEL = 'claude-haiku-4-5';
+const API_URL = 'https://api.deepseek.com/chat/completions';
+const MODEL = 'deepseek-chat';
+const TIMEOUT_MS = 20000;
 
 const SYSTEM = `Bạn là trợ lý tài chính của shop thời trang "Call Me Ari", viết bản tin tài chính buổi sáng cho chủ shop.
 Yêu cầu:
@@ -54,25 +56,35 @@ function parseJson(text) {
  * @returns {Promise<{nhanDinh:string, deXuat:string[]} | null>}
  */
 export async function taoNhanDinhAI(data) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) return null;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
   try {
-    const client = new Anthropic({ apiKey });
-    const msg = await client.messages.create({
-      model: MODEL,
-      max_tokens: 800,
-      system: SYSTEM,
-      messages: [
-        { role: 'user', content: 'Số liệu tài chính hôm nay (đơn vị VND):\n' + JSON.stringify(summarizeForAI(data)) },
-      ],
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 800,
+        temperature: 0.5,
+        messages: [
+          { role: 'system', content: SYSTEM },
+          { role: 'user', content: 'Số liệu tài chính hôm nay (đơn vị VND):\n' + JSON.stringify(summarizeForAI(data)) },
+        ],
+      }),
+      signal: controller.signal,
     });
 
-    const text = (msg.content || [])
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('')
-      .trim();
+    if (!res.ok) {
+      logger.error('taoNhanDinhAI: HTTP ' + res.status, await res.text().catch(() => ''));
+      return null;
+    }
+
+    const json = await res.json();
+    const text = (json?.choices?.[0]?.message?.content || '').trim();
 
     const parsed = parseJson(text);
     if (!parsed || typeof parsed.nhanDinh !== 'string' || !parsed.nhanDinh.trim()) return null;
@@ -85,5 +97,7 @@ export async function taoNhanDinhAI(data) {
   } catch (error) {
     logger.error('taoNhanDinhAI', error);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
