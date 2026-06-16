@@ -119,7 +119,7 @@ export async function POST(request) {
           trangThai: 'DA_THANH_TOAN',
           quyThanhToanId,
           thuChiId: phieuChi.id,
-          ngayThanhToan: new Date(),
+          ngayThanhToan: ngayGiaoDich ? new Date(ngayGiaoDich) : new Date(),
           nguoiDuyetId: user.id,
         },
       });

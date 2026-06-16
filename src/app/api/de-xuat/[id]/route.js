@@ -249,7 +249,7 @@ export async function PUT(request, { params }) {
             trangThai: 'DA_THANH_TOAN',
             quyThanhToanId,
             thuChiId: phieuChi.id,
-            ngayThanhToan: new Date(),
+            ngayThanhToan: ngayGiaoDich ? new Date(ngayGiaoDich) : new Date(),
             nguoiDuyetId: user.id,
             ghiChu: ghiChu || existingProposal.ghiChu,
           },

@@ -314,15 +314,25 @@ export default function ThuChiPage() {
 
       toast.success(data.message || 'Cập nhật ngày giao dịch thành công.');
       setIsEditingDate(false);
-      
+
       // Cập nhật selectedTx state tại chỗ để hiển thị ngày mới lập tức
       setSelectedTx(prev => ({
         ...prev,
         ngayGiaoDich: new Date(editDateValue).toISOString(),
       }));
 
-      // Tải lại toàn bộ dữ liệu ở bảng ngoài
-      fetchData(currentPage);
+      // Chuyển filter về tháng/năm của ngày mới để record vẫn hiển thị sau khi đóng modal
+      const newDate = new Date(editDateValue);
+      const newMonth = String(newDate.getMonth() + 1);
+      const newYear = String(newDate.getFullYear());
+      const filterChanged = filterNam !== newYear || filterThang.join(',') !== newMonth;
+      if (filterChanged) {
+        // useEffect theo dõi filterThang/filterNam sẽ tự gọi fetchData
+        setFilterNam(newYear);
+        setFilterThang([newMonth]);
+      } else {
+        fetchData(currentPage);
+      }
     } catch (err) {
       toast.error(err.message);
     } finally {
