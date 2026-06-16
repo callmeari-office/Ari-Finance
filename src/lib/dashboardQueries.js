@@ -7,7 +7,7 @@ import { tinhSoDuQuy } from './finance';
 
 /**
  * Tổng hợp lãi/lỗ theo tháng cho cả năm.
- * Nguồn chi: ThuChi(CHI) + DeXuatChiPhi(laLichSu=true) — COALESCE(ngayThanhToan, ngayPhatSinh).
+ * Nguồn chi: ThuChi(CHI) + DeXuatChiPhi(laLichSu=true) — ngayPhatSinh.
  */
 export async function getLoiNhuanNam(prisma, nam) {
   const startOfYear = new Date(nam, 0, 1);
@@ -32,10 +32,10 @@ export async function getLoiNhuanNam(prisma, nam) {
       GROUP BY thang
     `,
     prisma.$queryRaw`
-      SELECT EXTRACT(MONTH FROM COALESCE("ngayThanhToan", "ngayPhatSinh"))::int AS thang, SUM("soTien") AS total
+      SELECT EXTRACT(MONTH FROM "ngayPhatSinh")::int AS thang, SUM("soTien") AS total
       FROM "DeXuatChiPhi"
-      WHERE COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startOfYear}
-        AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endOfYear}
+      WHERE "ngayPhatSinh" >= ${startOfYear}
+        AND "ngayPhatSinh" < ${endOfYear}
         AND "laLichSu" = true
       GROUP BY thang
     `,
@@ -93,7 +93,7 @@ export async function getLoiNhuanNam(prisma, nam) {
 
 /**
  * Cảnh báo: nhắc hạn, vượt hạn mức, vượt kế hoạch tháng.
- * Nguồn chi dùng COALESCE — khớp với loi-nhuan, ke-hoach.
+ * Nguồn chi dùng ngayPhatSinh — khớp với loi-nhuan, ke-hoach.
  */
 export async function getCanhBao(prisma, days = 3) {
   const now = new Date();
@@ -125,8 +125,8 @@ export async function getCanhBao(prisma, days = 3) {
       SELECT "danhMucId", SUM("soTien") AS total
       FROM "DeXuatChiPhi"
       WHERE "laLichSu" = true
-        AND COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startOfMonth}
-        AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endOfMonth}
+        AND "ngayPhatSinh" >= ${startOfMonth}
+        AND "ngayPhatSinh" < ${endOfMonth}
       GROUP BY "danhMucId"
     `,
     prisma.danhMuc.findMany({
@@ -227,11 +227,11 @@ export async function getThongKeThang(prisma, soThang = 6) {
     `,
     prisma.$queryRaw`
       SELECT
-        TO_CHAR(DATE_TRUNC('month', COALESCE("ngayThanhToan", "ngayPhatSinh")), 'YYYY-MM') AS thang,
+        TO_CHAR(DATE_TRUNC('month', "ngayPhatSinh"), 'YYYY-MM') AS thang,
         SUM("soTien") AS total
       FROM "DeXuatChiPhi"
-      WHERE COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startDate}
-        AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endDate}
+      WHERE "ngayPhatSinh" >= ${startDate}
+        AND "ngayPhatSinh" < ${endDate}
         AND "laLichSu" = true
       GROUP BY 1
     `,
@@ -491,8 +491,8 @@ export async function getChiPhiDuKienThang(prisma) {
       SELECT COALESCE(SUM("soTien"), 0) AS total
       FROM "DeXuatChiPhi"
       WHERE "laLichSu" = true
-        AND COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startOfMonth}
-        AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endOfMonth}
+        AND "ngayPhatSinh" >= ${startOfMonth}
+        AND "ngayPhatSinh" < ${endOfMonth}
     `,
     prisma.$queryRaw`
       SELECT d."danhMucId", dm."tenDanhMuc", SUM(d."soTien") AS "soTien"

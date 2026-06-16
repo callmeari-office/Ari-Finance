@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import DateInput from '@/components/DateInput';
 import {
   TrendingUp,
   TrendingDown,
@@ -630,11 +631,11 @@ export default function Dashboard() {
 
                   <div style={{ flex: 1, minWidth: '140px' }}>
                     <label style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Ngày hết hạn (tùy chọn)</label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={tbForm.ngayHetHan}
                       onChange={(e) => setTbForm((p) => ({ ...p, ngayHetHan: e.target.value }))}
-                      style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-main)', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                      style={{ width: '100%' }}
+                      inputStyle={{ padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text-main)', fontSize: '0.9rem', boxSizing: 'border-box' }}
                     />
                   </div>
                 </div>

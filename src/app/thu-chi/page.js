@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  PlusCircle, 
-  Search, 
-  Filter, 
+import DateInput from '@/components/DateInput';
+import {
+  PlusCircle,
+  Search,
+  Filter,
   Eye, 
   X, 
   Check, 
@@ -705,9 +706,8 @@ export default function ThuChiPage() {
                 <div className={styles.formRow}>
                   <div className="form-group" style={{ flex: 1 }}>
                     <label className="form-label" htmlFor="ngayGiaoDich">Ngày giao dịch *</label>
-                    <input
+                    <DateInput
                       id="ngayGiaoDich"
-                      type="date"
                       className="form-control"
                       value={ngayGiaoDich}
                       onChange={(e) => setNgayGiaoDich(e.target.value)}
@@ -836,13 +836,12 @@ export default function ThuChiPage() {
                   {user?.role === 'OWNER' ? (
                     isEditingDate ? (
                       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginTop: '0.2rem' }}>
-                        <input
-                          type="date"
-                          lang="vi"
+                        <DateInput
                           className="form-control"
                           value={editDateValue}
                           onChange={(e) => setEditDateValue(e.target.value)}
-                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.9rem', width: 'auto' }}
+                          style={{ width: '130px' }}
+                          inputStyle={{ padding: '0.25rem 0.5rem', fontSize: '0.9rem' }}
                           disabled={editDateLoading}
                         />
                         <button

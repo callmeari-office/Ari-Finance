@@ -1,0 +1,57 @@
+/* DateInput — wrapper relative để chứa text input + calendar button + hidden picker */
+
+.wrap {
+  position: relative;
+  display: block;
+}
+
+/* Đẩy text input sang trái để nhường chỗ cho button lịch */
+.textInput {
+  width: 100%;
+  padding-right: 2.25rem !important;
+}
+
+/* Nút mở lịch — nằm bên trong input, góc phải giữa dọc */
+.calBtn {
+  position: absolute;
+  right: 0.45rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary, #888);
+  padding: 0.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.55;
+  transition: opacity 0.15s var(--ease-out, ease), color 0.15s var(--ease-out, ease);
+  border-radius: 4px;
+  line-height: 0;
+}
+
+.calBtn:hover:not(:disabled) {
+  opacity: 1;
+  color: var(--brand-brown, #634d3e);
+}
+
+.calBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+/* Hidden picker — opacity 0, không nhận click, nhưng showPicker() vẫn hoạt động */
+.hiddenPicker {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+}

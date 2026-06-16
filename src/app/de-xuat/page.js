@@ -3,6 +3,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import DateInput from '@/components/DateInput';
 import {
   PlusCircle,
   Search,
@@ -1478,10 +1479,8 @@ function DeXuatPage() {
                 <div className={styles.formRow}>
                   <div className="form-group" style={{ flex: 1 }}>
                     <label className="form-label" htmlFor="ngayPhatSinh">Ngày phát sinh *</label>
-                    <input
+                    <DateInput
                       id="ngayPhatSinh"
-                      type="date"
-                      lang="vi"
                       className="form-control"
                       value={ngayPhatSinh}
                       onChange={(e) => setNgayPhatSinh(e.target.value)}
@@ -1495,10 +1494,8 @@ function DeXuatPage() {
                       Ngày cần thanh toán (Nếu có)
                       <HelpTip text="Hạn chót cần chi khoản này. Để trống nếu không gấp. Ari sẽ nhắc quản lý khi gần đến hạn." />
                     </label>
-                    <input
+                    <DateInput
                       id="ngayCanThanhToan"
-                      type="date"
-                      lang="vi"
                       className="form-control"
                       value={ngayCanThanhToan}
                       onChange={(e) => setNgayCanThanhToan(e.target.value)}
@@ -1774,9 +1771,7 @@ function DeXuatPage() {
               <div className={styles.bulkCommonBar}>
                 <div className={styles.bulkCommonItem}>
                   <label className="form-label">Ngày phát sinh *</label>
-                  <input
-                    type="date"
-                    lang="vi"
+                  <DateInput
                     className="form-control"
                     value={bulkCommon.ngayPhatSinh}
                     onChange={(e) => setBulkCommon((p) => ({ ...p, ngayPhatSinh: e.target.value }))}
@@ -1815,9 +1810,7 @@ function DeXuatPage() {
                 </div>
                 <div className={styles.bulkCommonItem}>
                   <label className="form-label">Ngày cần thanh toán</label>
-                  <input
-                    type="date"
-                    lang="vi"
+                  <DateInput
                     className="form-control"
                     value={bulkCommon.ngayCanThanhToan}
                     onChange={(e) => setBulkCommon((p) => ({ ...p, ngayCanThanhToan: e.target.value }))}

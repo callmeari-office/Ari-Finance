@@ -135,34 +135,27 @@ export async function GET(request) {
             nhomChiPhiId: { in: nhomChiPhiId.split(',').map(s => s.trim()).filter(Boolean) }
           };
         }
-        // Dùng COALESCE(ngayThanhToan, ngayPhatSinh) để khớp với /api/loi-nhuan và /api/ke-hoach
+        // Dùng ngayPhatSinh để khớp với /api/loi-nhuan và /api/ke-hoach
         if (!isNaN(year)) {
           if (thang) {
             const months = thang.split(',').map(m => parseInt(m.trim(), 10)).filter(m => !isNaN(m) && m >= 1 && m <= 12);
             if (months.length > 0) {
-              historyWhere.OR = months.flatMap(m => {
+              historyWhere.OR = months.map(m => {
                 const startDate = new Date(Date.UTC(year, m - 1, 1));
                 const endDate = new Date(Date.UTC(year, m, 1));
-                return [
-                  { ngayThanhToan: { gte: startDate, lt: endDate } },
-                  { ngayThanhToan: null, ngayPhatSinh: { gte: startDate, lt: endDate } },
-                ];
+                return { ngayPhatSinh: { gte: startDate, lt: endDate } };
               });
             } else {
-              const startY = new Date(Date.UTC(year, 0, 1));
-              const endY = new Date(Date.UTC(year + 1, 0, 1));
-              historyWhere.OR = [
-                { ngayThanhToan: { gte: startY, lt: endY } },
-                { ngayThanhToan: null, ngayPhatSinh: { gte: startY, lt: endY } },
-              ];
+              historyWhere.ngayPhatSinh = {
+                gte: new Date(Date.UTC(year, 0, 1)),
+                lt: new Date(Date.UTC(year + 1, 0, 1)),
+              };
             }
           } else {
-            const startY = new Date(Date.UTC(year, 0, 1));
-            const endY = new Date(Date.UTC(year + 1, 0, 1));
-            historyWhere.OR = [
-              { ngayThanhToan: { gte: startY, lt: endY } },
-              { ngayThanhToan: null, ngayPhatSinh: { gte: startY, lt: endY } },
-            ];
+            historyWhere.ngayPhatSinh = {
+              gte: new Date(Date.UTC(year, 0, 1)),
+              lt: new Date(Date.UTC(year + 1, 0, 1)),
+            };
           }
         }
 
@@ -193,7 +186,7 @@ export async function GET(request) {
       const normalizedLichSu = historyRecords.map((dx) => ({
         id: dx.id,
         maPhieu: dx.maPhieu,
-        ngayGiaoDich: dx.ngayThanhToan || dx.ngayPhatSinh,
+        ngayGiaoDich: dx.ngayPhatSinh,
         loaiGiaoDich: 'CHI',
         soTien: dx.soTien,
         danhMucId: dx.danhMucId,

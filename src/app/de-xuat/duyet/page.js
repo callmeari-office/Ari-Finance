@@ -2,12 +2,13 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { 
-  CheckSquare, 
-  Layers, 
-  DollarSign, 
-  User, 
-  Clock, 
+import DateInput from '@/components/DateInput';
+import {
+  CheckSquare,
+  Layers,
+  DollarSign,
+  User,
+  Clock,
   AlertTriangle,
   CheckCircle,
   XCircle,
@@ -667,8 +668,7 @@ function DuyetPage() {
                           </option>
                         ))}
                       </select>
-                      <input
-                        type="date"
+                      <DateInput
                         className="form-control form-control-sm"
                         style={{ width: '130px', display: 'inline-block' }}
                         value={bulkNgayGD}
@@ -790,10 +790,9 @@ function DuyetPage() {
                           </select>
                         </td>
                         <td>
-                          <input
-                            type="date"
+                          <DateInput
                             className="form-control form-control-sm"
-                            style={{ width: '130px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            style={{ width: '130px' }}
                             value={selectedNgayGD[prop.id] || todayStr}
                             onChange={(e) => setSelectedNgayGD({
                               ...selectedNgayGD,
@@ -873,8 +872,7 @@ function DuyetPage() {
                           </option>
                         ))}
                       </select>
-                      <input
-                        type="date"
+                      <DateInput
                         className="form-control form-control-sm"
                         style={{ width: '130px', display: 'inline-block' }}
                         value={bulkNgayGD}
@@ -999,10 +997,9 @@ function DuyetPage() {
                           </select>
                         </td>
                         <td>
-                          <input
-                            type="date"
+                          <DateInput
                             className="form-control form-control-sm"
-                            style={{ width: '130px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
+                            style={{ width: '130px' }}
                             value={selectedNgayGD[prop.id] || todayStr}
                             onChange={(e) => setSelectedNgayGD({
                               ...selectedNgayGD,
@@ -1123,8 +1120,7 @@ function DuyetPage() {
                       </select>
 
                       <label className="form-label" htmlFor="gopNgayGD" style={{ marginTop: '0.5rem' }}>Ngày giao dịch:</label>
-                      <input 
-                        type="date"
+                      <DateInput
                         id="gopNgayGD"
                         className="form-control"
                         style={{ marginBottom: '0.75rem' }}
@@ -1449,8 +1445,7 @@ function DuyetPage() {
                           </option>
                         ))}
                       </select>
-                      <input 
-                        type="date"
+                      <DateInput
                         className="form-control form-control-sm"
                         style={{ width: '130px', display: 'inline-block' }}
                         value={selectedNgayGD[selectedPreviewProp.id] || todayStr}

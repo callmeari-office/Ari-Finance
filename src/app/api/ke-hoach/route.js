@@ -59,16 +59,16 @@ export async function GET(request) {
       GROUP BY thang, "danhMucId"
     `;
 
-    // Phiếu lịch sử theo tháng × danh mục (dùng ngayThanhToan, fallback ngayPhatSinh)
+    // Phiếu lịch sử theo tháng × danh mục (dùng ngayPhatSinh)
     const thucTeByMonthLichSu = await prisma.$queryRaw`
       SELECT
-        EXTRACT(MONTH FROM COALESCE("ngayThanhToan", "ngayPhatSinh"))::int AS thang,
+        EXTRACT(MONTH FROM "ngayPhatSinh")::int AS thang,
         "danhMucId",
         'CHI' AS "loaiGiaoDich",
         SUM("soTien") AS total
       FROM "DeXuatChiPhi"
-      WHERE COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startOfYear}
-        AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endOfYear}
+      WHERE "ngayPhatSinh" >= ${startOfYear}
+        AND "ngayPhatSinh" < ${endOfYear}
         AND "laLichSu" = true
       GROUP BY thang, "danhMucId"
     `;

@@ -162,7 +162,6 @@ export async function PUT(request, { params }) {
       await prisma.deXuatChiPhi.update({
         where: { id },
         data: {
-          ngayThanhToan: newDate,
           ngayPhatSinh: newDate,
         },
       });
@@ -172,7 +171,7 @@ export async function PUT(request, { params }) {
         hanhDong: 'SUA',
         doiTuong: 'DE_XUAT',
         maDoiTuong: existingProposal.maPhieu,
-        moTa: `Sửa ngày giao dịch của phiếu chi lịch sử ${existingProposal.maPhieu} từ ${formatDate(existingProposal.ngayThanhToan || existingProposal.ngayPhatSinh)} thành ${formatDate(newDate)}`,
+        moTa: `Sửa ngày giao dịch của phiếu chi lịch sử ${existingProposal.maPhieu} từ ${formatDate(existingProposal.ngayPhatSinh)} thành ${formatDate(newDate)}`,
       });
 
       return NextResponse.json({
