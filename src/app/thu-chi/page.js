@@ -15,7 +15,8 @@ import {
   Clock,
   Layers,
   FileSpreadsheet,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
@@ -64,6 +65,11 @@ export default function ThuChiPage() {
   const [soTien, setSoTien] = useState('');
   const [noiDung, setNoiDung] = useState('');
   const [ghiChu, setGhiChu] = useState('');
+
+  // Sửa ngày giao dịch (Chỉ Owner được phép)
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [editDateValue, setEditDateValue] = useState('');
+  const [editDateLoading, setEditDateLoading] = useState(false);
 
   const handleSoTienChange = (e) => {
     const raw = e.target.value.replace(/\D/g, '');
@@ -181,6 +187,14 @@ export default function ThuChiPage() {
     }
   }, [currentPage, user]);
 
+  // Reset trạng thái sửa ngày khi đóng modal chi tiết
+  useEffect(() => {
+    if (!selectedTx) {
+      setIsEditingDate(false);
+      setEditDateValue('');
+    }
+  }, [selectedTx]);
+
   // Reset page về 1 khi filters thay đổi
   useEffect(() => {
     if (user) {
@@ -272,6 +286,47 @@ export default function ThuChiPage() {
     } catch (err) {
       toast.error(err.message);
       setDataLoading(false);
+    }
+  };
+
+  const handleSaveDate = async () => {
+    if (!editDateValue) {
+      toast.error('Vui lòng chọn ngày hợp lệ.');
+      return;
+    }
+
+    const ok = await showConfirm({
+      title: 'Xác nhận đổi ngày giao dịch',
+      message: `Bạn có chắc chắn muốn đổi ngày giao dịch của phiếu ${selectedTx.maPhieu} từ ${formatDate(selectedTx.ngayGiaoDich)} thành ${formatDate(editDateValue)}?`,
+      confirmLabel: 'Xác nhận lưu',
+    });
+    if (!ok) return;
+
+    setEditDateLoading(true);
+    try {
+      const res = await fetch(`/api/thu-chi/${selectedTx.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ngayGiaoDich: editDateValue }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Cập nhật ngày giao dịch thất bại.');
+
+      toast.success(data.message || 'Cập nhật ngày giao dịch thành công.');
+      setIsEditingDate(false);
+      
+      // Cập nhật selectedTx state tại chỗ để hiển thị ngày mới lập tức
+      setSelectedTx(prev => ({
+        ...prev,
+        ngayGiaoDich: new Date(editDateValue).toISOString(),
+      }));
+
+      // Tải lại toàn bộ dữ liệu ở bảng ngoài
+      fetchData(currentPage);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setEditDateLoading(false);
     }
   };
 
@@ -768,7 +823,66 @@ export default function ThuChiPage() {
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Ngày Giao Dịch:</span>
-                  <span className={styles.detailValue}>{formatDate(selectedTx.ngayGiaoDich)}</span>
+                  {user?.role === 'OWNER' ? (
+                    isEditingDate ? (
+                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginTop: '0.2rem' }}>
+                        <input
+                          type="date"
+                          lang="vi"
+                          className="form-control"
+                          value={editDateValue}
+                          onChange={(e) => setEditDateValue(e.target.value)}
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.9rem', width: 'auto' }}
+                          disabled={editDateLoading}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSaveDate}
+                          className="btn btn-primary"
+                          style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                          disabled={editDateLoading}
+                        >
+                          Lưu
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingDate(false)}
+                          className="btn btn-secondary"
+                          style={{ padding: '0.25rem 0.5rem', minHeight: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                          disabled={editDateLoading}
+                        >
+                          Hủy
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span className={styles.detailValue}>{formatDate(selectedTx.ngayGiaoDich)}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const d = new Date(selectedTx.ngayGiaoDich);
+                            const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            setEditDateValue(localDateStr);
+                            setIsEditingDate(true);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--info)',
+                            cursor: 'pointer',
+                            padding: '0.2rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                          }}
+                          title="Sửa ngày giao dịch"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                      </div>
+                    )
+                  ) : (
+                    <span className={styles.detailValue}>{formatDate(selectedTx.ngayGiaoDich)}</span>
+                  )}
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Loại dòng tiền:</span>

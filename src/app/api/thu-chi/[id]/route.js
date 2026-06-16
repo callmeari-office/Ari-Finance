@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { ghiNhatKy } from '@/lib/audit';
+import { formatDate } from '@/lib/date';
 
 export async function DELETE(request, { params }) {
   try {
@@ -72,6 +73,115 @@ export async function DELETE(request, { params }) {
     });
   } catch (error) {
     logger.error('DELETE /api/thu-chi/[id]', error);
+    return NextResponse.json(
+      { error: 'Đã xảy ra lỗi trên hệ thống.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request, { params }) {
+  try {
+    const user = await getSession();
+    if (!user) {
+      return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+    }
+
+    if (user.role !== 'OWNER') {
+      return NextResponse.json(
+        { error: 'Chỉ Chủ shop (Owner) mới có quyền chỉnh sửa ngày giao dịch.' },
+        { status: 403 }
+      );
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+    const { ngayGiaoDich } = body;
+
+    if (!ngayGiaoDich) {
+      return NextResponse.json(
+        { error: 'Vui lòng cung cấp ngày giao dịch mới.' },
+        { status: 400 }
+      );
+    }
+
+    const newDate = new Date(ngayGiaoDich);
+    if (isNaN(newDate.getTime())) {
+      return NextResponse.json(
+        { error: 'Ngày giao dịch không hợp lệ.' },
+        { status: 400 }
+      );
+    }
+
+    // Kiểm tra xem ID có tồn tại trong bảng ThuChi hay không
+    const existingTx = await prisma.thuChi.findUnique({
+      where: { id },
+    });
+
+    if (existingTx) {
+      // 1. Trường hợp là giao dịch tiêu chuẩn (ThuChi)
+      await prisma.$transaction(async (tx) => {
+        // Cập nhật ngày giao dịch trong ThuChi
+        await tx.thuChi.update({
+          where: { id },
+          data: { ngayGiaoDich: newDate },
+        });
+
+        // Cập nhật ngayThanhToan của các đề xuất liên quan (nếu có)
+        await tx.deXuatChiPhi.updateMany({
+          where: { thuChiId: id },
+          data: { ngayThanhToan: newDate },
+        });
+      });
+
+      await ghiNhatKy({
+        user,
+        hanhDong: 'SUA',
+        doiTuong: 'THU_CHI',
+        maDoiTuong: existingTx.maPhieu,
+        moTa: `Sửa ngày giao dịch của phiếu ${existingTx.loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'} ${existingTx.maPhieu} từ ${formatDate(existingTx.ngayGiaoDich)} thành ${formatDate(newDate)}`,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Đã cập nhật ngày giao dịch của phiếu ${existingTx.maPhieu} thành công.`,
+      });
+    } else {
+      // 2. Kiểm tra xem có phải là phiếu chi lịch sử (DeXuatChiPhi với laLichSu = true) không
+      const existingProposal = await prisma.deXuatChiPhi.findUnique({
+        where: { id },
+      });
+
+      if (!existingProposal || !existingProposal.laLichSu) {
+        return NextResponse.json(
+          { error: 'Không tìm thấy giao dịch hoặc phiếu lịch sử tương ứng.' },
+          { status: 404 }
+        );
+      }
+
+      await prisma.deXuatChiPhi.update({
+        where: { id },
+        data: {
+          ngayThanhToan: newDate,
+          ngayPhatSinh: newDate,
+        },
+      });
+
+      await ghiNhatKy({
+        user,
+        hanhDong: 'SUA',
+        doiTuong: 'DE_XUAT',
+        maDoiTuong: existingProposal.maPhieu,
+        moTa: `Sửa ngày giao dịch của phiếu chi lịch sử ${existingProposal.maPhieu} từ ${formatDate(existingProposal.ngayThanhToan || existingProposal.ngayPhatSinh)} thành ${formatDate(newDate)}`,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Đã cập nhật ngày giao dịch của phiếu chi lịch sử ${existingProposal.maPhieu} thành công.`,
+      });
+    }
+  } catch (error) {
+    logger.error('PUT /api/thu-chi/[id]', error);
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
