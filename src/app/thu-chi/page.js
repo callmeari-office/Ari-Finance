@@ -7,17 +7,18 @@ import {
   PlusCircle,
   Search,
   Filter,
-  Eye, 
-  X, 
-  Check, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
+  Eye,
+  X,
+  Check,
+  ArrowUpRight,
+  ArrowDownLeft,
   AlertCircle,
   Clock,
   Layers,
   FileSpreadsheet,
   Trash2,
-  Pencil
+  Pencil,
+  History,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
@@ -57,6 +58,18 @@ export default function ThuChiPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
+
+  // Modal: NHẬP LỊCH SỬ QUỸ (BÙ TRỪ)
+  const [isBtModalOpen, setIsBtModalOpen] = useState(false);
+  const [btLoading, setBtLoading] = useState(false);
+  const [btError, setBtError] = useState('');
+  const [btSuccess, setBtSuccess] = useState('');
+  const [btNgay, setBtNgay] = useState(new Date().toISOString().split('T')[0]);
+  const [btQuyId, setBtQuyId] = useState('');
+  const [btDanhMucId, setBtDanhMucId] = useState('');
+  const [btSoTien, setBtSoTien] = useState('');
+  const [btNoiDung, setBtNoiDung] = useState('');
+  const [btGhiChu, setBtGhiChu] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
   // Form inputs (Chỉ cho phép tạo THU trực tiếp theo nghiệp vụ)
@@ -71,6 +84,42 @@ export default function ThuChiPage() {
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [editDateValue, setEditDateValue] = useState('');
   const [editDateLoading, setEditDateLoading] = useState(false);
+
+  const handleBtSubmit = async (e) => {
+    e.preventDefault();
+    setBtError(''); setBtSuccess('');
+    if (!btNgay || !btQuyId || !btDanhMucId || !btSoTien || !btNoiDung.trim()) {
+      setBtError('Vui lòng điền đầy đủ thông tin bắt buộc.');
+      return;
+    }
+    if (Number(btSoTien) <= 0) { setBtError('Số tiền phải lớn hơn 0.'); return; }
+    setBtLoading(true);
+    try {
+      const res = await fetch('/api/thu-chi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ngayGiaoDich: btNgay,
+          loaiGiaoDich: 'CHI',
+          soTien: Number(btSoTien),
+          quyId: btQuyId,
+          danhMucId: btDanhMucId,
+          noiDung: btNoiDung.trim(),
+          ghiChu: btGhiChu,
+          buTruLichSu: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Tạo thất bại.');
+      setBtSuccess(data.message || 'Đã nhập lịch sử quỹ thành công!');
+      setBtSoTien(''); setBtNoiDung(''); setBtGhiChu('');
+      setTimeout(() => { setIsBtModalOpen(false); setBtSuccess(''); fetchData(); }, 1200);
+    } catch (err) {
+      setBtError(err.message);
+    } finally {
+      setBtLoading(false);
+    }
+  };
 
   const handleSoTienChange = (e) => {
     const raw = e.target.value.replace(/\D/g, '');
@@ -367,10 +416,21 @@ export default function ThuChiPage() {
             <h1>Giao dịch dòng tiền (Thu - Chi)</h1>
             <p className={styles.pageDesc}>Lớp ghi nhận dòng tiền thật tác động trực tiếp lên quỹ của shop</p>
           </div>
-          <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
-            <PlusCircle size={20} />
-            <span>Ghi nhận Phiếu Thu (TH4)</span>
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {user?.role === 'OWNER' && (
+              <button
+                onClick={() => { setBtError(''); setBtSuccess(''); setBtNgay(new Date().toISOString().split('T')[0]); setBtQuyId(funds[0]?.id || ''); setBtDanhMucId(''); setBtSoTien(''); setBtNoiDung(''); setBtGhiChu(''); setIsBtModalOpen(true); }}
+                className="btn btn-secondary"
+              >
+                <History size={16} />
+                <span>Nhập lịch sử quỹ</span>
+              </button>
+            )}
+            <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
+              <PlusCircle size={20} />
+              <span>Ghi nhận Phiếu Thu (TH4)</span>
+            </button>
+          </div>
         </div>
 
         {/* Filter Bar */}
@@ -978,6 +1038,92 @@ export default function ThuChiPage() {
                   Đóng lại
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+        {/* Modal: NHẬP LỊCH SỬ QUỸ (BÙ TRỪ) */}
+        {isBtModalOpen && (
+          <div className={styles.modalOverlay}>
+            <div className={`${styles.modalContent} glass-card`}>
+              <div className={styles.modalHeader}>
+                <h2>Nhập lịch sử quỹ (bù trừ)</h2>
+                <button onClick={() => setIsBtModalOpen(false)} className={styles.closeBtn}><X size={20} /></button>
+              </div>
+
+              <div style={{ background: 'rgba(var(--brand-brown-rgb), 0.08)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.65rem 0.875rem', fontSize: '0.84rem', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: '1.5' }}>
+                <strong style={{ color: 'var(--text-main)' }}>Hợp thức hóa dữ liệu lịch sử.</strong> Tự động tạo cặp phiếu <strong>CHI + THU</strong> cùng số tiền, cùng ngày → số dư quỹ <strong>không đổi</strong>, dự báo không bị ảnh hưởng. Dùng khi cần ghi nhận giao dịch của tháng cũ vào lịch sử quỹ.
+              </div>
+
+              {btError && (
+                <div className={styles.errorAlert}><AlertCircle size={16} /><span>{btError}</span></div>
+              )}
+              {btSuccess && (
+                <div className={styles.successAlert}><Check size={16} /><span>{btSuccess}</span></div>
+              )}
+
+              <form onSubmit={handleBtSubmit} className={styles.form}>
+                <div className={styles.formRow}>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label className="form-label">Ngày lịch sử *</label>
+                    <DateInput
+                      className="form-control"
+                      value={btNgay}
+                      onChange={(e) => setBtNgay(e.target.value)}
+                      required
+                      disabled={btLoading}
+                    />
+                  </div>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label className="form-label">Quỹ *</label>
+                    <select className="form-control" value={btQuyId} onChange={(e) => setBtQuyId(e.target.value)} required disabled={btLoading}>
+                      <option value="">-- Chọn quỹ --</option>
+                      {funds.map((f) => <option key={f.id} value={f.id}>{f.tenQuy}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.formRow}>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label className="form-label">Danh mục chi *</label>
+                    <select className="form-control" value={btDanhMucId} onChange={(e) => setBtDanhMucId(e.target.value)} required disabled={btLoading}>
+                      <option value="">-- Chọn danh mục --</option>
+                      {allCategories.filter((c) => c.loaiGiaoDich === 'CHI' && c.trangThai === 'ACTIVE').map((c) => (
+                        <option key={c.id} value={c.id}>{c.tenDanhMuc}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ flex: 1 }}>
+                    <label className="form-label">Số tiền (VND) *</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      className="form-control"
+                      placeholder="Nhập số tiền..."
+                      value={btSoTien ? Number(btSoTien).toLocaleString('vi-VN') : ''}
+                      onChange={(e) => setBtSoTien(e.target.value.replace(/\D/g, ''))}
+                      required
+                      disabled={btLoading}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Nội dung khoản chi *</label>
+                  <input type="text" className="form-control" placeholder="VD: Tiền thuê mặt bằng T1/2026..." value={btNoiDung} onChange={(e) => setBtNoiDung(e.target.value)} required disabled={btLoading} maxLength={200} />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Ghi chú (tùy chọn)</label>
+                  <input type="text" className="form-control" placeholder="Ghi chú thêm..." value={btGhiChu} onChange={(e) => setBtGhiChu(e.target.value)} disabled={btLoading} />
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                  <button type="button" onClick={() => setIsBtModalOpen(false)} className="btn btn-secondary" disabled={btLoading}>Hủy</button>
+                  <button type="submit" className="btn btn-primary" disabled={btLoading}>
+                    {btLoading ? 'Đang tạo...' : 'Nhập lịch sử (CHI + THU)'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

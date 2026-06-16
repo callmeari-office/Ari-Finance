@@ -334,7 +334,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { ngayGiaoDich, loaiGiaoDich, soTien, quyId, danhMucId, nhaCungCapId, noiDung, ghiChu } = body;
+    const { ngayGiaoDich, loaiGiaoDich, soTien, quyId, danhMucId, nhaCungCapId, noiDung, ghiChu, buTruLichSu } = body;
 
     if (!ngayGiaoDich || !loaiGiaoDich || !soTien || !quyId || !danhMucId || !noiDung) {
       return NextResponse.json(
@@ -361,6 +361,11 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Loại giao dịch không hợp lệ.' }, { status: 400 });
     }
 
+    // buTruLichSu chỉ cho phép với CHI (CHI + THU tự sinh = cặp bù trừ)
+    if (buTruLichSu && loaiGiaoDich !== 'CHI') {
+      return NextResponse.json({ error: 'Bù trừ lịch sử chỉ áp dụng cho giao dịch CHI.' }, { status: 400 });
+    }
+
     const [quy, danhMuc] = await Promise.all([
       prisma.quy.findUnique({ where: { id: quyId } }),
       prisma.danhMuc.findUnique({ where: { id: danhMucId } }),
@@ -372,13 +377,70 @@ export async function POST(request) {
     if (!danhMuc) {
       return NextResponse.json({ error: 'Danh mục giao dịch không hợp lệ.' }, { status: 400 });
     }
-    if (danhMuc.loaiGiaoDich !== loaiGiaoDich) {
+    // Khi buTruLichSu=true, danhMucId là danh mục CHI — bỏ qua kiểm tra loại cho cặp THU bù trừ
+    if (!buTruLichSu && danhMuc.loaiGiaoDich !== loaiGiaoDich) {
       return NextResponse.json(
         { error: `Danh mục "${danhMuc.tenDanhMuc}" là loại ${danhMuc.loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'}, không khớp với loại giao dịch đã chọn.` },
         { status: 400 }
       );
     }
 
+    // ——— CHẾ ĐỘ BÙ TRỪ LỊCH SỬ: tạo cặp CHI + THU cùng lúc ———
+    if (buTruLichSu) {
+      const [maPhieuChi, maPhieuThu] = await Promise.all([generateMaThuChi(), generateMaThuChi()]);
+      const ngay = new Date(ngayGiaoDich);
+      const soTienRound = lamTronTien(soTien);
+      const [chiRecord, thuRecord] = await Promise.all([
+        prisma.thuChi.create({
+          data: {
+            maPhieu: maPhieuChi,
+            ngayGiaoDich: ngay,
+            loaiGiaoDich: 'CHI',
+            soTien: soTienRound,
+            quyId,
+            danhMucId,
+            nhaCungCapId: nhaCungCapId || null,
+            noiDung: noiDung.trim(),
+            nguoiTaoId: user.id,
+            ghiChu: ghiChu || '',
+            buTruLichSu: true,
+          },
+        }),
+        prisma.thuChi.create({
+          data: {
+            maPhieu: maPhieuThu,
+            ngayGiaoDich: ngay,
+            loaiGiaoDich: 'THU',
+            soTien: soTienRound,
+            quyId,
+            danhMucId, // dùng cùng danhMucId — đây là bù trừ kế toán, không tính vào báo cáo
+            nhaCungCapId: null,
+            noiDung: `[BT] ${noiDung.trim()}`,
+            nguoiTaoId: user.id,
+            ghiChu: 'Bù trừ lịch sử — tự sinh tự động',
+            buTruLichSu: true,
+          },
+        }),
+      ]);
+      await ghiNhatKy({
+        user,
+        hanhDong: 'TAO',
+        doiTuong: 'THU_CHI',
+        maDoiTuong: chiRecord.id,
+        moTa: `Nhập lịch sử quỹ bù trừ: ${noiDung.trim()} — ${soTienRound.toLocaleString('vi-VN')}đ (${maPhieuChi} + ${maPhieuThu})`,
+      });
+      return NextResponse.json({
+        success: true,
+        buTruLichSu: true,
+        chiId: chiRecord.id,
+        thuId: thuRecord.id,
+        maPhieuChi,
+        maPhieuThu,
+        message: `Đã nhập lịch sử quỹ: ${maPhieuChi} (CHI) + ${maPhieuThu} (THU bù trừ). Số dư quỹ không đổi.`,
+      });
+    }
+
+    // ——— LUỒNG BÌNH THƯỜNG ———
     const maPhieu = await generateMaThuChi();
 
     const newThuChi = await prisma.thuChi.create({

@@ -197,6 +197,7 @@ model ThuChi {
   nguoiTaoId    String
   ghiChu        String?
   ngayTao       DateTime  @default(now())
+  buTruLichSu   Boolean   @default(false) // Phiếu bù trừ lịch sử (CHI+THU tự triệt tiêu, loại khỏi báo cáo/dự báo)
 
   quy           Quy       @relation(fields: [quyId], references: [id])
   danhMuc       DanhMuc   @relation(fields: [danhMucId], references: [id])

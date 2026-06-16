@@ -29,6 +29,7 @@ export async function getLoiNhuanNam(prisma, nam) {
       FROM "ThuChi"
       WHERE "ngayGiaoDich" >= ${startOfYear} AND "ngayGiaoDich" < ${endOfYear}
         AND "loaiGiaoDich" = 'CHI'
+        AND "buTruLichSu" = false
       GROUP BY thang
     `,
     prisma.$queryRaw`
@@ -118,7 +119,7 @@ export async function getCanhBao(prisma, days = 3) {
     }),
     prisma.thuChi.groupBy({
       by: ['danhMucId'],
-      where: { loaiGiaoDich: 'CHI', ngayGiaoDich: { gte: startOfMonth, lt: endOfMonth } },
+      where: { loaiGiaoDich: 'CHI', ngayGiaoDich: { gte: startOfMonth, lt: endOfMonth }, buTruLichSu: false },
       _sum: { soTien: true },
     }),
     prisma.$queryRaw`
@@ -223,6 +224,7 @@ export async function getThongKeThang(prisma, soThang = 6) {
         SUM("soTien") AS total
       FROM "ThuChi"
       WHERE "ngayGiaoDich" >= ${startDate} AND "ngayGiaoDich" < ${endDate}
+        AND "buTruLichSu" = false
       GROUP BY 1, 2
     `,
     prisma.$queryRaw`
@@ -294,6 +296,7 @@ export async function getDuBao(prisma, daysParam = 'thang') {
       FROM "ThuChi"
       WHERE "loaiGiaoDich" = 'CHI'
         AND "ngayGiaoDich" >= ${thirtyDaysAgo} AND "ngayGiaoDich" < ${today}
+        AND "buTruLichSu" = false
     `,
     prisma.keHoachDoanhThu.aggregate({ _sum: { chiTieu: true }, where: { nam, thang } }),
     prisma.$queryRaw`
