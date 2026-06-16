@@ -96,8 +96,176 @@
   gap: 0.5rem;
 }
 
+/* ——— HEADER ACTIONS ——— */
+.headerActions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ——— DASHBOARD TỔNG QUAN ——— */
+.dashboardSection {
+  margin-bottom: 1.25rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+
+.kpiCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.kpiLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.kpiValue {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.kpiSub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.dashBody {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.dashSectionTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.65rem;
+}
+
+/* — Phân bổ danh mục — */
+.breakdownRow { margin-bottom: 0.55rem; }
+
+.breakdownMeta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin-bottom: 0.2rem;
+}
+
+.breakdownCat {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.breakdownAmt {
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: var(--success);
+  white-space: nowrap;
+}
+
+.breakdownPct {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 2.2rem;
+  text-align: right;
+}
+
+.bar {
+  height: 4px;
+  background: rgba(var(--brand-brown-rgb), 0.12);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 99px;
+  transition: width 0.4s var(--ease-out);
+  min-width: 4px;
+}
+
+/* — Lịch thanh toán — */
+.calGroup {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.calDayBadge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: rgba(var(--brand-brown-rgb), 0.1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.15rem 0.45rem;
+  white-space: nowrap;
+  min-width: 4.5rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.calItems { flex: 1; }
+
+.calItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.83rem;
+  padding: 0.1rem 0;
+  border-bottom: 1px solid rgba(var(--brand-brown-rgb), 0.06);
+}
+
+.calItem:last-child { border-bottom: none; }
+
+.calName {
+  color: var(--text-main);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calAmt {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 @media (max-width: 640px) {
   .mainContent { padding: 1rem; }
   .pageHeader { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
   .modalContent { padding: 1.25rem; }
+  .kpiGrid { grid-template-columns: 1fr 1fr; }
+  .kpiGrid .kpiCard:last-child { grid-column: span 2; }
+  .dashBody { grid-template-columns: 1fr; }
+  .dashboardSection { padding: 1rem 1.1rem; }
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus, X, Check, AlertCircle, Edit3, Trash2,
-  ToggleLeft, ToggleRight, CalendarCheck,
+  ToggleLeft, ToggleRight, CalendarCheck, BarChart2,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useToast } from '@/components/Toast';
@@ -25,6 +25,7 @@ export default function DinhKyPage() {
   const [vendors, setVendors] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -197,6 +198,22 @@ export default function DinhKyPage() {
 
   const displayed = showAll ? templates : templates.filter((t) => t.active);
 
+  const activeTemplates = templates.filter((t) => t.active);
+  const totalMonth = activeTemplates.reduce((sum, t) => sum + Number(t.soTien), 0);
+  const categoryMap = {};
+  for (const t of activeTemplates) {
+    const key = t.tenDanhMuc || t.danhMucId;
+    categoryMap[key] = (categoryMap[key] || 0) + Number(t.soTien);
+  }
+  const categoryList = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
+  const dayMap = {};
+  for (const t of activeTemplates) {
+    const day = t.ngayChiTrongThang || 1;
+    if (!dayMap[day]) dayMap[day] = [];
+    dayMap[day].push(t);
+  }
+  const dayList = Object.entries(dayMap).sort((a, b) => Number(a[0]) - Number(b[0]));
+
   if (loading) {
     return (
       <div className={styles.loaderContainer}>
@@ -215,9 +232,20 @@ export default function DinhKyPage() {
             <h1>Chi phí định kỳ</h1>
             <p className={styles.pageDesc}>Quản lý các phiếu chi lặp lại hàng tháng (tiền thuê, dịch vụ, v.v.)</p>
           </div>
-          <button onClick={handleOpenAdd} className="btn btn-primary">
-            <Plus size={18} /> <span>Thêm mẫu</span>
-          </button>
+          <div className={styles.headerActions}>
+            {templates.length > 0 && (
+              <button
+                onClick={() => setShowDashboard((v) => !v)}
+                className="btn btn-secondary"
+                style={showDashboard ? { background: 'rgba(var(--brand-brown-rgb), 0.18)' } : {}}
+              >
+                <BarChart2 size={16} /> <span>Tổng quan</span>
+              </button>
+            )}
+            <button onClick={handleOpenAdd} className="btn btn-primary">
+              <Plus size={18} /> <span>Thêm mẫu</span>
+            </button>
+          </div>
         </div>
 
         {/* Tạo phiếu tháng này */}
@@ -248,6 +276,62 @@ export default function DinhKyPage() {
             )}
           </div>
         </div>
+
+        {/* Dashboard tổng quan */}
+        {showDashboard && activeTemplates.length > 0 && (
+          <div className={`glass-card ${styles.dashboardSection}`}>
+            <div className={styles.kpiGrid}>
+              <div className={styles.kpiCard}>
+                <span className={styles.kpiLabel}>Chi phí cố định / tháng</span>
+                <span className={styles.kpiValue}>{formatVND(totalMonth)}</span>
+                <span className={styles.kpiSub}>Mẫu đang hoạt động</span>
+              </div>
+              <div className={styles.kpiCard}>
+                <span className={styles.kpiLabel}>Số khoản định kỳ</span>
+                <span className={styles.kpiValue}>{activeTemplates.length}</span>
+                <span className={styles.kpiSub}>/ {templates.length} tổng cộng</span>
+              </div>
+              <div className={styles.kpiCard}>
+                <span className={styles.kpiLabel}>Trung bình / khoản</span>
+                <span className={styles.kpiValue}>{formatVND(Math.round(totalMonth / (activeTemplates.length || 1)))}</span>
+                <span className={styles.kpiSub}>{categoryList.length} danh mục</span>
+              </div>
+            </div>
+            <div className={styles.dashBody}>
+              <div>
+                <div className={styles.dashSectionTitle}>Cơ cấu theo danh mục</div>
+                {categoryList.map(([cat, amt]) => (
+                  <div key={cat} className={styles.breakdownRow}>
+                    <div className={styles.breakdownMeta}>
+                      <span className={styles.breakdownCat}>{cat}</span>
+                      <span className={styles.breakdownAmt}>{formatVND(amt)}</span>
+                      <span className={styles.breakdownPct}>{totalMonth > 0 ? Math.round((amt / totalMonth) * 100) : 0}%</span>
+                    </div>
+                    <div className={styles.bar}>
+                      <div className={styles.barFill} style={{ width: `${totalMonth > 0 ? (amt / totalMonth) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className={styles.dashSectionTitle}>Lịch chi trong tháng</div>
+                {dayList.map(([day, items]) => (
+                  <div key={day} className={styles.calGroup}>
+                    <span className={styles.calDayBadge}>Ngày {day}</span>
+                    <div className={styles.calItems}>
+                      {items.map((t) => (
+                        <div key={t.id} className={styles.calItem}>
+                          <span className={styles.calName}>{t.tenMau}</span>
+                          <span className={styles.calAmt}>{formatVND(t.soTien)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Filter toggle */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
