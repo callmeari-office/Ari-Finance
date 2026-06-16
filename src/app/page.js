@@ -885,14 +885,29 @@ export default function Dashboard() {
               <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Không tải được dữ liệu dự báo.</p>
             ) : (
               <>
-                <p className={styles.forecastKpi} style={{ color: duBao.soDuDuBaoCuoiKy >= 0 ? '#10b981' : '#ef4444' }}>
-                  ~{formatVND(Math.abs(duBao.soDuDuBaoCuoiKy))}
-                  {duBao.soDuDuBaoCuoiKy < 0 && <span style={{ fontSize: '0.85rem', fontWeight: 600, marginLeft: '0.4rem' }}>(âm)</span>}
+                <p style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
+                  Số dư ước tính cuối tháng
+                </p>
+                <p
+                  className={styles.forecastKpi}
+                  style={{ color: duBao.soDuDuBaoCuoiKy >= 0 ? '#10b981' : '#ef4444', cursor: 'help' }}
+                  title={[
+                    `Số dư hiện tại: ${formatVND(duBao.soDuHomNay)}`,
+                    `Thu dự kiến: ${formatVND(duBao.giaDinh.avgThuNgay)}/ngày × ${duBao.soNgayForecast} ngày${duBao.giaDinh.nguonThu === 'ke-hoach' ? ' (theo KH tháng)' : ' (xu hướng 30 ngày)'}`,
+                    `Chi xu hướng: ${formatVND(duBao.giaDinh.avgChiNgay)}/ngày (ngày có phiếu dùng số thực)`,
+                    duBao.giaDinh.tongChiCommitted > 0 ? `Phiếu cam kết: ${formatVND(duBao.giaDinh.tongChiCommitted)} (${duBao.giaDinh.soPhieuSapToi} phiếu)` : '',
+                    `─────────────────────────`,
+                    `→ Ước tính ${duBao.soDuDuBaoCuoiKy >= 0 ? 'còn dư' : '⚠️ âm quỹ'}: ${duBao.soDuDuBaoCuoiKy >= 0 ? '+' : '−'}${formatVND(Math.abs(duBao.soDuDuBaoCuoiKy))}`,
+                  ].filter(Boolean).join('\n')}
+                >
+                  {duBao.soDuDuBaoCuoiKy >= 0 ? '+' : '−'}~{formatVND(Math.abs(duBao.soDuDuBaoCuoiKy))}
+                  {duBao.soDuDuBaoCuoiKy < 0 && <span style={{ fontSize: '0.85rem', fontWeight: 600, marginLeft: '0.4rem' }}>(ÂM)</span>}
                 </p>
                 <p className={styles.forecastSub}>
-                  Còn {duBao.soNgayForecast} ngày đến cuối tháng · Số dư hiện tại {formatVND(duBao.soDuHomNay)}
-                  {duBao.giaDinh.soPhieuSapToi > 0 && ` · ${duBao.giaDinh.soPhieuSapToi} phiếu cam kết sắp tới`}
-                  {duBao.giaDinh.nguonThu === 'ke-hoach' ? ' · Thu theo chỉ tiêu tháng' : ' · Thu theo xu hướng 30 ngày'}
+                  Số dư hôm nay {formatVND(duBao.soDuHomNay)} · Còn {duBao.soNgayForecast} ngày
+                  {` · Thu ${duBao.giaDinh.nguonThu === 'ke-hoach' ? 'KH' : 'xu hướng'} ${formatVND(duBao.giaDinh.avgThuNgay)}/ngày`}
+                  {` · Chi xu hướng ${formatVND(duBao.giaDinh.avgChiNgay)}/ngày`}
+                  {duBao.giaDinh.soPhieuSapToi > 0 && ` · ${duBao.giaDinh.soPhieuSapToi} phiếu cam kết (${formatVND(duBao.giaDinh.tongChiCommitted)})`}
                 </p>
 
                 {duBao.canhBaoAm && (
