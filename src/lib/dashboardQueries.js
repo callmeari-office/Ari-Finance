@@ -277,7 +277,7 @@ export async function getDuBao(prisma, daysParam = 'thang') {
   const endDateInclusive = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59);
   const thirtyDaysAgo = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30);
 
-  const [funds, thuChiAgg, committedDeXuat, avgChiRaw, keHoachThangAgg, avgThuRaw, phieuDinhKyList] = await Promise.all([
+  const [funds, thuChiAgg, committedDeXuat, avgChiRaw, keHoachThangAgg, avgThuRaw, phieuDinhKyList, phieuDaTaoTrongKy] = await Promise.all([
     prisma.quy.findMany({ where: { trangThai: 'ACTIVE' }, select: { id: true, soDuDauKy: true, soDuDieuChinh: true } }),
     prisma.thuChi.groupBy({ by: ['quyId', 'loaiGiaoDich'], _sum: { soTien: true } }),
     prisma.deXuatChiPhi.findMany({
@@ -302,7 +302,15 @@ export async function getDuBao(prisma, daysParam = 'thang') {
       WHERE "loaiGiaoDich" = 'THU'
         AND "ngayGiaoDich" >= ${thirtyDaysAgo} AND "ngayGiaoDich" < ${today}
     `,
-    prisma.phieuDinhKy.findMany({ where: { active: true }, select: { soTien: true, ngayChiTrongThang: true } }),
+    prisma.phieuDinhKy.findMany({ where: { active: true }, select: { soTien: true, ngayChiTrongThang: true, danhMucId: true, noiDung: true } }),
+    prisma.deXuatChiPhi.findMany({
+      where: {
+        laLichSu: false,
+        trangThai: { not: 'HUY' },
+        ngayPhatSinh: { gte: today, lte: endDateInclusive },
+      },
+      select: { danhMucId: true, noiDung: true, ngayPhatSinh: true },
+    }),
   ]);
 
   const thuChiMap = {};
@@ -345,12 +353,22 @@ export async function getDuBao(prisma, daysParam = 'thang') {
     const mk = `${d.getFullYear()}-${d.getMonth() + 1}`;
     if (!monthsInRange.has(mk)) monthsInRange.set(mk, { year: d.getFullYear(), month: d.getMonth() + 1 });
   }
+  // Set khoá "danhMucId|noiDung|YYYY-M" của các phiếu đã được tạo thật trong kỳ
+  // → tháng nào đã có phiếu thật thì KHÔNG chiếu bóng mẫu định kỳ nữa (tránh đếm trùng).
+  const daTaoKeys = new Set();
+  phieuDaTaoTrongKy.forEach((p) => {
+    const d = new Date(p.ngayPhatSinh);
+    daTaoKeys.add(`${p.danhMucId}|${p.noiDung}|${d.getFullYear()}-${d.getMonth() + 1}`);
+  });
+
   phieuDinhKyList.forEach((p) => {
     monthsInRange.forEach(({ year, month }) => {
       const lastDay = new Date(year, month, 0).getDate();
       const day = Math.min(p.ngayChiTrongThang, lastDay);
       const targetDate = new Date(year, month - 1, day);
       if (targetDate >= today && targetDate <= endDate) {
+        const monthKey = `${p.danhMucId}|${p.noiDung}|${year}-${month}`;
+        if (daTaoKeys.has(monthKey)) return; // đã có phiếu thật cho khoản này tháng này
         const k = dateKey(targetDate);
         committedByDay[k] = (committedByDay[k] || 0) + p.soTien;
       }
@@ -379,8 +397,10 @@ export async function getDuBao(prisma, daysParam = 'thang') {
     weekBuckets[weekIdx].soDuCuoiTuan = Math.round(soDuChay);
   }
 
+  const thisMonthKey = `${today.getFullYear()}-${today.getMonth() + 1}`;
   const tongChiCommitted = committedDeXuat.reduce((s, p) => s + p.soTien, 0)
-    + phieuDinhKyList.reduce((s, p) => s + p.soTien, 0);
+    + phieuDinhKyList.reduce((s, p) =>
+        daTaoKeys.has(`${p.danhMucId}|${p.noiDung}|${thisMonthKey}`) ? s : s + p.soTien, 0);
 
   return {
     soDuHomNay: Math.round(soDuHomNay),
