@@ -212,13 +212,31 @@ export async function GET(request) {
       const total = allData.length;
 
       // Tính toán các chỉ số thống kê trên toàn bộ tập kết quả đã lọc
-      const tongThu = allData
+      let tongThu = allData
         .filter(t => t.loaiGiaoDich === 'THU')
         .reduce((sum, t) => sum + t.soTien, 0);
 
       const tongChi = allData
         .filter(t => t.loaiGiaoDich === 'CHI')
         .reduce((sum, t) => sum + t.soTien, 0);
+
+      // Fallback: tháng chưa hợp thức hoá ThuChi.THU → dùng KeHoachDoanhThu.thucTe làm ước tính
+      let tongThuUocTinh = false;
+      if (tongThu === 0 && !isNaN(year)) {
+        const selectedMonths = thang
+          ? thang.split(',').map(m => parseInt(m.trim(), 10)).filter(m => !isNaN(m) && m >= 1 && m <= 12)
+          : Array.from({ length: 12 }, (_, i) => i + 1);
+        const doanhThuRows = await prisma.keHoachDoanhThu.groupBy({
+          by: ['nam', 'thang'],
+          where: { nam: year, thang: { in: selectedMonths } },
+          _sum: { thucTe: true },
+        });
+        const tongDoanhThu = doanhThuRows.reduce((sum, r) => sum + Number(r._sum.thucTe || 0), 0);
+        if (tongDoanhThu > 0) {
+          tongThu = tongDoanhThu;
+          tongThuUocTinh = true;
+        }
+      }
 
       const netCashflow = tongThu - tongChi;
       const tileChiThu = tongThu > 0 ? Math.round((tongChi / tongThu) * 100) : 0;
@@ -272,6 +290,7 @@ export async function GET(request) {
         },
         stats: {
           tongThu,
+          tongThuUocTinh,
           tongChi,
           netCashflow,
           tileChiThu,

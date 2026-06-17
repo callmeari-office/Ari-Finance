@@ -51,6 +51,7 @@ export default function BaoCaoThuChiPage() {
   const [totalCount, setTotalCount] = useState(0);
   
   const [tongThu, setTongThu] = useState(0);
+  const [tongThuUocTinh, setTongThuUocTinh] = useState(false);
   const [tongChi, setTongChi] = useState(0);
   const [netCashflow, setNetCashflow] = useState(0);
   const [tileChiThu, setTileChiThu] = useState(0);
@@ -139,6 +140,7 @@ export default function BaoCaoThuChiPage() {
         }
         if (txData.stats) {
           setTongThu(txData.stats.tongThu || 0);
+          setTongThuUocTinh(txData.stats.tongThuUocTinh || false);
           setTongChi(txData.stats.tongChi || 0);
           setNetCashflow(txData.stats.netCashflow || 0);
           setTileChiThu(txData.stats.tileChiThu || 0);
@@ -533,11 +535,11 @@ export default function BaoCaoThuChiPage() {
         <div className={styles.summaryGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
           <div className={`${styles.sumCard} ${styles.greenBg} glass-card`}>
             <div className={styles.sumHeader}>
-              <span>Tổng thu tiền (Dòng vào)</span>
+              <span>Tổng thu tiền (Dòng vào){tongThuUocTinh ? ' *' : ''}</span>
               <TrendingUp className={styles.sumIcon} />
             </div>
             <h3>+{formatVND(tongThu)}</h3>
-            <p>Doanh thu và dòng tiền nạp vào</p>
+            <p>Doanh thu và dòng tiền nạp vào{tongThuUocTinh ? ' — ước tính từ doanh thu' : ''}</p>
           </div>
 
           <div className={`${styles.sumCard} ${styles.redBg} glass-card`}>
