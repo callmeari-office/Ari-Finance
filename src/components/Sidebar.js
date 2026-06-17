@@ -28,9 +28,10 @@ import {
   Clock,
   ChevronRight,
   BookOpen,
+  Moon,
+  Flower2,
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import ThemeToggle from './ThemeToggle';
 import PushToggle from './PushToggle';
 import BottomNav from './BottomNav';
 import { useConfirm } from './ConfirmDialog';
@@ -50,6 +51,19 @@ export default function Sidebar({ user }) {
   const showConfirm = useConfirm();
   const [isOpen, setIsOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [theme, setTheme] = useState('pink');
+
+  useEffect(() => {
+    const current = document.documentElement.getAttribute('data-theme') || 'pink';
+    setTheme(current === 'light' ? 'pink' : current);
+  }, []);
+
+  const switchTheme = (t) => {
+    if (theme === t) return;
+    setTheme(t);
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('ari-theme', t); } catch {}
+  };
   const [tbList, setTbList] = useState([]);
   const [nhacHan, setNhacHan] = useState([]);
   const [hasQuanTrong, setHasQuanTrong] = useState(false);
@@ -145,7 +159,7 @@ export default function Sidebar({ user }) {
   const allowedMenuItems = menuItems.filter((item) => canViewMenu(user, item.key));
 
   // BottomNav — primary 4 items + "Báo cáo" (fixed 5th slot)
-  const PRIMARY_KEYS = ['tongQuan', 'deXuat', 'duyet', 'quy', 'loiNhuan'];
+  const PRIMARY_KEYS = ['tongQuan', 'deXuat', 'duyet', 'thuChi', 'loiNhuan'];
   const bnItems = [
     ...PRIMARY_KEYS
       .filter(key => allowedMenuItems.some(m => m.key === key))
@@ -155,7 +169,7 @@ export default function Sidebar({ user }) {
         const Icon = it.icon;
         const SHORT = {
           tongQuan: 'Tổng quan', deXuat: 'Đề xuất', duyet: 'Duyệt',
-          quy: 'Quỹ', baoCao: 'Báo cáo', loiNhuan: 'Lợi nhuận',
+          thuChi: 'Thu-Chi', baoCao: 'Báo cáo', loiNhuan: 'Lợi nhuận',
         };
         return {
           key: it.key,
@@ -175,7 +189,7 @@ export default function Sidebar({ user }) {
     if (pathname === '/') return 'tongQuan';
     if (pathname.startsWith('/de-xuat/duyet')) return 'duyet';
     if (pathname.startsWith('/de-xuat')) return 'deXuat';
-    if (pathname.startsWith('/quy')) return 'quy';
+    if (pathname.startsWith('/thu-chi')) return 'thuChi';
     if (pathname.startsWith('/bao-cao')) return 'baoCao';
     if (pathname.startsWith('/loi-nhuan')) return 'loiNhuan';
     return '';
@@ -194,6 +208,23 @@ export default function Sidebar({ user }) {
           </div>
         </Link>
         <div className={styles.mobileHeaderRight}>
+          {/* Theme buttons: Tối / Chế độ Ari */}
+          <button
+            type="button"
+            onClick={() => switchTheme('dark')}
+            className={`${styles.themeBtnHeader} ${theme === 'dark' ? styles.themeBtnHeaderActive : ''}`}
+            title="Chế độ Tối"
+          >
+            <Moon size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={() => switchTheme('pink')}
+            className={`${styles.themeBtnHeader} ${theme === 'pink' ? styles.themeBtnHeaderActive : ''}`}
+            title="Chế độ Ari"
+          >
+            <Flower2 size={18} />
+          </button>
           <button
             className={styles.mobileBell}
             onClick={() => {
@@ -558,7 +589,29 @@ export default function Sidebar({ user }) {
             <KeyRound size={20} className={styles.navIcon} />
             <span>Đổi mật khẩu</span>
           </Link>
-          <ThemeToggle />
+          {/* 2-button theme selector — Tối / Chế độ Ari */}
+          <div style={{ display: 'flex', gap: '0.4rem', marginBottom: 'var(--space-1)' }}>
+            <button
+              type="button"
+              onClick={() => switchTheme('dark')}
+              className={`${styles.themeToggle} ${theme === 'dark' ? styles.themeToggleActive : ''}`}
+              style={{ flex: 1, justifyContent: 'center', gap: '0.5rem', marginBottom: 0 }}
+              title="Chế độ Tối"
+            >
+              <Moon size={18} />
+              <span>Tối</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => switchTheme('pink')}
+              className={`${styles.themeToggle} ${theme === 'pink' ? styles.themeToggleActive : ''}`}
+              style={{ flex: 1, justifyContent: 'center', gap: '0.5rem', marginBottom: 0 }}
+              title="Chế độ Ari"
+            >
+              <Flower2 size={18} />
+              <span>Ari</span>
+            </button>
+          </div>
           {/* Mọi vai trò đều nhận push (auto-subscribe khi đăng nhập) → giữ nút Bật/Tắt cho tất cả. */}
           <PushToggle compact />
           <button onClick={handleLogout} className={styles.logoutBtn}>

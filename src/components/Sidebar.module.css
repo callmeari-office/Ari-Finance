@@ -262,7 +262,44 @@
   background: rgba(207, 141, 141, 0.1);
 }
 
-/* Nút chuyển đổi Sáng / Tối */
+/* Active state cho nút theme trong sidebar (2-button selector) */
+.themeToggleActive {
+  background: rgba(var(--brand-brown-rgb), 0.14) !important;
+  border-color: rgba(var(--brand-brown-rgb), 0.35) !important;
+}
+:global([data-theme='dark']) .themeToggleActive {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+:global([data-theme='pink']) .themeToggleActive {
+  background: rgba(230, 162, 197, 0.22) !important;
+  border-color: rgba(230, 162, 197, 0.45) !important;
+}
+
+/* Icon-only theme buttons trong mobile header */
+.themeBtnHeader {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 6px;
+  border-radius: 8px;
+  line-height: 0;
+  flex-shrink: 0;
+  opacity: 0.42;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+.themeBtnHeader:hover {
+  opacity: 0.75;
+  background: rgba(var(--brand-brown-rgb), 0.07);
+}
+.themeBtnHeaderActive {
+  opacity: 1;
+  color: var(--brand-brown);
+  background: rgba(var(--brand-brown-rgb), 0.1);
+}
+
+/* Nút chuyển đổi theme trong sidebar */
 .themeToggle {
   width: 100%;
   display: flex;

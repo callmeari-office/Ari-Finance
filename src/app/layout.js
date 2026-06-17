@@ -51,7 +51,7 @@ export default function RootLayout({ children }) {
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var t=localStorage.getItem('ari-theme');if(t){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();",
+              "(function(){try{var t=localStorage.getItem('ari-theme');if(!t||t==='light'){t='pink';}document.documentElement.setAttribute('data-theme',t);}catch(e){}})();",
           }}
         />
         <Providers>
