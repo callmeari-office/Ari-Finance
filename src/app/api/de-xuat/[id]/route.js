@@ -53,7 +53,7 @@ export async function GET(request, { params }) {
   }
 }
 
-// Xóa cứng đề xuất — CHỈ OWNER, chỉ với phiếu CHƯA gắn dòng tiền (chứng từ rác)
+// Xóa cứng đề xuất — CHỈ OWNER. Phiếu thường: chỉ khi chưa gắn dòng tiền. Phiếu lịch sử (laLichSu=true): xóa kèm ThuChi liên kết trong transaction.
 export async function DELETE(request, { params }) {
   try {
     const user = await getSession();
@@ -79,27 +79,41 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Không tìm thấy đề xuất.' }, { status: 404 });
     }
 
-    // Không cho xóa phiếu đã gắn dòng tiền (đã thanh toán thực tế) để tránh lệch quỹ/sổ sách
-    if (existingProposal.thuChiId !== null) {
+    // Chặn xóa phiếu thường đã gắn dòng tiền để tránh lệch quỹ/sổ sách
+    // Ngoại lệ: phiếu lịch sử (laLichSu=true) được phép xóa kèm ThuChi liên kết
+    if (existingProposal.thuChiId !== null && !existingProposal.laLichSu) {
       return NextResponse.json(
         { error: 'Đề xuất đã thanh toán và liên kết dòng tiền, không thể xóa vĩnh viễn. Hãy xử lý phiếu chi liên quan trước.' },
         { status: 400 }
       );
     }
 
-    await prisma.deXuatChiPhi.delete({ where: { id } });
+    if (existingProposal.thuChiId !== null && existingProposal.laLichSu) {
+      // Phiếu lịch sử: xóa DeXuatChiPhi trước (bỏ FK reference), rồi xóa ThuChi trong cùng transaction
+      const thuChiId = existingProposal.thuChiId;
+      await prisma.$transaction(async (tx) => {
+        await tx.deXuatChiPhi.delete({ where: { id } });
+        await tx.thuChi.delete({ where: { id: thuChiId } });
+      });
+    } else {
+      await prisma.deXuatChiPhi.delete({ where: { id } });
+    }
 
     // Xóa ảnh hóa đơn khỏi Storage sau khi DB đã xóa thành công
     if (existingProposal.anhHoaDon) {
       await deleteStorageImage(existingProposal.anhHoaDon);
     }
 
+    const moTaXoa = existingProposal.laLichSu && existingProposal.thuChiId
+      ? `Xóa vĩnh viễn phiếu lịch sử "${existingProposal.noiDung}" (${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ) kèm phiếu chi liên kết`
+      : `Xóa vĩnh viễn đề xuất "${existingProposal.noiDung}" (${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ)`;
+
     await ghiNhatKy({
       user,
       hanhDong: 'XOA',
       doiTuong: 'DE_XUAT',
       maDoiTuong: existingProposal.maPhieu,
-      moTa: `Xóa vĩnh viễn đề xuất "${existingProposal.noiDung}" (${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ)`,
+      moTa: moTaXoa,
     });
 
     return NextResponse.json({

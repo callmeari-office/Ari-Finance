@@ -429,6 +429,29 @@ function DeXuatPage() {
     }
   };
 
+  // OWNER: Xóa vĩnh viễn phiếu lịch sử đã thanh toán (kèm ThuChi liên kết)
+  const handleDeleteLichSu = async (propId, maPhieu) => {
+    const ok = await showConfirm({
+      title: 'Xóa vĩnh viễn phiếu lịch sử',
+      message: `Xóa vĩnh viễn phiếu ${maPhieu}?\nPhiếu chi liên kết cũng sẽ bị xóa và số dư quỹ sẽ được hoàn lại.\nThao tác này KHÔNG THỂ hoàn tác.`,
+      confirmLabel: 'Xóa vĩnh viễn',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/de-xuat/${propId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Xóa thất bại');
+      toast.success(`Đã xóa vĩnh viễn phiếu ${maPhieu}.`);
+      fetchData(user);
+      if (selectedProp && selectedProp.id === propId) {
+        setSelectedProp(null);
+      }
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   const canEdit = (prop) => {
     if (!user) return false;
     if (user.role === 'OWNER') return true;
@@ -1284,10 +1307,21 @@ function DeXuatPage() {
 
                             {/* Cho phép hủy nếu không phải trạng thái DA_THANH_TOAN và HUY */}
                             {prop.trangThai !== 'DA_THANH_TOAN' && prop.trangThai !== 'HUY' && (
-                              <button 
-                                onClick={() => handleCancelProp(prop.id, prop.maPhieu)} 
-                                className={`${styles.actionBtn} ${styles.deleteBtn}`} 
+                              <button
+                                onClick={() => handleCancelProp(prop.id, prop.maPhieu)}
+                                className={`${styles.actionBtn} ${styles.deleteBtn}`}
                                 title="Hủy đề xuất"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+
+                            {/* Xóa vĩnh viễn phiếu lịch sử đã thanh toán: chỉ OWNER */}
+                            {user.role === 'OWNER' && prop.laLichSu && prop.trangThai === 'DA_THANH_TOAN' && (
+                              <button
+                                onClick={() => handleDeleteLichSu(prop.id, prop.maPhieu)}
+                                className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                                title="Xóa vĩnh viễn phiếu lịch sử"
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -1392,6 +1426,17 @@ function DeXuatPage() {
                               onClick={() => handleCancelProp(prop.id, prop.maPhieu)}
                               className={`${styles.actionBtn} ${styles.deleteBtn}`}
                               title="Hủy đề xuất"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+
+                          {/* Xóa vĩnh viễn phiếu lịch sử đã thanh toán: chỉ OWNER */}
+                          {user.role === 'OWNER' && prop.laLichSu && prop.trangThai === 'DA_THANH_TOAN' && (
+                            <button
+                              onClick={() => handleDeleteLichSu(prop.id, prop.maPhieu)}
+                              className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                              title="Xóa vĩnh viễn phiếu lịch sử"
                             >
                               <Trash2 size={16} />
                             </button>
