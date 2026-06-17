@@ -209,14 +209,17 @@ export async function getCanhBao(prisma, days = 3) {
 
 /**
  * Thống kê thu/chi N tháng gần nhất.
- * Trả mảng { thang: "YYYY-MM", thu, chi }[] theo thứ tự tăng dần.
+ * Trả mảng { thang: "YYYY-MM", thu, chi, thuLaUocTinh? }[] theo thứ tự tăng dần.
+ * Tháng chưa có ThuChi.THU (chưa hợp thức hoá) → fallback sang KeHoachDoanhThu.thucTe.
  */
 export async function getThongKeThang(prisma, soThang = 6) {
   const now = new Date();
   const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const startDate = new Date(now.getFullYear(), now.getMonth() - soThang + 1, 1);
+  const startMonthNum = startDate.getFullYear() * 100 + (startDate.getMonth() + 1);
+  const endMonthNum = endDate.getFullYear() * 100 + (endDate.getMonth() + 1);
 
-  const [thuChiRows, lichSuRows] = await Promise.all([
+  const [thuChiRows, lichSuRows, doanhThuRows] = await Promise.all([
     prisma.$queryRaw`
       SELECT
         TO_CHAR(DATE_TRUNC('month', "ngayGiaoDich"), 'YYYY-MM') AS thang,
@@ -237,6 +240,15 @@ export async function getThongKeThang(prisma, soThang = 6) {
         AND "laLichSu" = true
       GROUP BY 1
     `,
+    prisma.$queryRaw`
+      SELECT
+        TO_CHAR(TO_DATE(nam::text || '-' || LPAD(thang::text, 2, '0') || '-01', 'YYYY-MM-DD'), 'YYYY-MM') AS thang,
+        SUM("thucTe") AS total
+      FROM "KeHoachDoanhThu"
+      WHERE (nam * 100 + thang) >= ${startMonthNum}
+        AND (nam * 100 + thang) < ${endMonthNum}
+      GROUP BY 1
+    `,
   ]);
 
   const map = {};
@@ -250,6 +262,19 @@ export async function getThongKeThang(prisma, soThang = 6) {
     const t = row.thang;
     if (!map[t]) map[t] = { thang: t, thu: 0, chi: 0 };
     map[t].chi += Number(row.total);
+  }
+
+  // Fallback: tháng chưa có ThuChi.THU → dùng doanh thu thực tế làm ước tính
+  const doanhThuMap = {};
+  for (const row of doanhThuRows) {
+    doanhThuMap[row.thang] = Number(row.total || 0);
+  }
+  for (const [key, dt] of Object.entries(doanhThuMap)) {
+    if (!map[key]) map[key] = { thang: key, thu: 0, chi: 0 };
+    if (map[key].thu === 0 && dt > 0) {
+      map[key].thu = dt;
+      map[key].thuLaUocTinh = true;
+    }
   }
 
   return Object.values(map).sort((a, b) => a.thang.localeCompare(b.thang));

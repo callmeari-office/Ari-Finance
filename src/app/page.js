@@ -126,7 +126,7 @@ export default function Dashboard() {
           const month = d.getMonth() + 1;
           const key = `${year}-${String(month).padStart(2, '0')}`;
           const found = rawData.find((r) => r.thang === key);
-          months.push({ year, month, thu: found?.thu || 0, chi: found?.chi || 0 });
+          months.push({ year, month, thu: found?.thu || 0, chi: found?.chi || 0, thuLaUocTinh: found?.thuLaUocTinh ?? false });
         }
         setTransactions(months);
       }
@@ -983,7 +983,7 @@ export default function Dashboard() {
                   <div key={`${m.year}-${m.month}`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', height: '100%', justifyContent: 'flex-end' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', width: '100%', height: '140px', justifyContent: 'center' }}>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                        <div title={`Thu: ${formatVND(m.thu)}`} style={{ width: '100%', height: `${Math.round((m.thu / maxMonthly) * 100)}%`, minHeight: m.thu > 0 ? '4px' : '0', background: 'var(--chart-thu-gradient, linear-gradient(180deg, #34d399 0%, #10b981 100%))', borderRadius: '4px 4px 0 0', transition: 'height 0.3s ease' }} />
+                        <div title={`Thu${m.thuLaUocTinh ? ' (doanh thu ước tính)' : ''}: ${formatVND(m.thu)}`} style={{ width: '100%', height: `${Math.round((m.thu / maxMonthly) * 100)}%`, minHeight: m.thu > 0 ? '4px' : '0', background: m.thuLaUocTinh ? 'var(--chart-thu-gradient-est, linear-gradient(180deg, #6ee7b7 0%, #34d399 100%))' : 'var(--chart-thu-gradient, linear-gradient(180deg, #34d399 0%, #10b981 100%))', opacity: m.thuLaUocTinh ? 0.7 : 1, borderRadius: '4px 4px 0 0', transition: 'height 0.3s ease' }} />
                       </div>
                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
                         <div title={`Chi: ${formatVND(m.chi)}`} style={{ width: '100%', height: `${Math.round((m.chi / maxMonthly) * 100)}%`, minHeight: m.chi > 0 ? '4px' : '0', background: 'var(--chart-chi-gradient, linear-gradient(180deg, #fca5a5 0%, #ef4444 100%))', borderRadius: '4px 4px 0 0', transition: 'height 0.3s ease' }} />
@@ -1016,7 +1016,7 @@ export default function Dashboard() {
               <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)', fontSize: '0.8rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#10b981', display: 'inline-block' }}></span>
-                  Thu vào
+                  Thu vào{monthlyData.some((m) => m.thuLaUocTinh) ? ' *' : ''}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#ef4444', display: 'inline-block' }}></span>
@@ -1027,6 +1027,11 @@ export default function Dashboard() {
                   Lãi/Lỗ
                 </span>
                 <span style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>Di chuột vào cột/điểm để xem số tiền</span>
+                {monthlyData.some((m) => m.thuLaUocTinh) && (
+                  <span style={{ width: '100%', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                    * Tháng chưa hợp thức hoá: Thu vào = doanh thu thực tế (ước tính)
+                  </span>
+                )}
               </div>
             )}
           </div>
