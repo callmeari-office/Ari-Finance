@@ -63,6 +63,17 @@ function DeXuatPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [totalSum, setTotalSum] = useState(0);
+  const [sortBy, setSortBy] = useState('maPhieu');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+  };
 
   // Filter states (string = single-select, array = multi-select)
   const [filterTrangThai, setFilterTrangThai] = useState('');
@@ -254,6 +265,8 @@ function DeXuatPage() {
       if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
       if (filterNguoiTao.length > 0) params.append('nguoiTaoId', filterNguoiTao.join(','));
       if (filterSearch) params.append('search', filterSearch);
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
 
       const propRes = await fetch(`/api/de-xuat?${params.toString()}`);
       if (propRes.ok) {
@@ -345,7 +358,7 @@ function DeXuatPage() {
         fetchData(user, 1);
       }
     }
-  }, [filterTrangThai, filterNguonTien, filterThang, filterNam, filterDanhMuc, filterNguoiTao, filterSearch]);
+  }, [filterTrangThai, filterNguonTien, filterThang, filterNam, filterDanhMuc, filterNguoiTao, filterSearch, sortBy, sortOrder]);
 
   // Deep-link: notification click với ?open=ID → tự mở modal xem nhanh phiếu đó
   useEffect(() => {
@@ -1221,12 +1234,48 @@ function DeXuatPage() {
                 <table className="custom-table">
                   <thead>
                     <tr>
-                      <th>Mã Phiếu</th>
-                      <th>Ngày phát sinh</th>
+                      <th 
+                        onClick={() => handleSort('maPhieu')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Mã Phiếu</span>
+                          {sortBy === 'maPhieu' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('ngayPhatSinh')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Ngày phát sinh</span>
+                          {sortBy === 'ngayPhatSinh' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
                       <th>Người đề xuất</th>
                       <th>Danh mục</th>
                       <th>Nguồn tiền</th>
-                      <th>Số tiền</th>
+                      <th 
+                        onClick={() => handleSort('soTien')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Số tiền</span>
+                          {sortBy === 'soTien' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
                       <th>Trạng thái</th>
                       <th style={{ textAlign: 'center' }}>Thao tác</th>
                     </tr>

@@ -36,6 +36,19 @@ export async function GET(request) {
     const skip = (page - 1) * limit;
     const includeHistory = searchParams.get('includeHistory') === 'true';
 
+    const allowedSortFields = ['maPhieu', 'ngayGiaoDich', 'soTien', 'ngayTao'];
+    const sortBy = searchParams.get('sortBy') || 'maPhieu';
+    const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
+    const orderField = allowedSortFields.includes(sortBy) ? sortBy : 'maPhieu';
+    
+    const orderBy = [];
+    if (orderField === 'maPhieu') {
+      orderBy.push({ maPhieu: sortOrder });
+    } else {
+      orderBy.push({ [orderField]: sortOrder });
+      orderBy.push({ maPhieu: 'desc' });
+    }
+
     const include = {
       quy: true,
       danhMuc: { include: { nhomChiPhi: true } },
@@ -173,7 +186,7 @@ export async function GET(request) {
       const allThuChis = await prisma.thuChi.findMany({
         where,
         include,
-        orderBy: { ngayGiaoDich: 'desc' },
+        orderBy,
       });
 
       const normalizedThuChis = allThuChis.map((tc) => ({
@@ -203,11 +216,37 @@ export async function GET(request) {
         soPhieuDeXuat: 0,
         tongTienDeXuat: dx.soTien,
         laLichSu: true,
+        ngayTao: dx.ngayTao,
       }));
 
-      const allData = [...normalizedThuChis, ...normalizedLichSu].sort(
-        (a, b) => new Date(b.ngayGiaoDich) - new Date(a.ngayGiaoDich)
-      );
+      const allData = [...normalizedThuChis, ...normalizedLichSu];
+      if (orderField === 'soTien') {
+        allData.sort((a, b) => sortOrder === 'asc' ? a.soTien - b.soTien : b.soTien - a.soTien);
+      } else if (orderField === 'maPhieu') {
+        allData.sort((a, b) => {
+          return sortOrder === 'asc' 
+            ? a.maPhieu.localeCompare(b.maPhieu) 
+            : b.maPhieu.localeCompare(a.maPhieu);
+        });
+      } else if (orderField === 'ngayTao') {
+        allData.sort((a, b) => {
+          const dateA = new Date(a.ngayTao || a.ngayGiaoDich);
+          const dateB = new Date(b.ngayTao || b.ngayGiaoDich);
+          return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+        });
+      } else {
+        // default / ngayGiaoDich
+        allData.sort((a, b) => {
+          const dateA = new Date(a.ngayGiaoDich);
+          const dateB = new Date(b.ngayGiaoDich);
+          if (dateA.getTime() === dateB.getTime()) {
+            return sortOrder === 'asc'
+              ? a.maPhieu.localeCompare(b.maPhieu)
+              : b.maPhieu.localeCompare(a.maPhieu);
+          }
+          return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+        });
+      }
 
       const total = allData.length;
 
@@ -307,7 +346,7 @@ export async function GET(request) {
       prisma.thuChi.findMany({
         where,
         include,
-        orderBy: { ngayGiaoDich: 'desc' },
+        orderBy,
         skip,
         take: limit,
       }),

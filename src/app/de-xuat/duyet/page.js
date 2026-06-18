@@ -14,7 +14,9 @@ import {
   XCircle,
   TrendingDown,
   Eye,
-  X
+  X,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import AriCameo from '@/components/AriCameo';
@@ -75,6 +77,43 @@ function DuyetPage() {
   // Quick Preview state
   const [selectedPreviewProp, setSelectedPreviewProp] = useState(null);
   const [copiedField, setCopiedField] = useState('');
+
+  const [sortBy, setSortBy] = useState('maPhieu');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+  };
+
+  const getSortedProposals = (propsArray) => {
+    const sorted = [...propsArray];
+    sorted.sort((a, b) => {
+      let valA = a[sortBy];
+      let valB = b[sortBy];
+
+      if (sortBy === 'ngayPhatSinh') {
+        valA = new Date(a.ngayPhatSinh).getTime();
+        valB = new Date(b.ngayPhatSinh).getTime();
+      } else if (sortBy === 'soTien') {
+        valA = a.soTien;
+        valB = b.soTien;
+      } else if (sortBy === 'maPhieu') {
+        return sortOrder === 'asc' 
+          ? a.maPhieu.localeCompare(b.maPhieu) 
+          : b.maPhieu.localeCompare(a.maPhieu);
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  };
 
   const handleCopyText = (text, fieldName) => {
     navigator.clipboard.writeText(text);
@@ -708,20 +747,56 @@ function DuyetPage() {
                           title="Chọn tất cả"
                         />
                       </th>
-                      <th>Mã Phiếu</th>
-                      <th>Ngày lập</th>
+                      <th 
+                        onClick={() => handleSort('maPhieu')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Mã Phiếu</span>
+                          {sortBy === 'maPhieu' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('ngayPhatSinh')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Ngày lập</span>
+                          {sortBy === 'ngayPhatSinh' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
                       <th>Nhân viên</th>
                       <th>Danh mục</th>
                       <th>Nhà cung cấp</th>
                       <th>Nội dung</th>
-                      <th>Số tiền</th>
+                      <th 
+                        onClick={() => handleSort('soTien')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Số tiền</span>
+                          {sortBy === 'soTien' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
                       <th>Chọn Quỹ chi</th>
                       <th>Ngày GD</th>
                       <th style={{ textAlign: 'center' }}>Thao tác duyệt</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {pendingPaymentProps.map((prop) => (
+                    {getSortedProposals(pendingPaymentProps).map((prop) => (
                       <tr key={prop.id} data-proposal-id={prop.id} className={getRowUrgencyClass(prop.ngayCanThanhToan, prop.trangThai)} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
                         <td style={{ textAlign: 'center' }}>
                           <input
@@ -912,20 +987,56 @@ function DuyetPage() {
                           title="Chọn tất cả"
                         />
                       </th>
-                      <th>Mã Phiếu</th>
-                      <th>Ngày lập</th>
+                      <th 
+                        onClick={() => handleSort('maPhieu')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Mã Phiếu</span>
+                          {sortBy === 'maPhieu' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('ngayPhatSinh')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Ngày lập</span>
+                          {sortBy === 'ngayPhatSinh' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
                       <th>Nhân viên</th>
                       <th>Danh mục</th>
                       <th>Nhà cung cấp</th>
                       <th>Nội dung</th>
-                      <th>Số tiền</th>
+                      <th 
+                        onClick={() => handleSort('soTien')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Số tiền</span>
+                          {sortBy === 'soTien' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
                       <th>Chọn Quỹ chi</th>
                       <th>Ngày GD</th>
                       <th style={{ textAlign: 'center' }}>Thao tác duyệt</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {pendingAssignFundProps.map((prop) => (
+                    {getSortedProposals(pendingAssignFundProps).map((prop) => (
                       <tr key={prop.id} data-proposal-id={prop.id} className={getRowUrgencyClass(prop.ngayCanThanhToan, prop.trangThai)} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
                         <td style={{ textAlign: 'center' }}>
                           <input
@@ -1159,17 +1270,53 @@ function DuyetPage() {
                               disabled={actionLoading}
                             />
                           </th>
-                          <th>Mã Phiếu</th>
-                          <th>Ngày lập</th>
+                          <th 
+                            onClick={() => handleSort('maPhieu')} 
+                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <span>Mã Phiếu</span>
+                              {sortBy === 'maPhieu' ? (
+                                sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                              ) : (
+                                <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                              )}
+                            </div>
+                          </th>
+                          <th 
+                            onClick={() => handleSort('ngayPhatSinh')} 
+                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <span>Ngày lập</span>
+                              {sortBy === 'ngayPhatSinh' ? (
+                                sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                              ) : (
+                                <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                              )}
+                            </div>
+                          </th>
                           <th>Danh mục</th>
                           <th>Nhà cung cấp</th>
                           <th>Nội dung chi</th>
-                          <th>Số tiền</th>
+                          <th 
+                            onClick={() => handleSort('soTien')} 
+                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <span>Số tiền</span>
+                              {sortBy === 'soTien' ? (
+                                sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                              ) : (
+                                <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                              )}
+                            </div>
+                          </th>
                           <th>Trạng thái</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {reimbursementProps.map((prop) => {
+                        {getSortedProposals(reimbursementProps).map((prop) => {
                           const isChecked = selectedProposalIds.includes(prop.id);
                           return (
                             <tr key={prop.id} data-proposal-id={prop.id} style={{ background: isChecked ? 'rgba(37, 99, 235, 0.05)' : '' }}>

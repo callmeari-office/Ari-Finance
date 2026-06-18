@@ -34,6 +34,18 @@ export async function GET(request) {
     const limit = Math.min(1000, Math.max(1, parseInt(searchParams.get('limit') || String(DEFAULT_LIMIT), 10)));
     const skip = (page - 1) * limit;
 
+    const allowedSortFields = ['maPhieu', 'ngayPhatSinh', 'soTien', 'ngayTao'];
+    const sortBy = searchParams.get('sortBy') || 'maPhieu';
+    const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
+    const orderField = allowedSortFields.includes(sortBy) ? sortBy : 'maPhieu';
+    const orderBy = [];
+    if (orderField === 'maPhieu') {
+      orderBy.push({ maPhieu: sortOrder });
+    } else {
+      orderBy.push({ [orderField]: sortOrder });
+      orderBy.push({ maPhieu: 'desc' });
+    }
+
     const where = {};
     if (onlyPending === 'true') {
       const states = trangThai ? trangThai.split(',').map(s => s.trim()).filter(Boolean) : ['CHO_THANH_TOAN', 'CHO_HOAN_UNG', 'DA_THANH_TOAN'];
@@ -143,7 +155,7 @@ export async function GET(request) {
       prisma.deXuatChiPhi.findMany({
         where,
         include,
-        orderBy: { ngayTao: 'desc' },
+        orderBy,
         skip,
         take: limit,
       }),

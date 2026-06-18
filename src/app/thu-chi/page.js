@@ -19,6 +19,8 @@ import {
   Trash2,
   Pencil,
   History,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
@@ -45,6 +47,18 @@ export default function ThuChiPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  const [sortBy, setSortBy] = useState('maPhieu');
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+  };
 
   // Filter states (array-based cho FilterDropdown)
   const [filterLoai, setFilterLoai] = useState([]);
@@ -175,6 +189,8 @@ export default function ThuChiPage() {
       if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
       if (filterNam) params.append('nam', filterNam);
       if (filterSearch.trim()) params.append('search', filterSearch.trim());
+      if (sortBy) params.append('sortBy', sortBy);
+      if (sortOrder) params.append('sortOrder', sortOrder);
 
       const txRes = await fetch(`/api/thu-chi?${params.toString()}`);
       if (txRes.ok) {
@@ -254,7 +270,7 @@ export default function ThuChiPage() {
         fetchData(1);
       }
     }
-  }, [filterLoai, filterQuy, filterThang, filterDanhMuc, filterNam, filterSearch]);
+  }, [filterLoai, filterQuy, filterThang, filterDanhMuc, filterNam, filterSearch, sortBy, sortOrder]);
 
   const handleCreateReceipt = async (e) => {
     e.preventDefault();
@@ -512,13 +528,49 @@ export default function ThuChiPage() {
                 <table className="custom-table">
                   <thead>
                     <tr>
-                      <th>Mã Giao Dịch</th>
-                      <th>Ngày giao dịch</th>
+                      <th 
+                        onClick={() => handleSort('maPhieu')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Mã Giao Dịch</span>
+                          {sortBy === 'maPhieu' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
+                      <th 
+                        onClick={() => handleSort('ngayGiaoDich')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Ngày giao dịch</span>
+                          {sortBy === 'ngayGiaoDich' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
                       <th>Loại</th>
                       <th>Quỹ thực hiện</th>
                       <th>Danh mục</th>
                       <th>Nội dung</th>
-                      <th>Số tiền</th>
+                      <th 
+                        onClick={() => handleSort('soTien')} 
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <span>Số tiền</span>
+                          {sortBy === 'soTien' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
                       <th>Người tạo</th>
                       <th>Nguồn gốc</th>
                       <th style={{ textAlign: 'center' }}>Thao tác</th>
