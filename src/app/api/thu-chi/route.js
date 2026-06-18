@@ -126,7 +126,7 @@ export async function GET(request) {
 
       let historyRecords = [];
       if (isHistoryApplicable) {
-        const historyWhere = { laLichSu: true };
+        const historyWhere = { laLichSu: true, thuChiId: null };
         if (danhMucId) {
           historyWhere.danhMucId = { in: danhMucId.split(',').map(s => s.trim()).filter(Boolean) };
         }

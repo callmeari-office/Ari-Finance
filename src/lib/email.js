@@ -508,6 +508,7 @@ async function getMonthlyFinancials(thang, nam) {
       WHERE COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startOfMonth}
         AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endOfMonth}
         AND "laLichSu" = true
+        AND "thuChiId" IS NULL
     `,
   ]);
 

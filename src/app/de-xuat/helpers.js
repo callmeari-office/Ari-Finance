@@ -21,11 +21,23 @@ export function parseDateCell(v) {
     return `${y}-${m}-${d}`;
   }
   const s = String(v).trim();
-  // dd/mm/yyyy hoặc dd-mm-yyyy
-  const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
-  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
-  // yyyy-mm-dd
-  const m2 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (m2) return `${m2[1]}-${m2[2].padStart(2, '0')}-${m2[3].padStart(2, '0')}`;
+  // dd/mm/yyyy hoặc dd/mm/yy hoặc dd-mm-yy...
+  const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})$/);
+  if (m) {
+    let year = m[3];
+    if (year.length === 2) {
+      year = '20' + year;
+    }
+    return `${year}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  }
+  // yyyy-mm-dd hoặc yy-mm-dd
+  const m2 = s.match(/^(\d{2}|\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m2) {
+    let year = m2[1];
+    if (year.length === 2) {
+      year = '20' + year;
+    }
+    return `${year}-${m2[2].padStart(2, '0')}-${m2[3].padStart(2, '0')}`;
+  }
   return null;
 }

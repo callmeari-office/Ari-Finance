@@ -38,6 +38,7 @@ export async function getLoiNhuanNam(prisma, nam) {
       WHERE "ngayPhatSinh" >= ${startOfYear}
         AND "ngayPhatSinh" < ${endOfYear}
         AND "laLichSu" = true
+        AND "thuChiId" IS NULL
       GROUP BY thang
     `,
   ]);
@@ -126,6 +127,7 @@ export async function getCanhBao(prisma, days = 3) {
       SELECT "danhMucId", SUM("soTien") AS total
       FROM "DeXuatChiPhi"
       WHERE "laLichSu" = true
+        AND "thuChiId" IS NULL
         AND "ngayPhatSinh" >= ${startOfMonth}
         AND "ngayPhatSinh" < ${endOfMonth}
       GROUP BY "danhMucId"
@@ -238,6 +240,7 @@ export async function getThongKeThang(prisma, soThang = 6) {
       WHERE "ngayPhatSinh" >= ${startDate}
         AND "ngayPhatSinh" < ${endDate}
         AND "laLichSu" = true
+        AND "thuChiId" IS NULL
       GROUP BY 1
     `,
     prisma.$queryRaw`
@@ -519,6 +522,7 @@ export async function getChiPhiDuKienThang(prisma) {
       SELECT COALESCE(SUM("soTien"), 0) AS total
       FROM "DeXuatChiPhi"
       WHERE "laLichSu" = true
+        AND "thuChiId" IS NULL
         AND "ngayPhatSinh" >= ${startOfMonth}
         AND "ngayPhatSinh" < ${endOfMonth}
     `,

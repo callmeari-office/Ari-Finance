@@ -70,6 +70,7 @@ export async function GET(request) {
       WHERE "ngayPhatSinh" >= ${startOfYear}
         AND "ngayPhatSinh" < ${endOfYear}
         AND "laLichSu" = true
+        AND "thuChiId" IS NULL
       GROUP BY thang, "danhMucId"
     `;
 

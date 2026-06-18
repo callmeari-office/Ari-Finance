@@ -128,6 +128,7 @@ export async function GET() {
             WHERE COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startOfYear}
               AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endOfYear}
               AND "laLichSu" = true
+              AND "thuChiId" IS NULL
             GROUP BY thang, "danhMucId"
           `,
         ]);
