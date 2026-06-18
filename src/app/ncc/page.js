@@ -15,7 +15,9 @@ import {
   DollarSign,
   QrCode,
   History,
-  Copy
+  Copy,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useToast } from '@/components/Toast';
@@ -35,6 +37,47 @@ export default function VendorsPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [banks, setBanks] = useState([]);
+
+  const [sortBy, setSortBy] = useState('id'); // default to id
+  const [sortOrder, setSortOrder] = useState('asc');
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder(field === 'tongDaChi' || field === 'soPhieuChi' ? 'desc' : 'asc');
+    }
+  };
+
+  const getSortedVendors = (vendorsArray) => {
+    const sorted = [...vendorsArray];
+    sorted.sort((a, b) => {
+      let valA = a[sortBy];
+      let valB = b[sortBy];
+
+      if (sortBy === 'tongDaChi') {
+        valA = a.tongDaChi || 0;
+        valB = b.tongDaChi || 0;
+      } else if (sortBy === 'soPhieuChi') {
+        valA = a.soPhieuChi || 0;
+        valB = b.soPhieuChi || 0;
+      } else if (sortBy === 'tenNCC') {
+        return sortOrder === 'asc' 
+          ? a.tenNCC.localeCompare(b.tenNCC) 
+          : b.tenNCC.localeCompare(a.tenNCC);
+      } else if (sortBy === 'id') {
+        return sortOrder === 'asc' 
+          ? a.id.localeCompare(b.id) 
+          : b.id.localeCompare(a.id);
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  };
 
   // Quick Bank popup states
   const [isQuickBankOpen, setIsQuickBankOpen] = useState(false);
@@ -286,6 +329,7 @@ export default function VendorsPage() {
       v.tenNganHang.toLowerCase().includes(q)
     );
   });
+  const sortedVendors = getSortedVendors(filteredVendors);
 
   const totalSpent = vendors.reduce((sum, v) => sum + (v.tongDaChi || 0), 0);
 
@@ -358,18 +402,70 @@ export default function VendorsPage() {
               <table className="custom-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '120px' }}>Mã NCC</th>
-                    <th>Tên đối tác</th>
+                    <th 
+                      onClick={() => handleSort('id')} 
+                      style={{ width: '120px', cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <span>Mã NCC</span>
+                        {sortBy === 'id' ? (
+                          sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('tenNCC')} 
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <span>Tên đối tác</span>
+                        {sortBy === 'tenNCC' ? (
+                          sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                        )}
+                      </div>
+                    </th>
                     <th>Tên TK ngân hàng</th>
                     <th>Số tài khoản</th>
                     <th>Ngân hàng</th>
-                    {isOM && <th style={{ textAlign: 'center', width: '100px' }}>Giao dịch</th>}
-                    {isOM && <th style={{ textAlign: 'right', width: '160px' }}>Tổng đã chi</th>}
+                    {isOM && (
+                      <th 
+                        onClick={() => handleSort('soPhieuChi')} 
+                        style={{ textAlign: 'center', width: '100px', cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+                          <span>Giao dịch</span>
+                          {sortBy === 'soPhieuChi' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
+                    )}
+                    {isOM && (
+                      <th 
+                        onClick={() => handleSort('tongDaChi')} 
+                        style={{ textAlign: 'right', width: '160px', cursor: 'pointer', userSelect: 'none' }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem' }}>
+                          <span>Tổng đã chi</span>
+                          {sortBy === 'tongDaChi' ? (
+                            sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                          ) : (
+                            <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                          )}
+                        </div>
+                      </th>
+                    )}
                     <th style={{ textAlign: 'center', width: '140px' }}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredVendors.map((v) => (
+                  {sortedVendors.map((v) => (
                     <tr key={v.id}>
                       <td style={{ fontWeight: 'bold', color: 'var(--info)' }}>{v.id}</td>
                       <td style={{ fontWeight: '600' }}>{v.tenNCC}</td>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Plus, X, Check, AlertCircle, Edit3, Trash2,
   ToggleLeft, ToggleRight, CalendarCheck, BarChart2,
+  ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useToast } from '@/components/Toast';
@@ -26,6 +27,46 @@ export default function DinhKyPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const [showDashboard, setShowDashboard] = useState(false);
+
+  const [sortBy, setSortBy] = useState('createdAt'); // default to newest
+  const [sortOrder, setSortOrder] = useState('desc');
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder(field === 'tenMau' || field === 'ngayChiTrongThang' ? 'asc' : 'desc');
+    }
+  };
+
+  const getSortedTemplates = (tplsArray) => {
+    const sorted = [...tplsArray];
+    sorted.sort((a, b) => {
+      let valA = a[sortBy];
+      let valB = b[sortBy];
+
+      if (sortBy === 'createdAt') {
+        valA = new Date(a.createdAt).getTime();
+        valB = new Date(b.createdAt).getTime();
+      } else if (sortBy === 'soTien') {
+        valA = a.soTien;
+        valB = b.soTien;
+      } else if (sortBy === 'ngayChiTrongThang') {
+        valA = a.ngayChiTrongThang;
+        valB = b.ngayChiTrongThang;
+      } else if (sortBy === 'tenMau') {
+        return sortOrder === 'asc' 
+          ? a.tenMau.localeCompare(b.tenMau) 
+          : b.tenMau.localeCompare(a.tenMau);
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  };
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -197,6 +238,7 @@ export default function DinhKyPage() {
   const formatVND = (n) => Number(n || 0).toLocaleString('vi-VN') + ' ₫';
 
   const displayed = showAll ? templates : templates.filter((t) => t.active);
+  const sortedDisplayed = getSortedTemplates(displayed);
 
   const activeTemplates = templates.filter((t) => t.active);
   const totalMonth = activeTemplates.reduce((sum, t) => sum + Number(t.soTien), 0);
@@ -357,18 +399,54 @@ export default function DinhKyPage() {
               <table className="custom-table">
                 <thead>
                   <tr>
-                    <th>Tên mẫu</th>
+                    <th 
+                      onClick={() => handleSort('tenMau')} 
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <span>Tên mẫu</span>
+                        {sortBy === 'tenMau' ? (
+                          sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                        )}
+                      </div>
+                    </th>
                     <th>Nội dung</th>
                     <th>Danh mục</th>
-                    <th>Số tiền</th>
+                    <th 
+                      onClick={() => handleSort('soTien')} 
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <span>Số tiền</span>
+                        {sortBy === 'soTien' ? (
+                          sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                        )}
+                      </div>
+                    </th>
                     <th>Nguồn tiền</th>
-                    <th>Ngày trong tháng</th>
+                    <th 
+                      onClick={() => handleSort('ngayChiTrongThang')} 
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <span>Ngày trong tháng</span>
+                        {sortBy === 'ngayChiTrongThang' ? (
+                          sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                        )}
+                      </div>
+                    </th>
                     <th>Trạng thái</th>
                     <th style={{ textAlign: 'center' }}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displayed.map((tpl) => (
+                  {sortedDisplayed.map((tpl) => (
                     <tr key={tpl.id} style={{ opacity: tpl.active ? 1 : 0.5 }}>
                       <td style={{ fontWeight: '700', color: 'var(--text-main)' }}>{tpl.tenMau}</td>
                       <td style={{ maxWidth: '200px' }}>

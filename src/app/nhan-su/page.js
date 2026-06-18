@@ -12,7 +12,9 @@ import {
   AlertCircle,
   Key,
   Lock,
-  Mail
+  Mail,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useToast } from '@/components/Toast';
@@ -29,6 +31,45 @@ export default function NhanSuPage() {
   // Personnel Data States
   const [employees, setEmployees] = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
+
+  const [sortBy, setSortBy] = useState('id');
+  const [sortOrder, setSortOrder] = useState('asc');
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const getSortedEmployees = (employeesArray) => {
+    const sorted = [...employeesArray];
+    sorted.sort((a, b) => {
+      let valA = a[sortBy] || '';
+      let valB = b[sortBy] || '';
+
+      if (sortBy === 'hoTen') {
+        return sortOrder === 'asc' 
+          ? a.hoTen.localeCompare(b.hoTen) 
+          : b.hoTen.localeCompare(a.hoTen);
+      } else if (sortBy === 'phongBan') {
+        return sortOrder === 'asc' 
+          ? valA.localeCompare(valB) 
+          : valB.localeCompare(valA);
+      } else if (sortBy === 'id') {
+        return sortOrder === 'asc' 
+          ? a.id.localeCompare(b.id) 
+          : b.id.localeCompare(a.id);
+      }
+
+      if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+      if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  };
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -289,6 +330,7 @@ export default function NhanSuPage() {
 
     return true;
   });
+  const sortedEmployees = getSortedEmployees(filteredEmployees);
 
   // Extract unique departments for filter dropdown
   const departments = [...new Set(employees.map(e => e.phongBan).filter(Boolean))];
@@ -405,21 +447,57 @@ export default function NhanSuPage() {
               <table className="custom-table">
                 <thead>
                   <tr>
-                    <th>Mã NV</th>
-                    <th>Nhân viên</th>
+                    <th 
+                      onClick={() => handleSort('id')} 
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <span>Mã NV</span>
+                        {sortBy === 'id' ? (
+                          sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                        )}
+                      </div>
+                    </th>
+                    <th 
+                      onClick={() => handleSort('hoTen')} 
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <span>Nhân viên</span>
+                        {sortBy === 'hoTen' ? (
+                          sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                        )}
+                      </div>
+                    </th>
                     <th>Tên viết tắt</th>
                     <th>Email</th>
                     <th>SĐT</th>
                     <th>Username</th>
                     <th>Quyền</th>
                     <th>Vị trí</th>
-                    <th>Phòng ban</th>
+                    <th 
+                      onClick={() => handleSort('phongBan')} 
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <span>Phòng ban</span>
+                        {sortBy === 'phongBan' ? (
+                          sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                        ) : (
+                          <ChevronDown size={14} style={{ opacity: 0.2 }} />
+                        )}
+                      </div>
+                    </th>
                     <th>Trạng thái</th>
                     <th style={{ textAlign: 'center' }}>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEmployees.map((emp) => (
+                  {sortedEmployees.map((emp) => (
                     <tr key={emp.id}>
                       <td style={{ fontWeight: 'bold', color: '#634d3e' }}>{emp.id}</td>
                       <td>
