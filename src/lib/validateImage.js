@@ -7,6 +7,8 @@ const STORAGE_BUCKET = 'hoa-don';
  */
 export function validateStorageImageUrl(url) {
   if (typeof url !== 'string') return 'URL ảnh hóa đơn không hợp lệ.';
+  // Chấp nhận base64 data URL (lưu trực tiếp, không qua Storage)
+  if (url.startsWith('data:image/')) return null;
   const supabaseUrl = process.env.SUPABASE_URL;
   if (!supabaseUrl) return null; // Không kiểm tra nếu chưa cấu hình (dev)
   const expected = `${supabaseUrl}/storage/v1/object/public/${STORAGE_BUCKET}/`;

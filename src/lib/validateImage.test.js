@@ -50,6 +50,11 @@ describe('validateStorageImageUrl', () => {
     expect(validateStorageImageUrl(123)).toBeTruthy();
     expect(validateStorageImageUrl(null)).toBeTruthy();
   });
+  it('base64 data URL → chấp nhận (lưu trực tiếp)', () => {
+    expect(validateStorageImageUrl('data:image/jpeg;base64,abc')).toBeNull();
+    expect(validateStorageImageUrl('data:image/png;base64,xyz')).toBeNull();
+    expect(validateStorageImageUrl('data:image/webp;base64,xyz')).toBeNull();
+  });
   // Hành vi phụ thuộc env SUPABASE_URL: nếu chưa cấu hình thì bỏ qua kiểm tra (trả null).
   it('không có SUPABASE_URL trong test env → bỏ qua kiểm tra', () => {
     const original = process.env.SUPABASE_URL;

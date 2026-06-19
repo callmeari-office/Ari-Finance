@@ -486,17 +486,9 @@ function DeXuatPage() {
     try {
       const { compressImage } = await import('@/lib/compressImage');
       const dataUrl = await compressImage(file, { maxWidth: 1000, maxHeight: 1000, quality: 0.7 });
-
-      const res = await fetch('/api/upload-anh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dataUrl }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Upload ảnh thất bại.');
-      setAnhHoaDon(data.url);
+      setAnhHoaDon(dataUrl);
     } catch (err) {
-      toast.error('Không thể tải ảnh lên: ' + err.message);
+      toast.error('Không thể xử lý ảnh: ' + err.message);
     } finally {
       setAnhLoading(false);
     }

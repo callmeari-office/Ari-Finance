@@ -137,11 +137,11 @@ export async function POST(request) {
       })
     );
 
-    await prisma.$transaction(ops);
+    await Promise.all(ops);
 
     return NextResponse.json({ ok: true, count: items.length });
   } catch (error) {
     logger.error('POST /api/ke-hoach', error);
-    return NextResponse.json({ error: 'Lỗi hệ thống.' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Lỗi hệ thống.' }, { status: 500 });
   }
 }
