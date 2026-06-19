@@ -3,12 +3,13 @@ import { prisma } from '@/lib/prisma';
 import { lamTronTien } from '@/lib/finance';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-import { generateMaThuChi } from '@/lib/generateId';
+import { generateMaThuChi, withUniqueCodeRetry } from '@/lib/generateId';
 import { isRestrictedToOwnProposals } from '@/lib/roles';
 import { ghiNhatKy } from '@/lib/audit';
 import { notifyUser, notifyProposalApproved } from '@/lib/webpush';
 import { validateStorageImageUrl } from '@/lib/validateImage';
 import { deleteStorageImage } from '@/lib/supabase';
+import { getApprovableProposalError, resolveEditProposalStatus } from '@/lib/proposalWorkflow';
 
 export async function GET(request, { params }) {
   try {
@@ -215,12 +216,10 @@ export async function PUT(request, { params }) {
           { status: 403 }
         );
       }
-
-      // Chống duyệt 2 lần: phiếu đã gắn dòng tiền (đã thanh toán) thì không duyệt lại,
-      // tránh sinh phiếu chi trùng làm lệch số dư quỹ. (Bulk-approve đã chặn sẵn việc này.)
-      if (existingProposal.thuChiId !== null) {
+      const approvableError = getApprovableProposalError(existingProposal);
+      if (approvableError) {
         return NextResponse.json(
-          { error: 'Đề xuất này đã được thanh toán trước đó, không thể duyệt lại.' },
+          { error: approvableError },
           { status: 400 }
         );
       }
@@ -233,15 +232,17 @@ export async function PUT(request, { params }) {
       }
 
       const quy = await prisma.quy.findUnique({ where: { id: quyThanhToanId } });
-      if (!quy) {
+      if (!quy || quy.trangThai !== 'ACTIVE') {
         return NextResponse.json({ error: 'Quỹ thanh toán không hợp lệ.' }, { status: 400 });
       }
 
       // TH1 & TH2: Tạo phiếu ThuChi loại Chi
-      const maThuChi = await generateMaThuChi();
+      let maThuChi;
       
       // Thực hiện Transaction để đảm bảo tính nhất quán (tạo phiếu Chi + cập nhật đề xuất)
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await withUniqueCodeRetry(async () => {
+        maThuChi = await generateMaThuChi();
+        return prisma.$transaction(async (tx) => {
         const phieuChi = await tx.thuChi.create({
           data: {
             maPhieu: maThuChi,
@@ -269,7 +270,8 @@ export async function PUT(request, { params }) {
           },
         });
 
-        return { phieuChi, proposalUpdated };
+          return { phieuChi, proposalUpdated };
+        });
       });
 
       await ghiNhatKy({
@@ -317,7 +319,13 @@ export async function PUT(request, { params }) {
     if (ghiChu !== undefined) updateData.ghiChu = ghiChu;
     if (ngayPhatSinh) updateData.ngayPhatSinh = new Date(ngayPhatSinh);
     if (nguonTien) updateData.nguonTien = nguonTien;
-    if (trangThai) updateData.trangThai = trangThai;
+    const nextTrangThai = resolveEditProposalStatus({
+      role: user.role,
+      existingProposal,
+      requestedTrangThai: trangThai,
+      nextNguonTien: nguonTien,
+    });
+    if (nextTrangThai) updateData.trangThai = nextTrangThai;
     if (ngayCanThanhToan !== undefined) {
       updateData.ngayCanThanhToan = (ngayCanThanhToan && String(ngayCanThanhToan).trim() !== '') ? new Date(ngayCanThanhToan) : null;
     }

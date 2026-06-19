@@ -3,12 +3,13 @@ import { prisma } from '@/lib/prisma';
 import { lamTronTien } from '@/lib/finance';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-import { generateMaDeXuat } from '@/lib/generateId';
+import { generateMaDeXuat, withUniqueCodeRetry } from '@/lib/generateId';
 import { notifyManagersChoThanhToan } from '@/lib/email';
 import { notifyManagers as pushNotifyManagers } from '@/lib/webpush';
 import { canViewCategory, isRestrictedToOwnProposals, getEffectiveRoles } from '@/lib/roles';
 import { ghiNhatKy } from '@/lib/audit';
 import { validateStorageImageUrl } from '@/lib/validateImage';
+import { VALID_NGUON_TIEN, resolveCreateProposalStatus } from '@/lib/proposalWorkflow';
 
 const DEFAULT_LIMIT = 20;
 
@@ -217,7 +218,7 @@ export async function POST(request) {
       }
     }
 
-    if (!ngayPhatSinh || !danhMucId || !noiDung || !soTien || !nguonTien || !trangThai) {
+    if (!ngayPhatSinh || !danhMucId || !noiDung || !soTien || !nguonTien) {
       return NextResponse.json(
         { error: 'Vui lòng cung cấp đầy đủ thông tin bắt buộc.' },
         { status: 400 }
@@ -237,15 +238,14 @@ export async function POST(request) {
         { status: 400 }
       );
     }
-
-    const VALID_NGUON_TIEN = ['TIEN_SHOP', 'TIEN_CA_NHAN'];
-    const VALID_TRANG_THAI = ['CHO_THANH_TOAN', 'CHO_HOAN_UNG', 'DA_THANH_TOAN'];
     if (!VALID_NGUON_TIEN.includes(nguonTien)) {
       return NextResponse.json({ error: 'Nguồn tiền không hợp lệ.' }, { status: 400 });
     }
-    if (!VALID_TRANG_THAI.includes(trangThai)) {
-      return NextResponse.json({ error: 'Trạng thái đề xuất không hợp lệ.' }, { status: 400 });
-    }
+    const finalTrangThai = resolveCreateProposalStatus({
+      role: user.role,
+      nguonTien,
+      requestedTrangThai: trangThai,
+    });
 
     const danhMuc = await prisma.danhMuc.findUnique({ where: { id: danhMucId } });
     if (!danhMuc) {
@@ -271,26 +271,27 @@ export async function POST(request) {
       );
     }
 
-    const maPhieu = await generateMaDeXuat();
-
-    const newProposal = await prisma.deXuatChiPhi.create({
-      data: {
-        maPhieu,
-        ngayPhatSinh: new Date(ngayPhatSinh),
-        danhMucId,
-        noiDung: noiDung.trim(),
-        soTien: lamTronTien(soTien),
-        nhaCungCapId: nhaCungCapId || null,
-        anhHoaDon: anhHoaDon || null,
-        nguonTien,
-        trangThai,
-        ghiChu: ghiChu || null,
-        nguoiTaoId: user.id,
-        ngayCanThanhToan:
-          ngayCanThanhToan && String(ngayCanThanhToan).trim() !== ''
-            ? new Date(ngayCanThanhToan)
-            : null,
-      },
+    const newProposal = await withUniqueCodeRetry(async () => {
+      const maPhieu = await generateMaDeXuat();
+      return prisma.deXuatChiPhi.create({
+        data: {
+          maPhieu,
+          ngayPhatSinh: new Date(ngayPhatSinh),
+          danhMucId,
+          noiDung: noiDung.trim(),
+          soTien: lamTronTien(soTien),
+          nhaCungCapId: nhaCungCapId || null,
+          anhHoaDon: anhHoaDon || null,
+          nguonTien,
+          trangThai: finalTrangThai,
+          ghiChu: ghiChu || null,
+          nguoiTaoId: user.id,
+          ngayCanThanhToan:
+            ngayCanThanhToan && String(ngayCanThanhToan).trim() !== ''
+              ? new Date(ngayCanThanhToan)
+              : null,
+        },
+      });
     });
 
     await ghiNhatKy({
@@ -318,7 +319,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       proposal: newProposal,
-      message: `Đã tạo đề xuất ${maPhieu} thành công.`,
+      message: `Đã tạo đề xuất ${newProposal.maPhieu} thành công.`,
     });
   } catch (error) {
     logger.error('POST /api/de-xuat', error);

@@ -47,8 +47,8 @@ export default function DoiMatKhauPage() {
       setError('Vui lòng nhập đầy đủ mật khẩu cũ và mật khẩu mới.');
       return;
     }
-    if (matKhauMoi.length < 6) {
-      setError('Mật khẩu mới phải có ít nhất 6 ký tự.');
+    if (matKhauMoi.length < 10) {
+      setError('Mật khẩu mới phải có ít nhất 10 ký tự.');
       return;
     }
     if (matKhauMoi !== xacNhan) {
@@ -153,7 +153,7 @@ export default function DoiMatKhauPage() {
                 {showMoi ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>Ít nhất 6 ký tự.</p>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>Ít nhất 10 ký tự.</p>
           </div>
 
           <div>

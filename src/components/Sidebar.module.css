@@ -283,6 +283,8 @@
   cursor: pointer;
   color: var(--text-muted);
   padding: 6px;
+  min-width: 36px;
+  min-height: 36px;
   border-radius: 8px;
   line-height: 0;
   flex-shrink: 0;
@@ -350,6 +352,11 @@
   border: none;
   color: var(--brand-brown);
   cursor: pointer;
+  min-width: 36px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .mobileBell {
@@ -383,6 +390,8 @@
     align-items: center;
     justify-content: center;
     position: relative;
+    min-width: 36px;
+    min-height: 36px;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -578,5 +587,3 @@
 :global([data-theme='pink']) .logoutBtn:hover {
   background: rgba(239, 68, 68, 0.08);
 }
-
-

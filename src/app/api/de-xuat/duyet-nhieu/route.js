@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-import { generateMaThuChi } from '@/lib/generateId';
+import { generateMaThuChi, withUniqueCodeRetry } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
 import { notifyUser, notifyProposalApproved } from '@/lib/webpush';
+import { getApprovableProposalError } from '@/lib/proposalWorkflow';
 
 // Duyệt NHIỀU đề xuất chờ thanh toán cùng lúc (TH1/TH2).
 // Khác với /duyet-gop (hoàn ứng gộp 1 phiếu): mỗi đề xuất sinh MỘT phiếu Chi riêng,
@@ -64,23 +65,19 @@ export async function POST(request) {
           results.push({ id, success: false, error: 'Không tìm thấy đề xuất.' });
           continue;
         }
-
-        // Chỉ duyệt các phiếu đang chờ duyệt chi (CHO_THANH_TOAN) hoặc đã trả sẵn chờ gán quỹ
-        const hopLe =
-          existingProposal.trangThai === 'CHO_THANH_TOAN' ||
-          (existingProposal.trangThai === 'DA_THANH_TOAN' && existingProposal.thuChiId === null);
-        if (!hopLe) {
+        const approvableError = getApprovableProposalError(existingProposal);
+        if (approvableError) {
           results.push({
             id,
             maPhieu: existingProposal.maPhieu,
             success: false,
-            error: 'Đề xuất không ở trạng thái có thể duyệt chi.',
+            error: approvableError,
           });
           continue;
         }
 
         const quy = await prisma.quy.findUnique({ where: { id: quyThanhToanId } });
-        if (!quy) {
+        if (!quy || quy.trangThai !== 'ACTIVE') {
           results.push({
             id,
             maPhieu: existingProposal.maPhieu,
@@ -90,9 +87,11 @@ export async function POST(request) {
           continue;
         }
 
-        const maThuChi = await generateMaThuChi();
+        let maThuChi;
 
-        await prisma.$transaction(async (tx) => {
+        await withUniqueCodeRetry(async () => {
+          maThuChi = await generateMaThuChi();
+          return prisma.$transaction(async (tx) => {
           const phieuChi = await tx.thuChi.create({
             data: {
               maPhieu: maThuChi,
@@ -117,6 +116,7 @@ export async function POST(request) {
               ngayThanhToan: ngayGiaoDich ? new Date(ngayGiaoDich) : new Date(),
               nguoiDuyetId: user.id,
             },
+          });
           });
         });
 

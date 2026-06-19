@@ -661,7 +661,7 @@ export default function ThuChiPage() {
                 {filteredTransactions.map((tx) => (
                   <div key={tx.id} className={styles.mobileCard}>
                     <div className={styles.cardHeaderRow}>
-                      <span className={styles.cardMaPhieu} style={{ color: tx.loaiGiaoDich === 'THU' ? '#34d399' : '#f87171' }}>
+                      <span className={styles.cardMaPhieu} style={{ color: tx.loaiGiaoDich === 'THU' ? 'var(--success)' : 'var(--danger)' }}>
                         {tx.maPhieu}
                       </span>
                       <span className={styles.cardDate}>{formatDate(tx.ngayGiaoDich)}</span>
@@ -691,7 +691,7 @@ export default function ThuChiPage() {
                       </div>
                       <div className={styles.cardDetailItem} style={{ marginTop: '0.25rem' }}>
                         <span className={styles.cardLabel}>Số tiền:</span>
-                        <span className={styles.cardAmount} style={{ color: tx.loaiGiaoDich === 'THU' ? '#34d399' : '#f87171' }}>
+                        <span className={styles.cardAmount} style={{ color: tx.loaiGiaoDich === 'THU' ? 'var(--success)' : 'var(--danger)' }}>
                           {tx.loaiGiaoDich === 'THU' ? '+' : '-'}{formatVND(tx.soTien)}
                         </span>
                       </div>
@@ -722,19 +722,19 @@ export default function ThuChiPage() {
                         <button 
                           onClick={() => setSelectedTx(tx)}
                           className={styles.viewDetailBtn}
-                          style={{ width: '28px', height: '28px' }}
+                          style={{ width: '36px', height: '36px' }}
                           title="Xem chi tiết"
                         >
-                          <Eye size={14} />
+                          <Eye size={16} />
                         </button>
                         {user?.role === 'OWNER' && (
                           <button 
                             onClick={() => handleCancelTransaction(tx.id, tx.maPhieu, tx.soTien, tx.loaiGiaoDich)}
                             className={styles.cancelTxBtn}
-                            style={{ width: '28px', height: '28px' }}
+                            style={{ width: '36px', height: '36px' }}
                             title="Hủy/Xóa giao dịch"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={16} />
                           </button>
                         )}
                       </div>
@@ -1075,7 +1075,7 @@ export default function ThuChiPage() {
                             <td style={{ fontWeight: '700', textAlign: 'right' }}>{formatVND(dx.soTien)}</td>
                           </tr>
                         ))}
-                        <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                        <tr style={{ background: 'rgba(var(--brand-brown-rgb), 0.04)' }}>
                           <td colSpan="3" style={{ fontWeight: 'bold', textAlign: 'right' }}>Tổng cộng tiền đề xuất:</td>
                           <td style={{ fontWeight: '800', color: 'var(--success)', textAlign: 'right' }}>{formatVND(selectedTx.tongTienDeXuat)}</td>
                         </tr>

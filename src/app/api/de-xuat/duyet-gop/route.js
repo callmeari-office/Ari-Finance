@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-import { generateMaThuChi } from '@/lib/generateId';
+import { generateMaThuChi, withUniqueCodeRetry } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
 import { notifyUser, notifyProposalApproved } from '@/lib/webpush';
 
@@ -89,11 +89,13 @@ export async function POST(request) {
       where: { id: staffId },
     });
 
-    const maThuChi = await generateMaThuChi();
+    let maThuChi;
     const firstProp = proposals[0];
 
     // Thực hiện trong một transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await withUniqueCodeRetry(async () => {
+      maThuChi = await generateMaThuChi();
+      return prisma.$transaction(async (tx) => {
       // 1. Tạo MỘT phiếu ThuChi loại Chi đại diện cho toàn bộ khoản gộp này
       const phieuChi = await tx.thuChi.create({
         data: {
@@ -124,7 +126,8 @@ export async function POST(request) {
         },
       });
 
-      return phieuChi;
+        return phieuChi;
+      });
     });
 
     await ghiNhatKy({

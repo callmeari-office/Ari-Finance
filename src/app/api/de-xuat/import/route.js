@@ -3,20 +3,12 @@ import { prisma } from '@/lib/prisma';
 import { lamTronTien } from '@/lib/finance';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-
-function getCpPrefix() {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  return `CP${yy}${mm}-`;
-}
-
-function getTcPrefix() {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  return `TC${yy}${mm}-`;
-}
+import {
+  allocateSequentialCodes,
+  withUniqueCodeRetry,
+  getDeXuatPrefix,
+  getThuChiPrefix,
+} from '@/lib/generateId';
 
 function normName(s) {
   return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -178,108 +170,100 @@ export async function POST(request) {
       );
     }
 
-    // Sinh mã phiếu DeXuatChiPhi hàng loạt (1 query)
-    const cpPrefix = getCpPrefix();
-    const lastCp = await prisma.deXuatChiPhi.findFirst({
-      where: { maPhieu: { startsWith: cpPrefix } },
-      orderBy: { maPhieu: 'desc' },
-      select: { maPhieu: true },
-    });
-    let cpNext = 1;
-    if (lastCp) {
-      const parts = lastCp.maPhieu.split('-');
-      const n = parseInt(parts[parts.length - 1], 10);
-      cpNext = (isNaN(n) ? 0 : n) + 1;
-    }
+    const cpPrefix = getDeXuatPrefix();
+    const tcPrefix = getThuChiPrefix();
 
-    // Sinh mã phiếu ThuChi hàng loạt (1 query, chỉ khi có row cần quỹ)
-    let tcNext = 1;
-    const tcPrefix = getTcPrefix();
-    if (validWithQuy.length > 0) {
-      const lastTc = await prisma.thuChi.findFirst({
-        where: { maPhieu: { startsWith: tcPrefix } },
-        orderBy: { maPhieu: 'desc' },
-        select: { maPhieu: true },
-      });
-      if (lastTc) {
-        const parts = lastTc.maPhieu.split('-');
-        const n = parseInt(parts[parts.length - 1], 10);
-        tcNext = (isNaN(n) ? 0 : n) + 1;
-      }
-    }
-
-    // Gán mã phiếu cho tất cả valid rows
-    const allValid = [...validWithoutQuy, ...validWithQuy];
-    for (const v of allValid) {
-      v.maCp = `${cpPrefix}${String(cpNext++).padStart(4, '0')}`;
-    }
-    for (const v of validWithQuy) {
-      v.maTc = `${tcPrefix}${String(tcNext++).padStart(4, '0')}`;
-    }
-
-    // 1. Tạo DeXuatChiPhi không có quỹ (createMany — nhanh)
+    // 1. Tạo hàng loạt DeXuatChiPhi không có quỹ; retry nếu gặp xung đột mã phiếu P2002.
     let successNoQuy = 0;
     if (validWithoutQuy.length > 0) {
-      const result = await prisma.deXuatChiPhi.createMany({
-        data: validWithoutQuy.map((v) => ({
-          maPhieu: v.maCp,
-          ngayPhatSinh: v.ngayPhatSinh,
-          danhMucId: v.danhMucId,
-          noiDung: v.noiDung,
-          soTien: v.soTien,
-          nhaCungCapId: v.nhaCungCapId,
-          nguonTien: 'TIEN_SHOP',
-          trangThai: 'DA_THANH_TOAN',
-          laLichSu: true,
-          thuChiId: null,
-          quyThanhToanId: null,
-          nguoiTaoId: user.id,
-          nguoiDuyetId: user.id,
-          ngayThanhToan: v.ngayThanhToan,
-          ghiChu: v.ghiChu,
-        })),
+      await withUniqueCodeRetry(async () => {
+        const cpCodes = await allocateSequentialCodes({
+          model: 'deXuatChiPhi',
+          field: 'maPhieu',
+          prefix: cpPrefix,
+          count: validWithoutQuy.length,
+        });
+        validWithoutQuy.forEach((v, i) => { v.maCp = cpCodes[i]; });
+        const result = await prisma.deXuatChiPhi.createMany({
+          data: validWithoutQuy.map((v) => ({
+            maPhieu: v.maCp,
+            ngayPhatSinh: v.ngayPhatSinh,
+            danhMucId: v.danhMucId,
+            noiDung: v.noiDung,
+            soTien: v.soTien,
+            nhaCungCapId: v.nhaCungCapId,
+            nguonTien: 'TIEN_SHOP',
+            trangThai: 'DA_THANH_TOAN',
+            laLichSu: true,
+            thuChiId: null,
+            quyThanhToanId: null,
+            nguoiTaoId: user.id,
+            nguoiDuyetId: user.id,
+            ngayThanhToan: v.ngayThanhToan,
+            ghiChu: v.ghiChu,
+          })),
+        });
+        successNoQuy = result.count;
       });
-      successNoQuy = result.count;
     }
 
-    // 2. Tạo DeXuatChiPhi + ThuChi có quỹ (transaction per row)
+    // 2. Tạo DeXuatChiPhi + ThuChi có quỹ (transaction riêng mỗi dòng); retry P2002.
     let successWithQuy = 0;
     const txErrors = [];
     for (const v of validWithQuy) {
       try {
-        await prisma.$transaction(async (tx) => {
-          const thuChi = await tx.thuChi.create({
-            data: {
-              maPhieu: v.maTc,
-              ngayGiaoDich: v.ngayThanhToan,
-              loaiGiaoDich: 'CHI',
-              soTien: v.soTien,
-              quyId: v.quy.id,
-              danhMucId: v.danhMucId,
-              nhaCungCapId: v.nhaCungCapId,
-              noiDung: v.noiDung,
-              nguoiTaoId: user.id,
-              ghiChu: v.ghiChu,
-            },
-          });
-          await tx.deXuatChiPhi.create({
-            data: {
-              maPhieu: v.maCp,
-              ngayPhatSinh: v.ngayPhatSinh,
-              danhMucId: v.danhMucId,
-              noiDung: v.noiDung,
-              soTien: v.soTien,
-              nhaCungCapId: v.nhaCungCapId,
-              nguonTien: 'TIEN_SHOP',
-              trangThai: 'DA_THANH_TOAN',
-              laLichSu: true,
-              thuChiId: thuChi.id,
-              quyThanhToanId: v.quy.id,
-              nguoiTaoId: user.id,
-              nguoiDuyetId: user.id,
-              ngayThanhToan: v.ngayThanhToan,
-              ghiChu: v.ghiChu,
-            },
+        await withUniqueCodeRetry(async () => {
+          const [cpCodes, tcCodes] = await Promise.all([
+            allocateSequentialCodes({
+              model: 'deXuatChiPhi',
+              field: 'maPhieu',
+              prefix: cpPrefix,
+              count: 1,
+            }),
+            allocateSequentialCodes({
+              model: 'thuChi',
+              field: 'maPhieu',
+              prefix: tcPrefix,
+              count: 1,
+            }),
+          ]);
+          v.maCp = cpCodes[0];
+          v.maTc = tcCodes[0];
+
+          await prisma.$transaction(async (tx) => {
+            const thuChi = await tx.thuChi.create({
+              data: {
+                maPhieu: v.maTc,
+                ngayGiaoDich: v.ngayThanhToan,
+                loaiGiaoDich: 'CHI',
+                soTien: v.soTien,
+                quyId: v.quy.id,
+                danhMucId: v.danhMucId,
+                nhaCungCapId: v.nhaCungCapId,
+                noiDung: v.noiDung,
+                nguoiTaoId: user.id,
+                ghiChu: v.ghiChu,
+              },
+            });
+            await tx.deXuatChiPhi.create({
+              data: {
+                maPhieu: v.maCp,
+                ngayPhatSinh: v.ngayPhatSinh,
+                danhMucId: v.danhMucId,
+                noiDung: v.noiDung,
+                soTien: v.soTien,
+                nhaCungCapId: v.nhaCungCapId,
+                nguonTien: 'TIEN_SHOP',
+                trangThai: 'DA_THANH_TOAN',
+                laLichSu: true,
+                thuChiId: thuChi.id,
+                quyThanhToanId: v.quy.id,
+                nguoiTaoId: user.id,
+                nguoiDuyetId: user.id,
+                ngayThanhToan: v.ngayThanhToan,
+                ghiChu: v.ghiChu,
+              },
+            });
           });
         });
         successWithQuy++;

@@ -122,11 +122,11 @@ export async function GET() {
             GROUP BY thang, "danhMucId"
           `,
           prisma.$queryRaw`
-            SELECT EXTRACT(MONTH FROM COALESCE("ngayThanhToan", "ngayPhatSinh"))::int AS thang,
+            SELECT EXTRACT(MONTH FROM "ngayPhatSinh")::int AS thang,
               "danhMucId", 'CHI' AS "loaiGiaoDich", SUM("soTien") AS total
             FROM "DeXuatChiPhi"
-            WHERE COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startOfYear}
-              AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endOfYear}
+            WHERE "ngayPhatSinh" >= ${startOfYear}
+              AND "ngayPhatSinh" < ${endOfYear}
               AND "laLichSu" = true
               AND "thuChiId" IS NULL
             GROUP BY thang, "danhMucId"

@@ -1,4 +1,11 @@
 import { prisma } from '@/lib/prisma';
+import {
+  buildSequentialCodes,
+  getNextSequentialNumber,
+  isUniqueConstraintError,
+} from '@/lib/generateIdCore';
+
+const UNIQUE_CODE_RETRY_LIMIT = 5;
 
 function getYYMM() {
   const now = new Date();
@@ -7,18 +14,34 @@ function getYYMM() {
   return `${yy}${mm}`;
 }
 
-async function getNextNumber(model, field, prefix) {
-  const last = await prisma[model].findFirst({
+async function getNextNumber(model, field, prefix, client = prisma) {
+  const last = await client[model].findFirst({
     where: { [field]: { startsWith: prefix } },
     orderBy: { [field]: 'desc' },
     select: { [field]: true },
   });
 
-  if (!last) return 1;
+  return getNextSequentialNumber(last?.[field]);
+}
 
-  const parts = last[field].split('-');
-  const num = parseInt(parts[parts.length - 1], 10);
-  return (isNaN(num) ? 0 : num) + 1;
+export async function allocateSequentialCodes({ model, field, prefix, count, client = prisma }) {
+  const next = await getNextNumber(model, field, prefix, client);
+  return buildSequentialCodes(prefix, next, count);
+}
+
+export async function withUniqueCodeRetry(operation, maxAttempts = UNIQUE_CODE_RETRY_LIMIT) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation(attempt);
+    } catch (error) {
+      if (!isUniqueConstraintError(error) || attempt === maxAttempts) {
+        throw error;
+      }
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 // CP2605-0001
@@ -40,4 +63,12 @@ export async function generateMaNCC() {
   const prefix = 'NCC-';
   const next = await getNextNumber('nhaCungCap', 'id', prefix);
   return `${prefix}${String(next).padStart(4, '0')}`;
+}
+
+export function getDeXuatPrefix() {
+  return `CP${getYYMM()}-`;
+}
+
+export function getThuChiPrefix() {
+  return `TC${getYYMM()}-`;
 }

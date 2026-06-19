@@ -45,8 +45,8 @@ function DatLaiMatKhauForm() {
     e.preventDefault();
     setFormError('');
 
-    if (matKhau.length < 6) {
-      setFormError('Mật khẩu phải có ít nhất 6 ký tự.');
+    if (matKhau.length < 10) {
+      setFormError('Mật khẩu phải có ít nhất 10 ký tự.');
       return;
     }
     if (matKhau !== matKhauLai) {
@@ -183,7 +183,7 @@ function DatLaiMatKhauForm() {
               <label className="form-label">Mật khẩu mới *</label>
               <input
                 type="password"
-                placeholder="Ít nhất 6 ký tự..."
+                placeholder="Ít nhất 10 ký tự..."
                 className="form-control"
                 value={matKhau}
                 onChange={(e) => setMatKhau(e.target.value)}

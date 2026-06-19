@@ -5,9 +5,8 @@ import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { notifyManagersBulkChoThanhToan } from '@/lib/email';
 import { canViewCategory } from '@/lib/roles';
-
-const VALID_NGUON_TIEN = ['TIEN_SHOP', 'TIEN_CA_NHAN'];
-const VALID_TRANG_THAI = ['CHO_THANH_TOAN', 'CHO_HOAN_UNG', 'DA_THANH_TOAN'];
+import { allocateSequentialCodes, getDeXuatPrefix, withUniqueCodeRetry } from '@/lib/generateId';
+import { VALID_NGUON_TIEN, resolveCreateProposalStatus } from '@/lib/proposalWorkflow';
 
 function getYYMM() {
   const now = new Date();
@@ -45,10 +44,10 @@ export async function POST(request) {
     const errors = [];
     rows.forEach((r, idx) => {
       const dong = idx + 1;
-      const { ngayPhatSinh, danhMucId, noiDung, soTien, nhaCungCapId, nguonTien, trangThai } = r || {};
+      const { ngayPhatSinh, danhMucId, noiDung, soTien, nhaCungCapId, nguonTien } = r || {};
 
-      if (!ngayPhatSinh || !danhMucId || !noiDung || !soTien || !nguonTien || !trangThai) {
-        errors.push({ dong, message: 'Thiếu thông tin bắt buộc (ngày, danh mục, nội dung, số tiền, nguồn tiền, trạng thái).' });
+      if (!ngayPhatSinh || !danhMucId || !noiDung || !soTien || !nguonTien) {
+        errors.push({ dong, message: 'Thiếu thông tin bắt buộc (ngày, danh mục, nội dung, số tiền, nguồn tiền).' });
         return;
       }
       if (typeof noiDung !== 'string' || noiDung.trim().length === 0 || noiDung.length > 500) {
@@ -61,10 +60,6 @@ export async function POST(request) {
       }
       if (!VALID_NGUON_TIEN.includes(nguonTien)) {
         errors.push({ dong, message: 'Nguồn tiền không hợp lệ.' });
-        return;
-      }
-      if (!VALID_TRANG_THAI.includes(trangThai)) {
-        errors.push({ dong, message: 'Trạng thái không hợp lệ.' });
         return;
       }
 
@@ -95,42 +90,39 @@ export async function POST(request) {
       );
     }
 
-    // Sinh mã phiếu tuần tự: lấy số lớn nhất hiện có 1 lần, rồi tăng dần trong bộ nhớ
-    const prefix = `CP${getYYMM()}-`;
-    const last = await prisma.deXuatChiPhi.findFirst({
-      where: { maPhieu: { startsWith: prefix } },
-      orderBy: { maPhieu: 'desc' },
-      select: { maPhieu: true },
+    const created = await withUniqueCodeRetry(async () => {
+      const maPhieuList = await allocateSequentialCodes({
+        model: 'deXuatChiPhi',
+        field: 'maPhieu',
+        prefix: getDeXuatPrefix(),
+        count: rows.length,
+      });
+
+      const createData = rows.map((r, idx) => ({
+        maPhieu: maPhieuList[idx],
+        ngayPhatSinh: new Date(r.ngayPhatSinh),
+        danhMucId: r.danhMucId,
+        noiDung: r.noiDung.trim(),
+        soTien: lamTronTien(r.soTien),
+        nhaCungCapId: r.nhaCungCapId || null,
+        nguonTien: r.nguonTien,
+        trangThai: resolveCreateProposalStatus({
+          role: user.role,
+          nguonTien: r.nguonTien,
+          requestedTrangThai: r.trangThai,
+        }),
+        ghiChu: r.ghiChu || null,
+        nguoiTaoId: user.id,
+        ngayCanThanhToan:
+          r.ngayCanThanhToan && String(r.ngayCanThanhToan).trim() !== ''
+            ? new Date(r.ngayCanThanhToan)
+            : null,
+      }));
+
+      return prisma.$transaction(
+        createData.map((data) => prisma.deXuatChiPhi.create({ data }))
+      );
     });
-    let nextNum = 1;
-    if (last) {
-      const parts = last.maPhieu.split('-');
-      const num = parseInt(parts[parts.length - 1], 10);
-      nextNum = (isNaN(num) ? 0 : num) + 1;
-    }
-
-    const createData = rows.map((r, idx) => ({
-      maPhieu: `${prefix}${String(nextNum + idx).padStart(4, '0')}`,
-      ngayPhatSinh: new Date(r.ngayPhatSinh),
-      danhMucId: r.danhMucId,
-      noiDung: r.noiDung.trim(),
-      soTien: lamTronTien(r.soTien),
-      nhaCungCapId: r.nhaCungCapId || null,
-      nguonTien: r.nguonTien,
-      trangThai: r.trangThai,
-      ghiChu: r.ghiChu || null,
-      nguoiTaoId: user.id,
-      ngayCanThanhToan:
-        r.ngayCanThanhToan && String(r.ngayCanThanhToan).trim() !== ''
-          ? new Date(r.ngayCanThanhToan)
-          : null,
-    }));
-
-    // Tạo toàn bộ trong 1 transaction
-    const created = await prisma.$transaction(
-      createData.map((data) => prisma.deXuatChiPhi.create({ data }))
-    );
-
     // Gửi MỘT email tổng hợp cho các phiếu "Chờ thanh toán" (thay vì N email — tránh spam & giảm tải).
     // Hàm tự bắt lỗi bên trong nên không làm hỏng luồng tạo phiếu nếu gửi mail thất bại.
     const choTTIds = created.filter((p) => p.trangThai === 'CHO_THANH_TOAN').map((p) => p.id);

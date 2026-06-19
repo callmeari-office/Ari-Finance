@@ -4,9 +4,16 @@
 // - 'unsafe-inline' cho script: BẮT BUỘC vì có inline script chống FOUC theme trong layout.js.
 // - 'unsafe-inline' cho style: app dùng rất nhiều style={{}} inline + CSS biến.
 // - img-src thêm https://img.vietqr.io (ảnh QR động ở trang Duyệt) + data:/blob: (ảnh hóa đơn base64, preview).
+const isDev = process.env.NODE_ENV !== 'production';
+const scriptSrc = [
+  "'self'",
+  "'unsafe-inline'",
+  ...(isDev ? ["'unsafe-eval'"] : []),
+].join(' ');
+
 const cspDirectives = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  `script-src ${scriptSrc}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://img.vietqr.io",
   "font-src 'self' data:",

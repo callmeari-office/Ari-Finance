@@ -1,5 +1,7 @@
 .mainContent {
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   padding: var(--space-8);
   background: var(--background);
   min-height: 100vh;
@@ -36,7 +38,7 @@
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid rgba(214, 168, 168, 0.2);
+  border: 3px solid rgba(var(--brand-brown-rgb), 0.2);
   border-radius: 50%;
   border-top-color: var(--primary);
   animation: spin 1s ease-in-out infinite;
@@ -67,6 +69,9 @@
 }
 
 .employeeTableCard {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border);
@@ -94,6 +99,11 @@
   border: none;
   cursor: pointer;
   padding: 0.35rem;
+  min-width: 36px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 6px;
   color: var(--text-muted);
   transition: all 0.2s;
@@ -101,12 +111,30 @@
 
 .editBtn:hover {
   color: var(--brand-brown);
-  background: rgba(99, 77, 62, 0.08);
+  background: rgba(var(--brand-brown-rgb), 0.08);
 }
 
 .deleteBtn:hover {
   color: var(--danger);
-  background: rgba(239, 68, 68, 0.08);
+  background: var(--danger-bg);
+}
+
+@media (max-width: 768px) {
+  .pageHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .pageHeader button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .actionBtn {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 /* Modals styling */

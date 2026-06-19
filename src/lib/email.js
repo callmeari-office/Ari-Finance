@@ -505,8 +505,8 @@ async function getMonthlyFinancials(thang, nam) {
     `,
     prisma.$queryRaw`
       SELECT COALESCE(SUM("soTien"), 0) AS total FROM "DeXuatChiPhi"
-      WHERE COALESCE("ngayThanhToan", "ngayPhatSinh") >= ${startOfMonth}
-        AND COALESCE("ngayThanhToan", "ngayPhatSinh") < ${endOfMonth}
+      WHERE "ngayPhatSinh" >= ${startOfMonth}
+        AND "ngayPhatSinh" < ${endOfMonth}
         AND "laLichSu" = true
         AND "thuChiId" IS NULL
     `,

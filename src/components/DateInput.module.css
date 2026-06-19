@@ -8,7 +8,7 @@
 /* Đẩy text input sang trái để nhường chỗ cho button lịch */
 .textInput {
   width: 100%;
-  padding-right: 2.25rem !important;
+  padding-right: 2.75rem !important;
 }
 
 /* Nút mở lịch — nằm bên trong input, góc phải giữa dọc */
@@ -17,11 +17,13 @@
   right: 0.45rem;
   top: 50%;
   transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
   background: none;
   border: none;
   cursor: pointer;
   color: var(--text-secondary, #888);
-  padding: 0.2rem;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -29,6 +31,18 @@
   transition: opacity 0.15s var(--ease-out, ease), color 0.15s var(--ease-out, ease);
   border-radius: 4px;
   line-height: 0;
+}
+
+@media (max-width: 768px) {
+  .textInput {
+    padding-right: 3.2rem !important;
+  }
+
+  .calBtn {
+    width: 44px;
+    height: 44px;
+    right: 0.25rem;
+  }
 }
 
 .calBtn:hover:not(:disabled) {

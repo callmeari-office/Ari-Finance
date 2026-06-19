@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { lamTronTien } from '@/lib/finance';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
-import { generateMaThuChi } from '@/lib/generateId';
+import { allocateSequentialCodes, generateMaThuChi, getThuChiPrefix, withUniqueCodeRetry } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
 import { notifyManagers } from '@/lib/webpush';
 
@@ -445,82 +445,91 @@ export async function POST(request) {
 
     // ——— CHẾ ĐỘ BÙ TRỪ LỊCH SỬ: tạo cặp CHI + THU cùng lúc ———
     if (buTruLichSu) {
-      const [maPhieuChi, maPhieuThu] = await Promise.all([generateMaThuChi(), generateMaThuChi()]);
       const ngay = new Date(ngayGiaoDich);
       const soTienRound = lamTronTien(soTien);
-      const [chiRecord, thuRecord] = await Promise.all([
-        prisma.thuChi.create({
-          data: {
-            maPhieu: maPhieuChi,
-            ngayGiaoDich: ngay,
-            loaiGiaoDich: 'CHI',
-            soTien: soTienRound,
-            quyId,
-            danhMucId,
-            nhaCungCapId: nhaCungCapId || null,
-            noiDung: noiDung.trim(),
-            nguoiTaoId: user.id,
-            ghiChu: ghiChu || '',
-            buTruLichSu: true,
-          },
-        }),
-        prisma.thuChi.create({
-          data: {
-            maPhieu: maPhieuThu,
-            ngayGiaoDich: ngay,
-            loaiGiaoDich: 'THU',
-            soTien: soTienRound,
-            quyId,
-            danhMucId, // dùng cùng danhMucId — đây là bù trừ kế toán, không tính vào báo cáo
-            nhaCungCapId: null,
-            noiDung: `[BT] ${noiDung.trim()}`,
-            nguoiTaoId: user.id,
-            ghiChu: 'Bù trừ lịch sử — tự sinh tự động',
-            buTruLichSu: true,
-          },
-        }),
-      ]);
+      const { chiRecord, thuRecord } = await withUniqueCodeRetry(async () => {
+        const [maPhieuChi, maPhieuThu] = await allocateSequentialCodes({
+          model: 'thuChi',
+          field: 'maPhieu',
+          prefix: getThuChiPrefix(),
+          count: 2,
+        });
+
+        return prisma.$transaction(async (tx) => {
+          const chiRecord = await tx.thuChi.create({
+            data: {
+              maPhieu: maPhieuChi,
+              ngayGiaoDich: ngay,
+              loaiGiaoDich: 'CHI',
+              soTien: soTienRound,
+              quyId,
+              danhMucId,
+              nhaCungCapId: nhaCungCapId || null,
+              noiDung: noiDung.trim(),
+              nguoiTaoId: user.id,
+              ghiChu: ghiChu || '',
+              buTruLichSu: true,
+            },
+          });
+          const thuRecord = await tx.thuChi.create({
+            data: {
+              maPhieu: maPhieuThu,
+              ngayGiaoDich: ngay,
+              loaiGiaoDich: 'THU',
+              soTien: soTienRound,
+              quyId,
+              danhMucId,
+              nhaCungCapId: null,
+              noiDung: `[BT] ${noiDung.trim()}`,
+              nguoiTaoId: user.id,
+              ghiChu: 'Bu tru lich su - tu sinh tu dong',
+              buTruLichSu: true,
+            },
+          });
+          return { chiRecord, thuRecord };
+        });
+      });
       await ghiNhatKy({
         user,
         hanhDong: 'TAO',
         doiTuong: 'THU_CHI',
         maDoiTuong: chiRecord.id,
-        moTa: `Nhập lịch sử quỹ bù trừ: ${noiDung.trim()} — ${soTienRound.toLocaleString('vi-VN')}đ (${maPhieuChi} + ${maPhieuThu})`,
+        moTa: `Nhap lich su quy bu tru: ${noiDung.trim()} - ${soTienRound.toLocaleString('vi-VN')}d (${chiRecord.maPhieu} + ${thuRecord.maPhieu})`,
       });
       return NextResponse.json({
         success: true,
         buTruLichSu: true,
         chiId: chiRecord.id,
         thuId: thuRecord.id,
-        maPhieuChi,
-        maPhieuThu,
-        message: `Đã nhập lịch sử quỹ: ${maPhieuChi} (CHI) + ${maPhieuThu} (THU bù trừ). Số dư quỹ không đổi.`,
+        maPhieuChi: chiRecord.maPhieu,
+        maPhieuThu: thuRecord.maPhieu,
+        message: `Da nhap lich su quy: ${chiRecord.maPhieu} (CHI) + ${thuRecord.maPhieu} (THU bu tru). So du quy khong doi.`,
       });
     }
-
     // ——— LUỒNG BÌNH THƯỜNG ———
-    const maPhieu = await generateMaThuChi();
-
-    const newThuChi = await prisma.thuChi.create({
-      data: {
-        maPhieu,
-        ngayGiaoDich: new Date(ngayGiaoDich),
-        loaiGiaoDich,
-        soTien: lamTronTien(soTien),
-        quyId,
-        danhMucId,
-        nhaCungCapId: nhaCungCapId || null,
-        noiDung: noiDung.trim(),
-        nguoiTaoId: user.id,
-        ghiChu: ghiChu || '',
-      },
+    const newThuChi = await withUniqueCodeRetry(async () => {
+      const maPhieu = await generateMaThuChi();
+      return prisma.thuChi.create({
+        data: {
+          maPhieu,
+          ngayGiaoDich: new Date(ngayGiaoDich),
+          loaiGiaoDich,
+          soTien: lamTronTien(soTien),
+          quyId,
+          danhMucId,
+          nhaCungCapId: nhaCungCapId || null,
+          noiDung: noiDung.trim(),
+          nguoiTaoId: user.id,
+          ghiChu: ghiChu || '',
+        },
+      });
     });
 
     await ghiNhatKy({
       user,
       hanhDong: 'TAO',
       doiTuong: 'THU_CHI',
-      maDoiTuong: maPhieu,
+      maDoiTuong: newThuChi.maPhieu,
       moTa: `Tạo phiếu ${loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'} "${newThuChi.noiDung}" — ${Number(newThuChi.soTien).toLocaleString('vi-VN')}đ (quỹ ${quy.tenQuy})`,
     });
 
@@ -531,7 +540,7 @@ export async function POST(request) {
         await notifyManagers(
           {
             title: '💰 Có phiếu Thu mới',
-            body: `${maPhieu} · ${Number(newThuChi.soTien).toLocaleString('vi-VN')}đ — ${newThuChi.noiDung}`,
+            body: `${newThuChi.maPhieu} · ${Number(newThuChi.soTien).toLocaleString('vi-VN')}đ — ${newThuChi.noiDung}`,
             url: '/thu-chi',
             tag: 'thu-chi-thu',
           },
@@ -545,7 +554,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       thuChi: newThuChi,
-      message: `Đã ghi nhận phiếu ${loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'} ${maPhieu} thành công.`,
+      message: `Đã ghi nhận phiếu ${loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'} ${newThuChi.maPhieu} thành công.`,
     });
   } catch (error) {
     logger.error('POST /api/thu-chi', error);

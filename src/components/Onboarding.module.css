@@ -27,6 +27,8 @@
   position: absolute;
   top: 0.75rem;
   right: 0.85rem;
+  min-width: 44px;
+  min-height: 44px;
   background: none;
   border: none;
   color: var(--text-muted);
