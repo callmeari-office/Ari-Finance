@@ -22,7 +22,7 @@ export async function GET() {
     const seeTx       = canViewMenu(user, 'tqXuHuong') || canViewMenu(user, 'tqKPITaiChinh');
     const seeInsights = canViewMenu(user, 'tqKPITaiChinh') || canViewMenu(user, 'tqCanXuLy');
     const seeDuBao    = canViewMenu(user, 'tqDuBao');
-    const seeNganSach = isRestricted && canViewMenu(user, 'keHoach');
+    const seeNganSach = isRestricted && canViewMenu(user, 'keHoachDBThang');
     const seeDoanhThu = isRestricted && canViewMenu(user, 'doanhThuDBThang');
 
     const proposalInclude = {
@@ -97,7 +97,7 @@ export async function GET() {
 
       // Ngân sách (STAFF/LEADER có quyền keHoach) — inline vì cần role-based filtering
       seeNganSach ? (async () => {
-        const cats = await prisma.danhMuc.findMany({ select: { id: true, chucVuDuocXem: true } });
+        const cats = await prisma.danhMuc.findMany({ where: { trangThai: 'ACTIVE' }, select: { id: true, chucVuDuocXem: true } });
         const viewableIds = new Set(
           cats.filter((c) => {
             try { return canViewCategory(user.role, JSON.parse(c.chucVuDuocXem)); }

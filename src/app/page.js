@@ -298,7 +298,7 @@ export default function Dashboard() {
   // Khối cá nhân chỉ dành cho vai trò bị giới hạn xem đề xuất của chính mình.
   const canPersonal = isRestrictedToOwnProposals(user.role) && canViewMenu(user, 'tqDeXuatCuaToi');
   // Widget bổ sung cho STAFF/LEADER
-  const canNganSach = canPersonal && canViewMenu(user, 'keHoach');
+  const canNganSach = canPersonal && canViewMenu(user, 'keHoachDBThang');
   const canDoanhThuMini = canPersonal && canViewMenu(user, 'doanhThuDBThang');
 
   // ===== Thống kê đề xuất =====
@@ -364,19 +364,21 @@ export default function Dashboard() {
     const byKenh = kenhBan
       .map((k) => {
         const row = tmData.find((d) => d.kenhBanId === k.id);
-        if (!row || !row.chiTieu) return null;
-        const kPct = Math.round(((row.thucTe || 0) / row.chiTieu) * 100);
+        if (!row) return null;
+        const hasTarget = row.chiTieu > 0;
+        const kPct = hasTarget ? Math.round(((row.thucTe || 0) / row.chiTieu) * 100) : null;
         return {
           tenKenh: k.tenKenh,
           mauSac: k.mauSac || '#60a5fa',
-          chiTieu: row.chiTieu,
+          chiTieu: row.chiTieu || 0,
           thucTe: row.thucTe || 0,
           pct: kPct,
-          color: kPct >= 90 ? '#10b981' : kPct >= 70 ? '#f59e0b' : '#ef4444',
+          hasTarget,
+          color: kPct === null ? 'var(--text-muted)' : kPct >= 90 ? '#10b981' : kPct >= 70 ? '#f59e0b' : '#ef4444',
         };
       })
       .filter(Boolean)
-      .sort((a, b) => b.pct - a.pct);
+      .sort((a, b) => (b.pct ?? -1) - (a.pct ?? -1));
     return { chiTieuTong, thucTeTong, pct, pctColor, byKenh };
   })();
 
@@ -1243,11 +1245,15 @@ export default function Dashboard() {
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: k.mauSac, flexShrink: 0 }} />
                             {k.tenKenh}
                           </span>
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatVND(k.thucTe)} / {formatVND(k.chiTieu)}</span>
-                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: k.color, minWidth: '36px', textAlign: 'right' }}>{k.pct}%</span>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                            {formatVND(k.thucTe)} / {k.hasTarget ? formatVND(k.chiTieu) : 'Chưa đặt chỉ tiêu'}
+                          </span>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: k.color, minWidth: '36px', textAlign: 'right' }}>
+                            {k.hasTarget ? `${k.pct}%` : '—'}
+                          </span>
                         </div>
                         <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(var(--brand-brown-rgb), 0.08)', overflow: 'hidden' }}>
-                          <div style={{ width: `${Math.min(k.pct, 100)}%`, height: '100%', background: k.mauSac, borderRadius: '2px', transition: 'width 0.35s ease' }} />
+                          <div style={{ width: k.hasTarget ? `${Math.min(k.pct, 100)}%` : '0%', height: '100%', background: k.mauSac, borderRadius: '2px', transition: 'width 0.35s ease' }} />
                         </div>
                       </div>
                     ))}

@@ -79,7 +79,7 @@ export default function KeHoachPage() {
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (!data?.authenticated) { router.push('/login'); return; }
-        if (!canViewMenu(data.user, 'keHoach')) { toast.error('Bạn không có quyền truy cập.'); router.push('/'); return; }
+        if (!canViewMenu(data.user, 'keHoach') && !canViewMenu(data.user, 'keHoachDBThang') && !canViewMenu(data.user, 'keHoachDBNam')) { toast.error('Bạn không có quyền truy cập.'); router.push('/'); return; }
         setUser(data.user);
         // OWNER mặc định vào màn lập Kế Hoạch; vai trò khác vào Dashboard đầu tiên được phép.
         if (data.user.role !== 'OWNER') {
