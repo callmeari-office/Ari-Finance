@@ -127,13 +127,21 @@ function DeXuatPage() {
   const [selectedProp, setSelectedProp] = useState(null);
   const [copiedField, setCopiedField] = useState('');
 
-  // Import Excel state (chỉ OWNER)
+  // Import Excel state — phiếu CŨ/lịch sử (chỉ OWNER)
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [importRows, setImportRows] = useState([]);   // dữ liệu đã đọc từ file
   const [importFileName, setImportFileName] = useState('');
   const [importParseError, setImportParseError] = useState('');
   const [importResult, setImportResult] = useState(null); // kết quả từ server
   const [importLoading, setImportLoading] = useState(false);
+
+  // Import Excel state — đề xuất tháng thực tế, ĐI QUA DUYỆT (mọi vai trò)
+  const [isImportDxOpen, setIsImportDxOpen] = useState(false);
+  const [importDxRows, setImportDxRows] = useState([]);
+  const [importDxFileName, setImportDxFileName] = useState('');
+  const [importDxParseError, setImportDxParseError] = useState('');
+  const [importDxResult, setImportDxResult] = useState(null);
+  const [importDxLoading, setImportDxLoading] = useState(false);
 
   // Tạo nhiều phiếu cùng lúc (bulk)
   const [isBulkOpen, setIsBulkOpen] = useState(false);
@@ -710,6 +718,185 @@ function DeXuatPage() {
     setImportResult(null);
   };
 
+  // ===== NHẬP ĐỀ XUẤT THÁNG THỰC TẾ TỪ EXCEL (đi qua quy trình duyệt) =====
+
+  // Cột "Ai trả khoản này" -> token { aiTra, label } để gửi server + hiển thị preview.
+  const parseAiTra = (raw) => {
+    const s = String(raw || '').trim().toLowerCase();
+    if (!s) return { aiTra: 'SHOP_CHUA_TRA', label: 'Shop trả' };
+    if (s.includes('ứng') || s.includes('ung') || s.includes('cá nhân') || s.includes('ca nhan') || s.includes('mình') || s.includes('minh')) {
+      return { aiTra: 'CA_NHAN', label: 'Mình ứng trước' };
+    }
+    if (s.includes('đã trả') || s.includes('da tra') || s.includes('đã chi') || s.includes('da chi') || s.includes('rồi') || s.includes('roi')) {
+      return { aiTra: 'SHOP_DA_TRA', label: 'Shop đã trả rồi' };
+    }
+    return { aiTra: 'SHOP_CHUA_TRA', label: 'Shop trả' };
+  };
+
+  const handleDownloadTemplateDx = async () => {
+    const XLSX = await import('xlsx');
+
+    const headers = [
+      'Ngày phát sinh (dd/mm/yyyy)',
+      'Danh mục',
+      'Nội dung',
+      'Số tiền',
+      'Ai trả khoản này (Shop trả / Shop đã trả rồi / Mình ứng trước)',
+      'Nhà cung cấp (nếu có)',
+      'Ghi chú / Nội dung CK (nếu có)',
+      'Hạn thanh toán (dd/mm/yyyy, nếu có)',
+    ];
+    const exampleRow = [
+      new Date().toLocaleDateString('vi-VN'),
+      categories[0]?.tenDanhMuc || 'Tên danh mục chi',
+      'Ví dụ: Mua văn phòng phẩm',
+      500000,
+      'Shop trả',
+      '',
+      '',
+      '',
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow]);
+    ws['!cols'] = [
+      { wch: 22 }, { wch: 24 }, { wch: 32 }, { wch: 14 },
+      { wch: 48 }, { wch: 22 }, { wch: 26 }, { wch: 26 },
+    ];
+
+    // Sheet phụ: danh mục bạn được phép dùng
+    const dmSheet = XLSX.utils.aoa_to_sheet([
+      ['DANH MỤC HỢP LỆ (copy đúng tên vào cột "Danh mục")'],
+      ...categories.map((c) => [c.tenDanhMuc]),
+    ]);
+    dmSheet['!cols'] = [{ wch: 40 }];
+
+    // Sheet phụ: giải thích cột "Ai trả khoản này"
+    const aiTraSheet = XLSX.utils.aoa_to_sheet([
+      ['GIÁ TRỊ CHO CỘT "AI TRẢ KHOẢN NÀY" (copy đúng 1 trong 3)'],
+      ['Shop trả', 'Shop sẽ chi — phiếu chờ quản lý duyệt thanh toán.'],
+      ['Shop đã trả rồi', 'Khoản shop đã trả, chỉ ghi nhận lại (chỉ Chủ shop/Quản lý mới ghi thẳng).'],
+      ['Mình ứng trước', 'Bạn bỏ tiền túi trước, shop hoàn lại sau khi duyệt.'],
+    ]);
+    aiTraSheet['!cols'] = [{ wch: 20 }, { wch: 64 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Đề xuất chi');
+    XLSX.utils.book_append_sheet(wb, dmSheet, 'DanhMuc hợp lệ');
+    XLSX.utils.book_append_sheet(wb, aiTraSheet, 'Ai trả khoản này');
+    XLSX.writeFile(wb, 'mau-nhap-de-xuat-chi.xlsx');
+  };
+
+  const handleImportDxFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setImportDxParseError('');
+    setImportDxResult(null);
+    setImportDxRows([]);
+    setImportDxFileName(file.name);
+
+    try {
+      const XLSX = await import('xlsx');
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false, raw: false });
+
+      if (aoa.length < 2) {
+        setImportDxParseError('File không có dòng dữ liệu nào (chỉ có tiêu đề).');
+        return;
+      }
+
+      const norm = (s) => String(s || '').trim().toLowerCase();
+      const headers = (aoa[0] || []).map(norm);
+      const findCol = (...keys) => headers.findIndex((h) => keys.some((k) => h.includes(k)));
+      const ci = {
+        ngay: findCol('ngày phát sinh', 'ngay phat sinh', 'ngày', 'ngay'),
+        danhMuc: findCol('danh m'),
+        // "Nội dung" đứng trước cột "Ghi chú / Nội dung CK" nên findCol trả về đúng cột chính
+        noiDung: findCol('nội dung', 'noi dung'),
+        soTien: findCol('số tiền', 'so tien', 'tiền'),
+        aiTra: findCol('ai trả', 'ai tra', 'nguồn tiền', 'nguon tien'),
+        ncc: findCol('cung cấp', 'cung cap', 'ncc'),
+        ghiChu: findCol('ghi chú', 'ghi chu'),
+        hanTT: findCol('hạn thanh toán', 'han thanh toan', 'hạn tt', 'han tt'),
+      };
+
+      if (ci.ngay < 0 || ci.danhMuc < 0 || ci.noiDung < 0 || ci.soTien < 0) {
+        setImportDxParseError('File thiếu cột bắt buộc (Ngày phát sinh / Danh mục / Nội dung / Số tiền). Hãy dùng đúng file mẫu.');
+        return;
+      }
+
+      const rows = [];
+      for (let i = 1; i < aoa.length; i++) {
+        const r = aoa[i];
+        const get = (idx) => (idx >= 0 ? r[idx] : '');
+        const rawTien = get(ci.soTien);
+        const soTien = typeof rawTien === 'number'
+          ? rawTien
+          : parseInt(String(rawTien).replace(/[^\d]/g, ''), 10);
+
+        if (!get(ci.ngay) && !get(ci.danhMuc) && !get(ci.noiDung) && !rawTien) continue;
+
+        const rawHan = ci.hanTT >= 0 ? get(ci.hanTT) : '';
+        const ai = parseAiTra(get(ci.aiTra));
+
+        rows.push({
+          ngayPhatSinh: parseDateCell(get(ci.ngay)),
+          ngayGoc: String(get(ci.ngay)),
+          danhMuc: String(get(ci.danhMuc) || '').trim(),
+          noiDung: String(get(ci.noiDung) || '').trim(),
+          soTien: Number.isFinite(soTien) ? soTien : 0,
+          aiTra: ai.aiTra,
+          aiTraLabel: ai.label,
+          nhaCungCap: ci.ncc >= 0 ? String(get(ci.ncc) || '').trim() : '',
+          ghiChu: ci.ghiChu >= 0 ? String(get(ci.ghiChu) || '').trim() : '',
+          ngayCanThanhToan: rawHan ? parseDateCell(rawHan) : null,
+          hanGoc: rawHan ? String(rawHan) : '',
+        });
+      }
+
+      if (rows.length === 0) {
+        setImportDxParseError('Không đọc được dòng dữ liệu hợp lệ nào.');
+        return;
+      }
+      setImportDxRows(rows);
+    } catch (err) {
+      console.error(err);
+      setImportDxParseError('Không đọc được file. Hãy chắc chắn đây là file Excel (.xlsx) đúng mẫu.');
+    }
+  };
+
+  const handleSubmitImportDx = async () => {
+    if (importDxRows.length === 0) return;
+    setImportDxLoading(true);
+    setImportDxResult(null);
+    try {
+      const res = await fetch('/api/de-xuat/import-de-xuat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows: importDxRows }),
+      });
+      const data = await res.json();
+      setImportDxResult(data);
+      if (res.ok && data.successCount > 0) {
+        fetchData();
+      }
+    } catch (err) {
+      setImportDxResult({ error: 'Lỗi kết nối khi gửi dữ liệu.' });
+    } finally {
+      setImportDxLoading(false);
+    }
+  };
+
+  const closeImportDxModal = () => {
+    setIsImportDxOpen(false);
+    setImportDxRows([]);
+    setImportDxFileName('');
+    setImportDxParseError('');
+    setImportDxResult(null);
+  };
+
   // ===== TẠO NHIỀU PHIẾU CÙNG LÚC (BULK) =====
 
   const makeBulkRow = () => ({ danhMucId: '', noiDung: '', soTien: '', nhaCungCapId: '', ghiChu: '' });
@@ -1114,16 +1301,22 @@ function DeXuatPage() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {totalCount > 0 && (
+            {totalCount > 0 && (user.role === 'OWNER' || user.role === 'MANAGER') && (
               <button onClick={handleExportExcel} className="btn btn-secondary" title="Xuất danh sách ra Excel">
                 <Download size={18} />
                 <span>Xuất Excel</span>
               </button>
             )}
+            {/* Nhập đề xuất tháng thực tế — đi qua quy trình duyệt (mọi vai trò) */}
+            <button onClick={() => setIsImportDxOpen(true)} className="btn btn-secondary" title="Nhập hàng loạt đề xuất chi từ file Excel (đi qua duyệt như tạo tay)">
+              <Upload size={18} />
+              <span>Nhập từ Excel</span>
+            </button>
+            {/* Nhập phiếu CŨ đã thanh toán (lịch sử) — chỉ OWNER */}
             {user.role === 'OWNER' && (
-              <button onClick={() => setIsImportOpen(true)} className="btn btn-secondary" title="Nhập phiếu chi cũ từ file Excel">
+              <button onClick={() => setIsImportOpen(true)} className="btn btn-secondary" title="Nhập phiếu chi CŨ đã thanh toán (ghi nhận lịch sử, có thể trừ quỹ)">
                 <Upload size={18} />
-                <span>Nhập từ Excel</span>
+                <span>Nhập lịch sử</span>
               </button>
             )}
             <button onClick={handleOpenBulk} className="btn btn-secondary" title="Tạo nhiều phiếu chi cùng lúc">
@@ -2186,6 +2379,148 @@ function DeXuatPage() {
                 {importRows.length > 0 && !importResult && (
                   <button type="button" onClick={handleSubmitImport} className="btn btn-primary" disabled={importLoading}>
                     {importLoading ? 'Đang nhập...' : `Nhập ${importRows.length} dòng`}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: NHẬP ĐỀ XUẤT THÁNG THỰC TẾ TỪ EXCEL (đi qua duyệt) */}
+        {isImportDxOpen && (
+          <div className={styles.modalOverlay}>
+            <div className={`${styles.modalContent} glass-card`}>
+              <div className={styles.modalHeader}>
+                <h2>Nhập đề xuất chi từ Excel</h2>
+                <button onClick={closeImportDxModal} className={styles.closeBtn}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ background: 'var(--info-bg)', border: '1px solid rgba(96,165,250,0.18)', borderRadius: '8px', padding: '0.85rem 1rem', marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+                <strong style={{ color: 'var(--info)' }}>Dùng khi nào:</strong> upload hàng loạt phiếu chi cho tháng thực tế thay vì tạo tay từng cái.<br />
+                Phiếu nhập vào sẽ <strong>đi qua quy trình duyệt như bình thường</strong> (chờ quản lý duyệt), <strong>không trừ quỹ trực tiếp</strong>.<br />
+                Cột bắt buộc: <em>Ngày phát sinh, Danh mục, Nội dung, Số tiền</em>. Cột <strong style={{ color: '#fbbf24' }}>Ai trả khoản này</strong> giúp Ari ghi sổ đúng (mặc định “Shop trả”).
+              </div>
+
+              <button type="button" onClick={handleDownloadTemplateDx} className="btn btn-secondary" style={{ marginBottom: '1.25rem' }}>
+                <Download size={18} />
+                <span>Tải file Excel mẫu</span>
+              </button>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Chọn file Excel (.xlsx) đã điền</label>
+                <label className={styles.uploadBox} style={{ cursor: 'pointer' }}>
+                  <FileSpreadsheet size={28} style={{ color: 'var(--success)' }} />
+                  <span>{importDxFileName ? `📄 ${importDxFileName}` : 'Bấm để chọn file .xlsx / .xls'}</span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleImportDxFile}
+                    style={{ display: 'none' }}
+                    disabled={importDxLoading}
+                  />
+                </label>
+              </div>
+
+              {importDxParseError && (
+                <div className={styles.errorAlert}>
+                  <AlertCircle size={18} />
+                  <span>{importDxParseError}</span>
+                </div>
+              )}
+
+              {importDxRows.length > 0 && !importDxResult && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-main)' }}>
+                    Xem trước: {importDxRows.length} dòng
+                  </div>
+                  <div className="table-responsive" style={{ maxHeight: '260px', overflow: 'auto', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                    <table className="custom-table" style={{ fontSize: '0.8rem' }}>
+                      <thead>
+                        <tr>
+                          <th>Ngày</th>
+                          <th>Danh mục</th>
+                          <th>Nội dung</th>
+                          <th>Số tiền</th>
+                          <th>Ai trả</th>
+                          <th>NCC</th>
+                          <th>Hạn TT</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importDxRows.slice(0, 50).map((r, i) => {
+                          const badDate = !r.ngayPhatSinh;
+                          const badTien = !(r.soTien > 0);
+                          const badHan = r.hanGoc && !r.ngayCanThanhToan;
+                          return (
+                            <tr key={i}>
+                              <td style={{ color: badDate ? '#ef4444' : 'inherit' }}>{badDate ? `⚠️ ${r.ngayGoc || 'trống'}` : formatDate(r.ngayPhatSinh)}</td>
+                              <td>{r.danhMuc || <span style={{ color: 'var(--danger)' }}>⚠️ trống</span>}</td>
+                              <td style={{ maxWidth: '160px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.noiDung}>{r.noiDung || <span style={{ color: 'var(--danger)' }}>⚠️ trống</span>}</td>
+                              <td style={{ color: badTien ? '#ef4444' : '#34d399', fontWeight: '600' }}>{badTien ? '⚠️ 0' : r.soTien.toLocaleString('vi-VN')}</td>
+                              <td>{r.aiTraLabel}</td>
+                              <td>{r.nhaCungCap || '—'}</td>
+                              <td style={{ color: badHan ? '#ef4444' : 'inherit' }}>
+                                {badHan ? `⚠️ ${r.hanGoc}` : r.ngayCanThanhToan ? formatDate(r.ngayCanThanhToan) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {importDxRows.length > 50 && (
+                    <small style={{ color: 'var(--text-muted)' }}>...và {importDxRows.length - 50} dòng nữa. Hệ thống sẽ kiểm tra toàn bộ khi nhập.</small>
+                  )}
+                </div>
+              )}
+
+              {importDxResult && (
+                <div style={{ marginBottom: '1rem' }}>
+                  {importDxResult.successCount > 0 && (
+                    <div className={styles.successAlert}>
+                      <Check size={18} />
+                      <span>{importDxResult.message || `Đã nhập ${importDxResult.successCount} đề xuất.`}</span>
+                    </div>
+                  )}
+                  {importDxResult.error && importDxResult.successCount === undefined && (
+                    <div className={styles.errorAlert} style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <AlertCircle size={18} />
+                        <span>{importDxResult.error}</span>
+                      </div>
+                      {importDxResult.detail && (
+                        <small style={{ marginTop: '0.35rem', opacity: 0.85, wordBreak: 'break-word' }}>
+                          Chi tiết: {importDxResult.detail}
+                        </small>
+                      )}
+                    </div>
+                  )}
+                  {importDxResult.errors && importDxResult.errors.length > 0 && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <div style={{ fontWeight: '700', color: 'var(--warning)', marginBottom: '0.35rem' }}>
+                        {importDxResult.errors.length} dòng bị bỏ qua do lỗi:
+                      </div>
+                      <div style={{ maxHeight: '180px', overflow: 'auto', fontSize: '0.82rem', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: '8px', padding: '0.5rem 0.75rem' }}>
+                        {importDxResult.errors.map((er, i) => (
+                          <div key={i} style={{ color: 'var(--alert-error-text)', padding: '0.15rem 0' }}>
+                            • Dòng {er.dong}: {er.message}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className={styles.formActions}>
+                <button type="button" onClick={closeImportDxModal} className="btn btn-secondary" disabled={importDxLoading}>
+                  {importDxResult?.successCount > 0 ? 'Đóng' : 'Hủy bỏ'}
+                </button>
+                {importDxRows.length > 0 && !importDxResult && (
+                  <button type="button" onClick={handleSubmitImportDx} className="btn btn-primary" disabled={importDxLoading}>
+                    {importDxLoading ? 'Đang nhập...' : `Nhập ${importDxRows.length} dòng`}
                   </button>
                 )}
               </div>
