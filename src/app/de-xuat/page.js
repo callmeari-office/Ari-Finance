@@ -22,6 +22,8 @@ import {
   Rows3,
   Plus,
   CheckSquare,
+  CheckCircle,
+  Ban,
   ChevronDown,
   ChevronUp,
   Clock,
@@ -39,7 +41,7 @@ import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
 import { formatDate, formatDateOrEmpty } from '@/lib/date';
 import { docSoTienVND } from '@/lib/docSo';
 import { generateVietQRUrl } from '@/lib/vietqr';
-import { formatSoTienDisplay, parseDateCell } from './helpers';
+import { formatSoTienDisplay, parseDateCell, getProposalApproveGroup, resolveBulkApproveGroup } from './helpers';
 import styles from './de-xuat.module.css';
 
 function DeXuatPage() {
@@ -163,6 +165,15 @@ function DeXuatPage() {
   const [duyetQuyId, setDuyetQuyId] = useState('');
   const [duyetLoading, setDuyetLoading] = useState(false);
 
+  // Chọn nhiều phiếu để thao tác hàng loạt (giống trang Duyệt)
+  const [selectedIds, setSelectedIds] = useState([]); // id các phiếu được tích chọn
+  const [massQuyId, setMassQuyId] = useState('');      // quỹ chung cho duyệt nhanh hàng loạt
+  const [massNgayGD, setMassNgayGD] = useState(new Date().toISOString().split('T')[0]);
+  const [massApproveModalOpen, setMassApproveModalOpen] = useState(false);
+  const [massCancelModalOpen, setMassCancelModalOpen] = useState(false);
+  const [massCancelReason, setMassCancelReason] = useState('');
+  const [massLoading, setMassLoading] = useState(false);
+
   const handleSoTienChange = (e) => {
     const raw = e.target.value.replace(/\D/g, '');
     setSoTien(raw);
@@ -262,6 +273,7 @@ function DeXuatPage() {
 
   const fetchData = async (currentUser, page = currentPage) => {
     setDataLoading(true);
+    setSelectedIds([]); // tải lại danh sách → bỏ chọn để tránh thao tác nhầm trên dữ liệu cũ
     try {
       const params = new URLSearchParams();
       params.append('page', String(page));
@@ -960,6 +972,174 @@ function DeXuatPage() {
     }
   };
 
+  // ===== THAO TÁC HÀNG LOẠT (chọn nhiều phiếu) =====
+
+  const toggleSelectId = (id) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  // Mở modal duyệt nhanh hàng loạt (chọn quỹ + ngày GD chung cho cả TIEN_SHOP và HOAN_UNG)
+  const handleOpenMassApprove = (group, reason) => {
+    if (!group) {
+      toast.error(reason || 'Tập phiếu đã chọn không duyệt nhanh hàng loạt được.');
+      return;
+    }
+    setMassQuyId(funds[0]?.id || '');
+    setMassNgayGD(new Date().toISOString().split('T')[0]);
+    setMassApproveModalOpen(true);
+  };
+
+  const handleConfirmMassApprove = async (group, selectedProps) => {
+    if (!massQuyId) {
+      toast.error('Vui lòng chọn Quỹ thanh toán.');
+      return;
+    }
+    setMassLoading(true);
+    try {
+      if (group === 'TIEN_SHOP') {
+        // Mỗi phiếu sinh 1 phiếu Chi riêng — dùng /duyet-nhieu (như trang Duyệt TH1/TH2)
+        const items = selectedProps.map((p) => ({
+          id: p.id,
+          quyThanhToanId: massQuyId,
+          ngayGiaoDich: massNgayGD || undefined,
+        }));
+        const res = await fetch('/api/de-xuat/duyet-nhieu', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Duyệt hàng loạt thất bại.');
+        if (data.failCount > 0) toast.warning(data.message);
+        else toast.success(data.message);
+      } else {
+        // HOAN_UNG: duyet-gop yêu cầu cùng 1 nhân viên → gom nhóm theo NV, mỗi NV 1 phiếu Chi gộp
+        const byStaff = {};
+        selectedProps.forEach((p) => {
+          (byStaff[p.nguoiTaoId] = byStaff[p.nguoiTaoId] || []).push(p.id);
+        });
+        const groups = Object.values(byStaff);
+        const results = await Promise.all(
+          groups.map((ids) =>
+            fetch('/api/de-xuat/duyet-gop', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids, quyThanhToanId: massQuyId, ngayGiaoDich: massNgayGD || undefined }),
+            })
+              .then(async (r) => ({ ok: r.ok, data: await r.json() }))
+              .catch(() => ({ ok: false, data: { error: 'Lỗi kết nối.' } }))
+          )
+        );
+        const failed = results.filter((r) => !r.ok);
+        if (failed.length > 0) {
+          toast.warning(
+            `Đã duyệt gộp ${groups.length - failed.length}/${groups.length} nhân viên. ` +
+            `Lỗi: ${failed.map((f) => f.data?.error).filter(Boolean).join('; ')}`
+          );
+        } else {
+          toast.success(`Đã duyệt gộp hoàn ứng cho ${groups.length} nhân viên.`);
+        }
+      }
+      setMassApproveModalOpen(false);
+      setSelectedIds([]);
+      fetchData(user);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setMassLoading(false);
+    }
+  };
+
+  // Hủy hàng loạt — chỉ áp dụng phiếu thỏa canCancelProp, bỏ qua phần còn lại
+  const handleOpenMassCancel = (cancellableCount) => {
+    if (cancellableCount === 0) {
+      toast.error('Không có phiếu nào trong danh sách chọn có thể hủy.');
+      return;
+    }
+    setMassCancelReason('');
+    setMassCancelModalOpen(true);
+  };
+
+  const handleConfirmMassCancel = async (selectedProps) => {
+    const eligible = selectedProps.filter((p) => canCancelProp(p));
+    const skipped = selectedProps.length - eligible.length;
+    if (eligible.length === 0) {
+      setMassCancelModalOpen(false);
+      return;
+    }
+    setMassLoading(true);
+    try {
+      const results = await Promise.all(
+        eligible.map((p) =>
+          fetch(`/api/de-xuat/${p.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'HUY', ghiChu: massCancelReason.trim() || null }),
+          })
+            .then((r) => r.ok)
+            .catch(() => false)
+        )
+      );
+      const okCount = results.filter(Boolean).length;
+      const failCount = eligible.length - okCount;
+      let msg = `Đã hủy ${okCount} phiếu.`;
+      if (skipped > 0) msg += ` Bỏ qua ${skipped} phiếu không thể hủy.`;
+      if (failCount > 0) msg += ` ${failCount} phiếu lỗi.`;
+      if (failCount > 0) toast.warning(msg);
+      else toast.success(msg);
+      setMassCancelModalOpen(false);
+      setSelectedIds([]);
+      fetchData(user);
+    } catch (err) {
+      toast.error('Hủy hàng loạt thất bại.');
+    } finally {
+      setMassLoading(false);
+    }
+  };
+
+  // Xóa hàng loạt (Owner/Manager) — chỉ phiếu chưa gắn quỹ (thuChiId == null)
+  const handleMassDelete = async (selectedProps) => {
+    const deletable = selectedProps.filter((p) => p.thuChiId == null);
+    const skipped = selectedProps.length - deletable.length;
+    if (deletable.length === 0) {
+      toast.error('Các phiếu đã gắn quỹ — phải xử lý phiếu Thu-Chi liên kết trước khi xóa.');
+      return;
+    }
+    const ok = await showConfirm({
+      title: 'Xóa vĩnh viễn nhiều phiếu',
+      message:
+        `Xóa vĩnh viễn ${deletable.length} phiếu đã chọn?` +
+        (skipped > 0 ? `\n${skipped} phiếu đã gắn quỹ sẽ được bỏ qua (phải xử lý phiếu Thu-Chi trước).` : '') +
+        `\nThao tác này KHÔNG THỂ hoàn tác.`,
+      confirmLabel: 'Xóa vĩnh viễn',
+      danger: true,
+    });
+    if (!ok) return;
+    setMassLoading(true);
+    try {
+      const results = await Promise.all(
+        deletable.map((p) =>
+          fetch(`/api/de-xuat/${p.id}`, { method: 'DELETE' })
+            .then((r) => r.ok)
+            .catch(() => false)
+        )
+      );
+      const okCount = results.filter(Boolean).length;
+      const failCount = deletable.length - okCount;
+      let msg = `Đã xóa ${okCount} phiếu.`;
+      if (skipped > 0) msg += ` Bỏ qua ${skipped} phiếu đã gắn quỹ.`;
+      if (failCount > 0) msg += ` ${failCount} phiếu lỗi.`;
+      if (failCount > 0) toast.warning(msg);
+      else toast.success(msg);
+      setSelectedIds([]);
+      fetchData(user);
+    } catch (err) {
+      toast.error('Xóa hàng loạt thất bại.');
+    } finally {
+      setMassLoading(false);
+    }
+  };
+
   const handleExportExcel = async () => {
     if (totalCount === 0) return;
     const params = new URLSearchParams();
@@ -1229,6 +1409,18 @@ function DeXuatPage() {
   // Tổng kết phiếu đang hiển thị
   const tongTienHienThi = totalSum;
 
+  // ===== Dẫn xuất cho thao tác hàng loạt =====
+  const isOwnerManager = !!user && (user.role === 'OWNER' || user.role === 'MANAGER');
+  const selectedProps = filteredProposals.filter((p) => selectedIds.includes(p.id));
+  const selectedTotal = selectedProps.reduce((s, p) => s + p.soTien, 0);
+  const massApprove = resolveBulkApproveGroup(selectedProps); // { group, reason }
+  const massCancellableCount = selectedProps.filter((p) => canCancelProp(p)).length;
+  const allVisibleSelected =
+    filteredProposals.length > 0 && filteredProposals.every((p) => selectedIds.includes(p.id));
+  const toggleSelectAll = () => {
+    setSelectedIds(allVisibleSelected ? [] : filteredProposals.map((p) => p.id));
+  };
+
   if (loading) {
     return (
       <div className={styles.loaderContainer}>
@@ -1345,10 +1537,12 @@ function DeXuatPage() {
           </div>
         </div>
 
-        {/* Nút nổi "Tạo đề xuất" — chỉ hiện trên điện thoại, luôn trong tầm ngón tay */}
-        <button onClick={handleOpenAdd} className={styles.fab} aria-label="Tạo đề xuất chi" title="Tạo đề xuất chi">
-          <PlusCircle size={26} />
-        </button>
+        {/* Nút nổi "Tạo đề xuất" — chỉ hiện trên điện thoại; ẩn khi đang chọn nhiều phiếu để nhường chỗ thanh thao tác */}
+        {selectedIds.length === 0 && (
+          <button onClick={handleOpenAdd} className={styles.fab} aria-label="Tạo đề xuất chi" title="Tạo đề xuất chi">
+            <PlusCircle size={26} />
+          </button>
+        )}
 
         {/* Filter Section */}
         <div className={`${styles.filterCard} glass-card`}>
@@ -1435,8 +1629,17 @@ function DeXuatPage() {
                 <table className="custom-table">
                   <thead>
                     <tr>
-                      <th 
-                        onClick={() => handleSort('maPhieu')} 
+                      <th style={{ width: '40px', textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          onChange={toggleSelectAll}
+                          checked={allVisibleSelected}
+                          disabled={massLoading || filteredProposals.length === 0}
+                          title="Chọn tất cả phiếu đang hiển thị"
+                        />
+                      </th>
+                      <th
+                        onClick={() => handleSort('maPhieu')}
                         style={{ cursor: 'pointer', userSelect: 'none' }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -1448,8 +1651,8 @@ function DeXuatPage() {
                           )}
                         </div>
                       </th>
-                      <th 
-                        onClick={() => handleSort('ngayPhatSinh')} 
+                      <th
+                        onClick={() => handleSort('ngayPhatSinh')}
                         style={{ cursor: 'pointer', userSelect: 'none' }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -1484,13 +1687,21 @@ function DeXuatPage() {
                   <tbody>
                     {filteredProposals.length === 0 && (
                       <tr>
-                        <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontStyle: 'italic' }}>
+                        <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontStyle: 'italic' }}>
                           Không tìm thấy đề xuất phù hợp với bộ lọc.
                         </td>
                       </tr>
                     )}
                     {filteredProposals.map((prop) => (
-                      <tr key={prop.id}>
+                      <tr key={prop.id} style={{ background: selectedIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(prop.id)}
+                            onChange={() => toggleSelectId(prop.id)}
+                            disabled={massLoading}
+                          />
+                        </td>
                         <td style={{ fontWeight: 'bold', color: 'var(--info)' }}>{prop.maPhieu}</td>
                         <td suppressHydrationWarning>
                           {formatDate(prop.ngayPhatSinh)}
@@ -1584,7 +1795,7 @@ function DeXuatPage() {
                   {filteredProposals.length > 0 && (
                     <tfoot>
                       <tr style={{ background: 'rgba(var(--primary-rgb),0.06)', borderTop: '2px solid var(--border)' }}>
-                        <td colSpan={5} style={{ fontWeight: '700', color: 'var(--info)', padding: '0.75rem 1rem', fontSize: '0.9rem' }}>
+                        <td colSpan={6} style={{ fontWeight: '700', color: 'var(--info)', padding: '0.75rem 1rem', fontSize: '0.9rem' }}>
                           TỔNG CẢ KỲ: {totalCount} phiếu
                         </td>
                         <td style={{ fontWeight: '800', color: 'var(--success)', fontSize: '1rem', padding: '0.75rem 1rem' }}>
@@ -1604,10 +1815,28 @@ function DeXuatPage() {
                     Không tìm thấy đề xuất phù hợp với bộ lọc.
                   </div>
                 ) : (
-                  filteredProposals.map((prop) => (
-                    <div key={prop.id} className={styles.mobileCard}>
+                  <>
+                  <label className={styles.mobileSelectAll}>
+                    <input
+                      type="checkbox"
+                      onChange={toggleSelectAll}
+                      checked={allVisibleSelected}
+                      disabled={massLoading}
+                    />
+                    <span>Chọn tất cả phiếu đang hiển thị</span>
+                  </label>
+                  {filteredProposals.map((prop) => (
+                    <div key={prop.id} className={styles.mobileCard} style={{ borderColor: selectedIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.45)' : undefined }}>
                       <div className={styles.cardHeaderRow}>
-                        <span className={styles.cardMaPhieu}>{prop.maPhieu}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(prop.id)}
+                            onChange={() => toggleSelectId(prop.id)}
+                            disabled={massLoading}
+                          />
+                          <span className={styles.cardMaPhieu}>{prop.maPhieu}</span>
+                        </span>
                         <span className={styles.cardDate}>{formatDate(prop.ngayPhatSinh)}</span>
                       </div>
                       <div className={styles.cardBodyRow}>
@@ -1695,7 +1924,8 @@ function DeXuatPage() {
                       </div>
                       {getDeadlineBadge(prop.ngayCanThanhToan, prop.trangThai)}
                     </div>
-                  ))
+                  ))}
+                  </>
                 )}
               </div>
 
@@ -1744,6 +1974,58 @@ function DeXuatPage() {
             </>
           )}
         </div>
+
+        {/* THANH THAO TÁC HÀNG LOẠT (sticky) — hiện khi đã chọn ≥1 phiếu */}
+        {selectedIds.length > 0 && (
+          <div className={styles.massBar}>
+            <div className={styles.massInfo}>
+              <CheckSquare size={18} />
+              <span>Đã chọn <strong>{selectedIds.length}</strong> phiếu — Tổng <strong style={{ color: 'var(--success)' }}>{formatVND(selectedTotal)}</strong></span>
+            </div>
+            <div className={styles.massActions}>
+              {isOwnerManager && (
+                <button
+                  className="btn btn-primary"
+                  onClick={() => handleOpenMassApprove(massApprove.group, massApprove.reason)}
+                  disabled={massLoading || !massApprove.group}
+                  title={massApprove.group ? 'Duyệt nhanh các phiếu đã chọn' : massApprove.reason}
+                >
+                  <CheckCircle size={16} />
+                  <span>Duyệt nhanh</span>
+                </button>
+              )}
+              <button
+                className="btn btn-secondary"
+                onClick={() => handleOpenMassCancel(massCancellableCount)}
+                disabled={massLoading || massCancellableCount === 0}
+                style={{ color: 'var(--danger)', border: '1px solid var(--danger)' }}
+                title={massCancellableCount > 0 ? `Hủy ${massCancellableCount} phiếu hợp lệ` : 'Không có phiếu nào có thể hủy'}
+              >
+                <Ban size={16} />
+                <span>Hủy</span>
+              </button>
+              {isOwnerManager && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => handleMassDelete(selectedProps)}
+                  disabled={massLoading}
+                  style={{ color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)' }}
+                  title="Xóa vĩnh viễn các phiếu chưa gắn quỹ"
+                >
+                  <Trash2 size={16} />
+                  <span>Xóa</span>
+                </button>
+              )}
+              <button
+                className="btn btn-secondary"
+                onClick={() => setSelectedIds([])}
+                disabled={massLoading}
+              >
+                Bỏ chọn
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Modal: TẠO ĐỀ XUẤT MỚI */}
         {isModalOpen && (
@@ -3073,6 +3355,109 @@ function DeXuatPage() {
               </button>
               <button className="btn btn-primary" onClick={handleConfirmDuyet} disabled={duyetLoading || !duyetQuyId}>
                 {duyetLoading ? 'Đang duyệt...' : 'Xác nhận duyệt'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DUYỆT NHANH HÀNG LOẠT — chọn quỹ chung + ngày GD cho cả tiền shop & hoàn ứng */}
+      {massApproveModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => !massLoading && setMassApproveModalOpen(false)}>
+          <div
+            className={`${styles.modalContent} glass-card`}
+            style={{ maxWidth: '480px', padding: '2rem' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader} style={{ marginBottom: '1.25rem' }}>
+              <h3 style={{ color: 'var(--success)' }}>
+                {massApprove.group === 'HOAN_UNG' ? 'Duyệt gộp hoàn ứng' : 'Duyệt nhanh hàng loạt'} ({selectedIds.length} phiếu)
+              </h3>
+              <button onClick={() => setMassApproveModalOpen(false)} className={styles.closeBtn} disabled={massLoading}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ background: 'var(--success-bg)', border: '1px solid rgba(16,185,129,0.18)', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1.25rem', fontSize: '0.9rem' }}>
+              <div><strong>Số phiếu:</strong> {selectedIds.length}</div>
+              <div style={{ marginTop: '0.4rem' }}><strong>Tổng tiền:</strong> <span style={{ color: 'var(--success)', fontWeight: '800', fontSize: '1.05rem' }}>{formatVND(selectedTotal)}</span></div>
+              <div style={{ marginTop: '0.4rem', color: 'var(--text-muted)' }}>
+                {massApprove.group === 'HOAN_UNG'
+                  ? 'Mỗi nhân viên sinh MỘT phiếu Chi gộp hoàn ứng từ quỹ đã chọn.'
+                  : 'Mỗi phiếu sinh MỘT phiếu Chi riêng và trừ tiền quỹ đã chọn.'}
+              </div>
+            </div>
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label className="form-label">Chọn Quỹ thanh toán *</label>
+              <select
+                className="form-control"
+                value={massQuyId}
+                onChange={(e) => setMassQuyId(e.target.value)}
+                disabled={massLoading}
+              >
+                <option value="">-- Chọn quỹ --</option>
+                {funds.map((f) => (
+                  <option key={f.id} value={f.id}>{f.tenQuy}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label">Ngày giao dịch</label>
+              <DateInput
+                className="form-control"
+                value={massNgayGD}
+                onChange={(e) => setMassNgayGD(e.target.value)}
+                disabled={massLoading}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setMassApproveModalOpen(false)} disabled={massLoading}>
+                Hủy bỏ
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => handleConfirmMassApprove(massApprove.group, selectedProps)}
+                disabled={massLoading || !massQuyId}
+              >
+                {massLoading ? 'Đang duyệt...' : `Xác nhận duyệt ${selectedIds.length} phiếu`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HỦY HÀNG LOẠT — nhập lý do hủy chung */}
+      {massCancelModalOpen && (
+        <div className={styles.modalOverlay} onClick={() => !massLoading && setMassCancelModalOpen(false)}>
+          <div
+            className={`${styles.modalContent} glass-card`}
+            style={{ maxWidth: '480px', padding: '2rem' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginBottom: '0.5rem', color: 'var(--danger)' }}>Hủy {massCancellableCount} phiếu đã chọn</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+              {selectedIds.length > massCancellableCount
+                ? `${selectedIds.length - massCancellableCount} phiếu không hợp lệ sẽ được bỏ qua. `
+                : ''}
+              Nhập lý do hủy để người tạo phiếu biết. Bỏ trống nếu không muốn ghi lý do.
+            </p>
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label">Lý do hủy</label>
+              <textarea
+                className="form-control"
+                rows={3}
+                placeholder="Ví dụ: Chi phí vượt hạn mức, chưa đủ chứng từ..."
+                value={massCancelReason}
+                onChange={(e) => setMassCancelReason(e.target.value)}
+                style={{ resize: 'vertical' }}
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setMassCancelModalOpen(false)} disabled={massLoading}>
+                Quay lại
+              </button>
+              <button className="btn btn-danger" onClick={() => handleConfirmMassCancel(selectedProps)} disabled={massLoading}>
+                {massLoading ? 'Đang hủy...' : `Xác nhận hủy ${massCancellableCount} phiếu`}
               </button>
             </div>
           </div>

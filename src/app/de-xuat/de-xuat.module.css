@@ -828,3 +828,69 @@
   }
   .timelineLabel { font-size: 0.66rem; }
 }
+
+/* =========================================================
+   THANH THAO TÁC HÀNG LOẠT (chọn nhiều phiếu) — sticky đáy
+   ========================================================= */
+.massBar {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--surface);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(8px);
+}
+
+.massInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-main);
+  font-size: 0.95rem;
+}
+
+.massActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* Hàng "Chọn tất cả" trên danh sách thẻ mobile */
+.mobileSelectAll {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.25rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .mobileSelectAll {
+    display: flex;
+  }
+  /* Nâng thanh thao tác lên trên BottomNav (cao 56px) + safe-area iPhone */
+  .massBar {
+    bottom: calc(56px + 0.6rem + env(safe-area-inset-bottom));
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .massActions {
+    width: 100%;
+  }
+  .massActions .btn {
+    flex: 1;
+  }
+}

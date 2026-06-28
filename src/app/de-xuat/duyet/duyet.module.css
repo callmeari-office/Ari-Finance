@@ -450,3 +450,16 @@
   align-items: center;
   gap: 0.6rem;
 }
+
+/* Thanh lọc theo nhân viên (người đề xuất) cho TH1/TH2 */
+.filterToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.85rem;
+  background: rgba(var(--brand-brown-rgb), 0.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}

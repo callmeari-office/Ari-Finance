@@ -63,6 +63,7 @@ function DuyetPage() {
   const [selectedPayIds, setSelectedPayIds] = useState([]); // Các phiếu được tích chọn để duyệt hàng loạt
   const [bulkQuyId, setBulkQuyId] = useState(''); // Quỹ áp dụng chung cho các phiếu chưa chọn quỹ riêng
   const [bulkNgayGD, setBulkNgayGD] = useState(todayStr); // Ngày giao dịch áp dụng hàng loạt
+  const [filterNvDuyet, setFilterNvDuyet] = useState(''); // Lọc theo người đề xuất (NV) cho TH1/TH2
 
   // States: TH3 (Duyệt gộp hoàn ứng)
   const [selectedStaffId, setSelectedStaffId] = useState(''); // Nhân viên được chọn để hoàn ứng
@@ -475,6 +476,34 @@ function DuyetPage() {
     (p) => p.nguonTien === 'TIEN_CA_NHAN' && p.trangThai === 'CHO_HOAN_UNG'
   );
 
+  // Lọc "Người đề xuất" cho TH1/TH2: danh sách nhân viên distinct + danh sách phiếu đã lọc.
+  const distinctStaffOf = (arr) => {
+    const map = new Map();
+    arr.forEach((p) => {
+      if (p.nguoiTao && !map.has(p.nguoiTao.id)) map.set(p.nguoiTao.id, p.nguoiTao);
+    });
+    return Array.from(map.values());
+  };
+  const staffOptionsTH1 = distinctStaffOf(pendingPaymentProps);
+  const staffOptionsTH2 = distinctStaffOf(pendingAssignFundProps);
+  const filteredPaymentProps = filterNvDuyet
+    ? pendingPaymentProps.filter((p) => p.nguoiTao?.id === filterNvDuyet)
+    : pendingPaymentProps;
+  const filteredAssignFundProps = filterNvDuyet
+    ? pendingAssignFundProps.filter((p) => p.nguoiTao?.id === filterNvDuyet)
+    : pendingAssignFundProps;
+
+  // Khi đổi nhân viên lọc: bỏ chọn các phiếu không còn hiển thị để tránh duyệt nhầm.
+  const handleChangeFilterNv = (value, baseProps) => {
+    setFilterNvDuyet(value);
+    if (value) {
+      const visibleIds = baseProps
+        .filter((p) => p.nguoiTao?.id === value)
+        .map((p) => p.id);
+      setSelectedPayIds((prev) => prev.filter((id) => visibleIds.includes(id)));
+    }
+  };
+
   // Nhóm các đề xuất chờ hoàn ứng theo từng Nhân viên để duyệt gộp
   const staffGroups = {};
   pendingReimburseProps.forEach((p) => {
@@ -620,6 +649,7 @@ function DuyetPage() {
               setBulkQuyId('');
               setSelectedNgayGD({});
               setBulkNgayGD(todayStr);
+              setFilterNvDuyet('');
             }}
           >
             <Clock size={18} />
@@ -638,6 +668,7 @@ function DuyetPage() {
               setBulkQuyId('');
               setSelectedNgayGD({});
               setBulkNgayGD(todayStr);
+              setFilterNvDuyet('');
             }}
           >
             <TrendingDown size={18} />
@@ -656,6 +687,7 @@ function DuyetPage() {
               setBulkQuyId('');
               setSelectedNgayGD({});
               setGopNgayGD(todayStr);
+              setFilterNvDuyet('');
             }}
           >
             <Layers size={18} />
@@ -685,11 +717,39 @@ function DuyetPage() {
               </div>
             ) : (
               <>
+                {staffOptionsTH1.length > 1 && (
+                  <div className={styles.filterToolbar}>
+                    <User size={16} style={{ color: 'var(--text-muted)' }} />
+                    <label htmlFor="filterNvTH1" style={{ fontSize: '0.88rem', color: 'var(--text-muted)', fontWeight: 600 }}>Lọc theo nhân viên:</label>
+                    <select
+                      id="filterNvTH1"
+                      className="form-control form-control-sm"
+                      style={{ minWidth: '180px', maxWidth: '240px' }}
+                      value={filterNvDuyet}
+                      onChange={(e) => handleChangeFilterNv(e.target.value, pendingPaymentProps)}
+                      disabled={actionLoading}
+                    >
+                      <option value="">Tất cả nhân viên ({pendingPaymentProps.length})</option>
+                      {staffOptionsTH1.map((nv) => (
+                        <option key={nv.id} value={nv.id}>{nv.tenNgan || nv.hoTen}</option>
+                      ))}
+                    </select>
+                    {filterNvDuyet && (
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleChangeFilterNv('', pendingPaymentProps)}
+                        disabled={actionLoading}
+                      >
+                        Xóa lọc
+                      </button>
+                    )}
+                  </div>
+                )}
                 {selectedPayIds.length > 0 && (
                   <div className={styles.bulkBar}>
                     <div className={styles.bulkInfo}>
                       <CheckSquare size={18} />
-                      <span>Đã chọn <strong>{selectedPayIds.length}</strong> phiếu — Tổng <strong style={{ color: 'var(--success)' }}>{formatVND(pendingPaymentProps.filter(p => selectedPayIds.includes(p.id)).reduce((s, p) => s + p.soTien, 0))}</strong></span>
+                      <span>Đã chọn <strong>{selectedPayIds.length}</strong> phiếu — Tổng <strong style={{ color: 'var(--success)' }}>{formatVND(filteredPaymentProps.filter(p => selectedPayIds.includes(p.id)).reduce((s, p) => s + p.soTien, 0))}</strong></span>
                     </div>
                     <div className={styles.bulkActions}>
                       <select
@@ -716,7 +776,7 @@ function DuyetPage() {
                         title="Ngày giao dịch chung áp dụng cho các phiếu chưa chọn ngày riêng"
                       />
                       <button
-                        onClick={() => handleApproveBulk(pendingPaymentProps)}
+                        onClick={() => handleApproveBulk(filteredPaymentProps)}
                         className="btn btn-primary"
                         style={{ whiteSpace: 'nowrap' }}
                         disabled={actionLoading}
@@ -741,8 +801,8 @@ function DuyetPage() {
                       <th style={{ width: '40px', textAlign: 'center' }}>
                         <input
                           type="checkbox"
-                          onChange={(e) => setSelectedPayIds(e.target.checked ? pendingPaymentProps.map(p => p.id) : [])}
-                          checked={selectedPayIds.length === pendingPaymentProps.length && pendingPaymentProps.length > 0}
+                          onChange={(e) => setSelectedPayIds(e.target.checked ? filteredPaymentProps.map(p => p.id) : [])}
+                          checked={selectedPayIds.length === filteredPaymentProps.length && filteredPaymentProps.length > 0}
                           disabled={actionLoading}
                           title="Chọn tất cả"
                         />
@@ -796,7 +856,7 @@ function DuyetPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {getSortedProposals(pendingPaymentProps).map((prop) => (
+                    {getSortedProposals(filteredPaymentProps).map((prop) => (
                       <tr key={prop.id} data-proposal-id={prop.id} className={getRowUrgencyClass(prop.ngayCanThanhToan, prop.trangThai)} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
                         <td style={{ textAlign: 'center' }}>
                           <input
@@ -846,7 +906,7 @@ function DuyetPage() {
                         <td style={{ fontWeight: '800', color: 'var(--text-main)' }}>{formatVND(prop.soTien)}</td>
 
                         <td>
-                          <select 
+                          <select
                             className="form-control form-control-sm"
                             style={{ minWidth: '160px', padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
                             value={selectedQuyId[prop.id] || ''}
@@ -925,11 +985,39 @@ function DuyetPage() {
               </div>
             ) : (
               <>
+                {staffOptionsTH2.length > 1 && (
+                  <div className={styles.filterToolbar}>
+                    <User size={16} style={{ color: 'var(--text-muted)' }} />
+                    <label htmlFor="filterNvTH2" style={{ fontSize: '0.88rem', color: 'var(--text-muted)', fontWeight: 600 }}>Lọc theo nhân viên:</label>
+                    <select
+                      id="filterNvTH2"
+                      className="form-control form-control-sm"
+                      style={{ minWidth: '180px', maxWidth: '240px' }}
+                      value={filterNvDuyet}
+                      onChange={(e) => handleChangeFilterNv(e.target.value, pendingAssignFundProps)}
+                      disabled={actionLoading}
+                    >
+                      <option value="">Tất cả nhân viên ({pendingAssignFundProps.length})</option>
+                      {staffOptionsTH2.map((nv) => (
+                        <option key={nv.id} value={nv.id}>{nv.tenNgan || nv.hoTen}</option>
+                      ))}
+                    </select>
+                    {filterNvDuyet && (
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleChangeFilterNv('', pendingAssignFundProps)}
+                        disabled={actionLoading}
+                      >
+                        Xóa lọc
+                      </button>
+                    )}
+                  </div>
+                )}
                 {selectedPayIds.length > 0 && (
                   <div className={styles.bulkBar}>
                     <div className={styles.bulkInfo}>
                       <CheckSquare size={18} />
-                      <span>Đã chọn <strong>{selectedPayIds.length}</strong> phiếu — Tổng <strong style={{ color: 'var(--success)' }}>{formatVND(pendingAssignFundProps.filter(p => selectedPayIds.includes(p.id)).reduce((s, p) => s + p.soTien, 0))}</strong></span>
+                      <span>Đã chọn <strong>{selectedPayIds.length}</strong> phiếu — Tổng <strong style={{ color: 'var(--success)' }}>{formatVND(filteredAssignFundProps.filter(p => selectedPayIds.includes(p.id)).reduce((s, p) => s + p.soTien, 0))}</strong></span>
                     </div>
                     <div className={styles.bulkActions}>
                       <select
@@ -956,7 +1044,7 @@ function DuyetPage() {
                         title="Ngày giao dịch chung áp dụng cho các phiếu chưa chọn ngày riêng"
                       />
                       <button
-                        onClick={() => handleApproveBulk(pendingAssignFundProps)}
+                        onClick={() => handleApproveBulk(filteredAssignFundProps)}
                         className="btn btn-primary"
                         style={{ whiteSpace: 'nowrap' }}
                         disabled={actionLoading}
@@ -981,8 +1069,8 @@ function DuyetPage() {
                       <th style={{ width: '40px', textAlign: 'center' }}>
                         <input
                           type="checkbox"
-                          onChange={(e) => setSelectedPayIds(e.target.checked ? pendingAssignFundProps.map(p => p.id) : [])}
-                          checked={selectedPayIds.length === pendingAssignFundProps.length && pendingAssignFundProps.length > 0}
+                          onChange={(e) => setSelectedPayIds(e.target.checked ? filteredAssignFundProps.map(p => p.id) : [])}
+                          checked={selectedPayIds.length === filteredAssignFundProps.length && filteredAssignFundProps.length > 0}
                           disabled={actionLoading}
                           title="Chọn tất cả"
                         />
@@ -1036,7 +1124,7 @@ function DuyetPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {getSortedProposals(pendingAssignFundProps).map((prop) => (
+                    {getSortedProposals(filteredAssignFundProps).map((prop) => (
                       <tr key={prop.id} data-proposal-id={prop.id} className={getRowUrgencyClass(prop.ngayCanThanhToan, prop.trangThai)} style={{ background: selectedPayIds.includes(prop.id) ? 'rgba(37, 99, 235, 0.05)' : '' }}>
                         <td style={{ textAlign: 'center' }}>
                           <input
