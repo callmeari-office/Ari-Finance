@@ -482,6 +482,15 @@ function DeXuatPage() {
     return true;
   };
 
+  // Hiển thị nút Hủy: phiếu chưa thanh toán (Chờ thanh toán/Chờ hoàn ứng); HOẶC phiếu
+  // "Thanh toán sẵn" (DA_THANH_TOAN, chưa gắn quỹ, không phải lịch sử) → cho Owner/Manager.
+  // Phiếu đã gắn quỹ (thuChiId) phải hủy luồng gắn quỹ ở phiếu Thu-Chi trước.
+  const canCancelProp = (prop) => {
+    if (!user || prop.trangThai === 'HUY') return false;
+    if (prop.trangThai !== 'DA_THANH_TOAN') return true;
+    return !prop.laLichSu && prop.thuChiId == null && (user.role === 'OWNER' || user.role === 'MANAGER');
+  };
+
   const handleAnhHoaDonChange = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -1546,8 +1555,8 @@ function DeXuatPage() {
                               </button>
                             )}
 
-                            {/* Cho phép hủy nếu không phải trạng thái DA_THANH_TOAN và HUY */}
-                            {prop.trangThai !== 'DA_THANH_TOAN' && prop.trangThai !== 'HUY' && (
+                            {/* Hủy: phiếu chưa TT, hoặc "Thanh toán sẵn" chưa gắn quỹ (Owner/Manager) */}
+                            {canCancelProp(prop) && (
                               <button
                                 onClick={() => handleCancelProp(prop.id, prop.maPhieu)}
                                 className={`${styles.actionBtn} ${styles.deleteBtn}`}
@@ -1662,7 +1671,7 @@ function DeXuatPage() {
                               <CheckSquare size={16} />
                             </button>
                           )}
-                          {prop.trangThai !== 'DA_THANH_TOAN' && prop.trangThai !== 'HUY' && (
+                          {canCancelProp(prop) && (
                             <button
                               onClick={() => handleCancelProp(prop.id, prop.maPhieu)}
                               className={`${styles.actionBtn} ${styles.deleteBtn}`}
@@ -2856,9 +2865,9 @@ function DeXuatPage() {
               )}
 
               <div className={styles.modalActions} style={{ marginTop: '2rem' }}>
-                {selectedProp.trangThai !== 'DA_THANH_TOAN' && selectedProp.trangThai !== 'HUY' && (
-                  <button 
-                    onClick={() => handleCancelProp(selectedProp.id, selectedProp.maPhieu)} 
+                {canCancelProp(selectedProp) && (
+                  <button
+                    onClick={() => handleCancelProp(selectedProp.id, selectedProp.maPhieu)}
                     className="btn btn-danger"
                   >
                     Hủy đề xuất này
@@ -3095,12 +3104,12 @@ function DeXuatPage() {
               />
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap' }}>
-              {user?.role === 'OWNER' && proposals.find((p) => p.id === cancelModal.id)?.thuChiId == null && (
+              {(user?.role === 'OWNER' || user?.role === 'MANAGER') && proposals.find((p) => p.id === cancelModal.id)?.thuChiId == null && (
                 <button
                   className="btn btn-secondary"
                   onClick={handleDeleteProposal}
                   style={{ marginRight: 'auto', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)', fontWeight: '600' }}
-                  title="Xóa hẳn dữ liệu khỏi hệ thống (chứng từ rác)"
+                  title="Xóa hẳn dữ liệu khỏi hệ thống (phiếu chưa gắn quỹ)"
                 >
                   🗑 Xác nhận xóa
                 </button>

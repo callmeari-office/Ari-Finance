@@ -62,10 +62,11 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
-    // Chỉ Chủ shop (OWNER) mới được xóa vĩnh viễn
-    if (user.role !== 'OWNER') {
+    // Owner/Manager mới được xóa vĩnh viễn (phiếu chưa gắn quỹ). Riêng phiếu lịch sử
+    // đã gắn dòng tiền (xóa kèm ThuChi + hoàn quỹ) vẫn chỉ Owner — kiểm tra bên dưới.
+    if (user.role !== 'OWNER' && user.role !== 'MANAGER') {
       return NextResponse.json(
-        { error: 'Chỉ Chủ shop (Owner) mới có quyền xóa vĩnh viễn đề xuất.' },
+        { error: 'Chỉ Chủ shop hoặc Quản lý mới có quyền xóa vĩnh viễn đề xuất.' },
         { status: 403 }
       );
     }
@@ -86,6 +87,14 @@ export async function DELETE(request, { params }) {
       return NextResponse.json(
         { error: 'Đề xuất đã thanh toán và liên kết dòng tiền, không thể xóa vĩnh viễn. Hãy xử lý phiếu chi liên quan trước.' },
         { status: 400 }
+      );
+    }
+
+    // Xóa phiếu lịch sử kèm hoàn quỹ là thao tác tài chính — chỉ Owner.
+    if (existingProposal.thuChiId !== null && existingProposal.laLichSu && user.role !== 'OWNER') {
+      return NextResponse.json(
+        { error: 'Phiếu lịch sử đã gắn dòng tiền chỉ Chủ shop (Owner) được xóa.' },
+        { status: 403 }
       );
     }
 
