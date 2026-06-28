@@ -4,12 +4,38 @@ import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { ghiNhatKy } from '@/lib/audit';
+import { canUseProposalCreatorFilter } from '@/lib/roles';
 
-export async function GET() {
+export async function GET(request) {
   try {
     const user = await getSession();
     if (!user) {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const scope = searchParams.get('scope');
+
+    if (scope === 'proposal-filter') {
+      if (!canUseProposalCreatorFilter(user.role)) {
+        return NextResponse.json(
+          { error: 'Bạn không có quyền xem bộ lọc người đề xuất.' },
+          { status: 403 }
+        );
+      }
+
+      const proposalCreators = await prisma.nhanVien.findMany({
+        where: { trangThai: 'ACTIVE' },
+        orderBy: [{ role: 'asc' }, { hoTen: 'asc' }],
+        select: {
+          id: true,
+          hoTen: true,
+          tenNgan: true,
+          role: true,
+        },
+      });
+
+      return NextResponse.json(proposalCreators);
     }
 
     if (!checkRole(user, ['OWNER'])) {

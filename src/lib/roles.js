@@ -34,6 +34,13 @@ export function isRestrictedToOwnProposals(role) {
 }
 
 /**
+ * Bo loc "Nguoi de xuat" o trang de-xuat chi danh cho OWNER/MANAGER.
+ */
+export function canUseProposalCreatorFilter(role) {
+  return role === 'OWNER' || role === 'MANAGER';
+}
+
+/**
  * Vai trò có được xem một Nhà cung cấp không, theo danh sách vai trò được phép.
  * - OWNER: luôn xem được.
  * - allowedRoles là null / không phải mảng / mảng rỗng: mọi vai trò xem được

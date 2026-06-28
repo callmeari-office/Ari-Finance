@@ -3,31 +3,36 @@ import {
   getEffectiveRoles,
   canViewCategory,
   isRestrictedToOwnProposals,
+  canUseProposalCreatorFilter,
   defaultMenuAllowed,
   canViewMenu,
 } from './roles';
 
 describe('getEffectiveRoles', () => {
-  it('LEADER kế thừa cả STAFF', () => {
+  it('LEADER ke thua ca STAFF', () => {
     expect(getEffectiveRoles('LEADER')).toEqual(['LEADER', 'STAFF']);
   });
-  it('vai trò khác trả chính nó', () => {
+
+  it('vai tro khac tra chinh no', () => {
     expect(getEffectiveRoles('STAFF')).toEqual(['STAFF']);
     expect(getEffectiveRoles('OWNER')).toEqual(['OWNER']);
   });
 });
 
 describe('canViewCategory', () => {
-  it('khớp trực tiếp', () => {
+  it('khop truc tiep', () => {
     expect(canViewCategory('STAFF', ['STAFF', 'MANAGER'])).toBe(true);
   });
-  it('LEADER xem được danh mục cấu hình cho STAFF', () => {
+
+  it('LEADER xem duoc danh muc cau hinh cho STAFF', () => {
     expect(canViewCategory('LEADER', ['STAFF'])).toBe(true);
   });
-  it('không có quyền', () => {
+
+  it('khong co quyen', () => {
     expect(canViewCategory('STAFF', ['OWNER'])).toBe(false);
   });
-  it('mảng không hợp lệ → false', () => {
+
+  it('mang khong hop le -> false', () => {
     expect(canViewCategory('STAFF', null)).toBe(false);
     expect(canViewCategory('STAFF', undefined)).toBe(false);
     expect(canViewCategory('STAFF', 'STAFF')).toBe(false);
@@ -35,53 +40,71 @@ describe('canViewCategory', () => {
 });
 
 describe('isRestrictedToOwnProposals', () => {
-  it('STAFF và LEADER bị giới hạn', () => {
+  it('STAFF va LEADER bi gioi han', () => {
     expect(isRestrictedToOwnProposals('STAFF')).toBe(true);
     expect(isRestrictedToOwnProposals('LEADER')).toBe(true);
   });
-  it('OWNER/MANAGER không bị giới hạn', () => {
+
+  it('OWNER/MANAGER khong bi gioi han', () => {
     expect(isRestrictedToOwnProposals('OWNER')).toBe(false);
     expect(isRestrictedToOwnProposals('MANAGER')).toBe(false);
   });
 });
 
+describe('canUseProposalCreatorFilter', () => {
+  it('OWNER va MANAGER duoc dung bo loc nguoi de xuat', () => {
+    expect(canUseProposalCreatorFilter('OWNER')).toBe(true);
+    expect(canUseProposalCreatorFilter('MANAGER')).toBe(true);
+  });
+
+  it('LEADER/STAFF khong duoc dung bo loc nguoi de xuat', () => {
+    expect(canUseProposalCreatorFilter('LEADER')).toBe(false);
+    expect(canUseProposalCreatorFilter('STAFF')).toBe(false);
+  });
+});
+
 describe('defaultMenuAllowed', () => {
-  it('OWNER luôn full quyền', () => {
+  it('OWNER luon full quyen', () => {
     expect(defaultMenuAllowed('OWNER', 'cauHinh')).toBe(true);
     expect(defaultMenuAllowed('OWNER', 'quyen')).toBe(true);
   });
-  it('STAFF không được vào trang quản trị', () => {
+
+  it('STAFF khong duoc vao trang quan tri', () => {
     expect(defaultMenuAllowed('STAFF', 'quyen')).toBe(false);
     expect(defaultMenuAllowed('STAFF', 'nhanSu')).toBe(false);
     expect(defaultMenuAllowed('STAFF', 'duyet')).toBe(false);
   });
-  it('STAFF được vào đề xuất + NCC', () => {
+
+  it('STAFF duoc vao de xuat + NCC', () => {
     expect(defaultMenuAllowed('STAFF', 'deXuat')).toBe(true);
     expect(defaultMenuAllowed('STAFF', 'ncc')).toBe(true);
   });
-  it('key không tồn tại → false', () => {
+
+  it('key khong ton tai -> false', () => {
     expect(defaultMenuAllowed('MANAGER', 'khongCoKeyNay')).toBe(false);
   });
 });
 
 describe('canViewMenu', () => {
-  it('user null → false', () => {
+  it('user null -> false', () => {
     expect(canViewMenu(null, 'deXuat')).toBe(false);
   });
-  it('OWNER full quyền bất kể key', () => {
+
+  it('OWNER full quyen bat ke key', () => {
     expect(canViewMenu({ role: 'OWNER' }, 'cauHinh')).toBe(true);
   });
-  it('permissions override dạng boolean thắng mặc định', () => {
-    // STAFF mặc định KHÔNG được 'duyet', nhưng override = true
+
+  it('permissions override dang boolean thang mac dinh', () => {
     expect(canViewMenu({ role: 'STAFF', permissions: { duyet: true } }, 'duyet')).toBe(true);
-    // MANAGER mặc định ĐƯỢC 'thuChi', nhưng override = false
     expect(canViewMenu({ role: 'MANAGER', permissions: { thuChi: false } }, 'thuChi')).toBe(false);
   });
-  it('tương thích cấu trúc cũ { xem: boolean }', () => {
+
+  it('tuong thich cau truc cu { xem: boolean }', () => {
     expect(canViewMenu({ role: 'STAFF', permissions: { duyet: { xem: true } } }, 'duyet')).toBe(true);
     expect(canViewMenu({ role: 'STAFF', permissions: { duyet: { xem: false } } }, 'duyet')).toBe(false);
   });
-  it('không có override → dùng mặc định theo vai trò', () => {
+
+  it('khong co override -> dung mac dinh theo vai tro', () => {
     expect(canViewMenu({ role: 'STAFF', permissions: {} }, 'deXuat')).toBe(true);
     expect(canViewMenu({ role: 'STAFF', permissions: {} }, 'quyen')).toBe(false);
   });

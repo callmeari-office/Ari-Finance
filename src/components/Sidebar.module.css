@@ -439,6 +439,7 @@
     left: 0;
     top: 0;
     bottom: 0;
+    padding-bottom: calc(var(--space-6) + 72px + env(safe-area-inset-bottom));
     transform: translateX(-100%);
     z-index: 120;
     box-shadow: 10px 0 30px rgba(99, 77, 62, 0.15);

@@ -37,11 +37,12 @@ import Chip from '@/components/Chip';
 import HelpTip from '@/components/HelpTip';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
-import { canViewCategory, isRestrictedToOwnProposals } from '@/lib/roles';
+import { canViewCategory, canUseProposalCreatorFilter, isRestrictedToOwnProposals } from '@/lib/roles';
 import { formatDate, formatDateOrEmpty } from '@/lib/date';
 import { docSoTienVND } from '@/lib/docSo';
 import { generateVietQRUrl } from '@/lib/vietqr';
 import { formatSoTienDisplay, parseDateCell, getProposalApproveGroup, resolveBulkApproveGroup } from './helpers';
+import ProposalStatusBadge from './ProposalStatusBadge';
 import styles from './de-xuat.module.css';
 
 function DeXuatPage() {
@@ -77,11 +78,11 @@ function DeXuatPage() {
     }
   };
 
-  // Filter states (string = single-select, array = multi-select)
-  const [filterTrangThai, setFilterTrangThai] = useState('');
+  // Filter states (empty array = táº¥t cáº£)
+  const [filterTrangThai, setFilterTrangThai] = useState([]);
   const [filterNguonTien, setFilterNguonTien] = useState([]);
-  const [filterThang, setFilterThang] = useState(String(new Date().getMonth() + 1));
-  const [filterNam, setFilterNam] = useState(String(new Date().getFullYear()));
+  const [filterThang, setFilterThang] = useState([String(new Date().getMonth() + 1)]);
+  const [filterNam, setFilterNam] = useState([String(new Date().getFullYear())]);
   const [filterDanhMuc, setFilterDanhMuc] = useState([]);
   const [filterNguoiTao, setFilterNguoiTao] = useState([]);
   const [filterSearch, setFilterSearch] = useState('');
@@ -278,10 +279,10 @@ function DeXuatPage() {
       const params = new URLSearchParams();
       params.append('page', String(page));
       params.append('limit', '20');
-      if (filterTrangThai) params.append('trangThai', filterTrangThai);
+      if (filterTrangThai.length > 0) params.append('trangThai', filterTrangThai.join(','));
       if (filterNguonTien.length > 0) params.append('nguonTien', filterNguonTien.join(','));
-      if (filterNam) params.append('nam', filterNam);
-      if (filterThang) params.append('thang', filterThang);
+      if (filterNam.length > 0) params.append('nam', filterNam.join(','));
+      if (filterThang.length > 0) params.append('thang', filterThang.join(','));
       if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
       if (filterNguoiTao.length > 0) params.append('nguoiTaoId', filterNguoiTao.join(','));
       if (filterSearch) params.append('search', filterSearch);
@@ -342,9 +343,9 @@ function DeXuatPage() {
 
       // Fetch Creators (nhân viên) và Quỹ cho OWNER/MANAGER
       const activeUser = currentUser || user;
-      if (activeUser && (activeUser.role === 'OWNER' || activeUser.role === 'MANAGER')) {
+      if (activeUser && canUseProposalCreatorFilter(activeUser.role)) {
         const [creatorsRes, quyRes] = await Promise.all([
-          fetch('/api/nhan-su'),
+          fetch('/api/nhan-su?scope=proposal-filter'),
           fetch('/api/quy'),
         ]);
         if (creatorsRes.ok) {
@@ -379,6 +380,12 @@ function DeXuatPage() {
       }
     }
   }, [filterTrangThai, filterNguonTien, filterThang, filterNam, filterDanhMuc, filterNguoiTao, filterSearch, sortBy, sortOrder]);
+
+  useEffect(() => {
+    if (filterNam.length === 0 && filterThang.length > 0) {
+      setFilterThang([]);
+    }
+  }, [filterNam, filterThang]);
 
   // Deep-link: notification click với ?open=ID → tự mở modal xem nhanh phiếu đó
   useEffect(() => {
@@ -1166,10 +1173,10 @@ function DeXuatPage() {
     const params = new URLSearchParams();
     params.append('page', '1');
     params.append('limit', '1000');
-    if (filterTrangThai) params.append('trangThai', filterTrangThai);
+      if (filterTrangThai.length > 0) params.append('trangThai', filterTrangThai.join(','));
     if (filterNguonTien.length > 0) params.append('nguonTien', filterNguonTien.join(','));
-    if (filterNam) params.append('nam', filterNam);
-    if (filterThang) params.append('thang', filterThang);
+      if (filterNam.length > 0) params.append('nam', filterNam.join(','));
+      if (filterThang.length > 0) params.append('thang', filterThang.join(','));
     if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
     if (filterNguoiTao.length > 0) params.append('nguoiTaoId', filterNguoiTao.join(','));
     if (filterSearch) params.append('search', filterSearch);
@@ -1208,9 +1215,11 @@ function DeXuatPage() {
         p.soTien,
       ]);
 
-      const filterLabel = filterThang
-        ? `T${filterThang}-${filterNam || new Date().getFullYear()}`
-        : filterNam ? `Nam${filterNam}` : 'TatCa';
+      const joinedMonths = filterThang.length > 0 ? filterThang.join('-') : '';
+      const joinedYears = filterNam.length > 0 ? filterNam.join('-') : '';
+      const filterLabel = joinedMonths
+        ? `T${joinedMonths}-${joinedYears || new Date().getFullYear()}`
+        : joinedYears ? `Nam${joinedYears}` : 'TatCa';
 
       const aoa = [
         headers,
@@ -1584,26 +1593,33 @@ function DeXuatPage() {
 
           {/* Năm + Tháng + Trạng thái — dropdown */}
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
-            <select className="form-control" style={{ minWidth: '88px', maxWidth: '108px' }} value={filterNam} onChange={(e) => setFilterNam(e.target.value)}>
-              <option value="">Tất cả năm</option>
-              {availableYears.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-            <select className="form-control" style={{ minWidth: '130px', maxWidth: '160px' }} value={filterThang} onChange={(e) => setFilterThang(e.target.value)}>
-              <option value="">Tất cả tháng</option>
-              {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((m) => (
-                <option key={m} value={m}>Tháng {m}</option>
-              ))}
-            </select>
-            <select className="form-control" style={{ minWidth: '168px', maxWidth: '200px' }} value={filterTrangThai} onChange={(e) => setFilterTrangThai(e.target.value)}>
-              <option value="">Tất cả trạng thái</option>
-              <option value="CHO_THANH_TOAN">Chờ thanh toán</option>
-              <option value="CHO_HOAN_UNG">Chờ hoàn ứng</option>
-              <option value="THANH_TOAN_SAN">Thanh toán sẵn (Chờ duyệt)</option>
-              <option value="DA_THANH_TOAN">Đã thanh toán</option>
-              <option value="HUY">Đã hủy</option>
-            </select>
+            <FilterDropdown
+              label="Năm"
+              options={availableYears.map((y) => ({ value: String(y), label: String(y) }))}
+              selected={filterNam}
+              onChange={setFilterNam}
+            />
+            <FilterDropdown
+              label="Tháng"
+              options={Array.from({ length: 12 }, (_, i) => {
+                const month = String(i + 1);
+                return { value: month, label: `Tháng ${month}` };
+              })}
+              selected={filterThang}
+              onChange={setFilterThang}
+            />
+            <FilterDropdown
+              label="Trạng thái"
+              options={[
+                { value: 'CHO_THANH_TOAN', label: 'Chờ thanh toán' },
+                { value: 'CHO_HOAN_UNG', label: 'Chờ hoàn ứng' },
+                { value: 'THANH_TOAN_SAN', label: 'Thanh toán sẵn (Chờ duyệt)' },
+                { value: 'DA_THANH_TOAN', label: 'Đã thanh toán' },
+                { value: 'HUY', label: 'Đã hủy' },
+              ]}
+              selected={filterTrangThai}
+              onChange={setFilterTrangThai}
+            />
           </div>
 
           {/* Nguồn tiền chips */}
@@ -1613,7 +1629,7 @@ function DeXuatPage() {
           </div>
 
           {/* Danh mục + Người đề xuất (dynamic options → giữ dropdown) */}
-          {(categories.length > 0 || (user.role === 'OWNER' || user.role === 'MANAGER')) && (
+          {(categories.length > 0 || canUseProposalCreatorFilter(user.role)) && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'flex-end' }}>
               <FilterDropdown
                 label="Danh mục"
@@ -1621,7 +1637,7 @@ function DeXuatPage() {
                 selected={filterDanhMuc}
                 onChange={setFilterDanhMuc}
               />
-              {(user.role === 'OWNER' || user.role === 'MANAGER') && (
+              {canUseProposalCreatorFilter(user.role) && (
                 <FilterDropdown
                   label="Người đề xuất"
                   options={availableCreators.map((nv) => ({ value: nv.id, label: nv.tenNgan || nv.hoTen }))}
@@ -1747,12 +1763,10 @@ function DeXuatPage() {
                         <td style={{ fontWeight: '800', color: 'var(--text-main)' }}>{formatVND(prop.soTien)}</td>
 
                         <td>
-                          {prop.trangThai === 'DA_THANH_TOAN' && prop.laLichSu && <span className="badge badge-paid" style={{ opacity: 0.85 }} title="Phiếu nhập từ dữ liệu cũ">Đã thanh toán (Lịch sử)</span>}
-                          {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId !== null && <span className="badge badge-paid">Đã thanh toán</span>}
-                          {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId === null && <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)' }}>Thanh toán sẵn (Chờ duyệt)</span>}
-                          {prop.trangThai === 'CHO_THANH_TOAN' && <span className="badge badge-pending">Chờ thanh toán</span>}
-                          {prop.trangThai === 'CHO_HOAN_UNG' && <span className="badge badge-reimburse">Chờ hoàn ứng</span>}
-                          {prop.trangThai === 'HUY' && <span className="badge badge-cancelled">Đã hủy</span>}
+                          <ProposalStatusBadge
+                            proposal={prop}
+                            title={prop.laLichSu ? 'Phieu nhap tu du lieu cu' : undefined}
+                          />
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <div className={styles.actionButtons}>
@@ -1897,12 +1911,9 @@ function DeXuatPage() {
                       </div>
                       <div className={styles.cardFooterRow}>
                         <div>
-                          {prop.trangThai === 'DA_THANH_TOAN' && prop.laLichSu && <span className="badge badge-paid" style={{ opacity: 0.85 }}>Lịch sử</span>}
-                          {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId !== null && <span className="badge badge-paid">Đã thanh toán</span>}
-                          {prop.trangThai === 'DA_THANH_TOAN' && !prop.laLichSu && prop.thuChiId === null && <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)' }}>Thanh toán sẵn</span>}
-                          {prop.trangThai === 'CHO_THANH_TOAN' && <span className="badge badge-pending">Chờ thanh toán</span>}
-                          {prop.trangThai === 'CHO_HOAN_UNG' && <span className="badge badge-reimburse">Chờ hoàn ứng</span>}
-                          {prop.trangThai === 'HUY' && <span className="badge badge-cancelled">Đã hủy</span>}
+                        <div>
+                          <ProposalStatusBadge proposal={prop} compact={true} />
+                        </div>
                         </div>
                         <div className={styles.actionButtons}>
                           <button 
@@ -2931,12 +2942,10 @@ function DeXuatPage() {
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Trạng thái:</span>
                   <span className={styles.detailValue}>
-                    {selectedProp.trangThai === 'DA_THANH_TOAN' && selectedProp.laLichSu && <span className="badge badge-paid" style={{ opacity: 0.85 }}>Đã thanh toán (Lịch sử)</span>}
-                    {selectedProp.trangThai === 'DA_THANH_TOAN' && !selectedProp.laLichSu && selectedProp.thuChiId !== null && <span className="badge badge-paid">Đã thanh toán</span>}
-                    {selectedProp.trangThai === 'DA_THANH_TOAN' && !selectedProp.laLichSu && selectedProp.thuChiId === null && <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', border: '1px solid rgba(99, 102, 241, 0.2)' }}>Thanh toán sẵn (Chờ duyệt)</span>}
-                    {selectedProp.trangThai === 'CHO_THANH_TOAN' && <span className="badge badge-pending">Chờ thanh toán</span>}
-                    {selectedProp.trangThai === 'CHO_HOAN_UNG' && <span className="badge badge-reimburse">Chờ hoàn ứng</span>}
-                    {selectedProp.trangThai === 'HUY' && <span className="badge badge-cancelled">Đã hủy</span>}
+                    <ProposalStatusBadge
+                      proposal={selectedProp}
+                      title={selectedProp.laLichSu ? 'Phieu nhap tu du lieu cu' : undefined}
+                    />
                   </span>
                 </div>
 

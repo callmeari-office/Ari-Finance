@@ -92,6 +92,58 @@
   flex: 1;
 }
 
+.proposalStatusBadge {
+  gap: 0.38rem;
+  padding: 0.26rem 0.7rem;
+  border-width: 1px;
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-size: 0.77rem;
+  font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.proposalStatusIcon {
+  flex-shrink: 0;
+  opacity: 0.95;
+}
+
+.statusPending {
+  background: rgba(194, 149, 113, 0.16);
+  color: #a16838;
+  border-color: rgba(194, 149, 113, 0.38);
+}
+
+.statusReimburse {
+  background: rgba(91, 145, 185, 0.15);
+  color: #4f7089;
+  border-color: rgba(91, 145, 185, 0.34);
+}
+
+.statusPaid {
+  background: rgba(125, 160, 142, 0.18);
+  color: #446251;
+  border-color: rgba(125, 160, 142, 0.42);
+}
+
+.statusPrepaid {
+  background: rgba(129, 140, 248, 0.16);
+  color: #6366f1;
+  border-color: rgba(129, 140, 248, 0.4);
+}
+
+.statusHistory {
+  background: rgba(125, 160, 142, 0.12);
+  color: #62736b;
+  border-color: rgba(125, 160, 142, 0.26);
+}
+
+.statusCancelled {
+  background: rgba(207, 141, 141, 0.14);
+  color: #995f5f;
+  border-color: rgba(207, 141, 141, 0.34);
+}
+
 .actionButtons {
   display: flex;
   justify-content: center;

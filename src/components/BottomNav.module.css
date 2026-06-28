@@ -1,4 +1,9 @@
 .nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .nav {
   display: flex;
   align-items: stretch;
   background: var(--glass-bg);
@@ -13,9 +18,9 @@
   z-index: 100;
   /* safe-area-inset cho notch iPhone */
   padding-bottom: env(safe-area-inset-bottom);
-}
+  }
 
-.item {
+  .item {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -33,34 +38,34 @@
   font-family: inherit;
   position: relative;
   transition: color var(--dur) ease;
-}
+  }
 
-.item:active {
+  .item:active {
   transform: scale(0.94);
-}
+  }
 
-.active {
+  .active {
   color: var(--brand-brown);
   font-weight: var(--weight-bold);
-}
+  }
 
 /* Chỉ báo active — vạch trên đỉnh */
-.indicator {
+  .indicator {
   position: absolute;
   top: 0;
   width: 26px;
   height: 3px;
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   background: var(--primary);
-}
+  }
 
-.iconWrap {
+  .iconWrap {
   position: relative;
   display: inline-flex;
   line-height: 0;
-}
+  }
 
-.badge {
+  .badge {
   position: absolute;
   top: -5px;
   right: -8px;
@@ -74,20 +79,21 @@
   text-align: center;
   border: 1.5px solid var(--surface);
   font-variant-numeric: tabular-nums;
-}
+  }
 
-.label {
+  .label {
   white-space: nowrap;
-}
+  }
 
 /* Chế độ Ari: pink tint */
-:global([data-theme='pink']) .nav {
+  :global([data-theme='pink']) .nav {
   background: rgba(255, 235, 241, 0.88);
   border-top-color: rgba(230, 162, 197, 0.28);
-}
-:global([data-theme='pink']) .active {
+  }
+  :global([data-theme='pink']) .active {
   color: #73485E;
-}
-:global([data-theme='pink']) .indicator {
+  }
+  :global([data-theme='pink']) .indicator {
   background: var(--primary);
+  }
 }
