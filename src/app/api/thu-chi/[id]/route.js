@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { ghiNhatKy } from '@/lib/audit';
 import { formatDate } from '@/lib/date';
+import { archiveThuCreatedInternalNotificationsByReceiptCode } from '@/lib/internalNotifications';
 
 export async function DELETE(request, { params }) {
   try {
@@ -56,6 +57,10 @@ export async function DELETE(request, { params }) {
       await tx.thuChi.delete({
         where: { id },
       });
+
+      if (existingTx.loaiGiaoDich === 'THU') {
+        await archiveThuCreatedInternalNotificationsByReceiptCode(tx, existingTx.maPhieu);
+      }
     });
 
     // 3. Ghi nhật ký hệ thống

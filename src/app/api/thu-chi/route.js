@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { allocateSequentialCodes, generateMaThuChi, getThuChiPrefix, withUniqueCodeRetry } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
 import { notifyManagers } from '@/lib/webpush';
+import { createThuCreatedInternalNotification } from '@/lib/internalNotifications';
 
 const DEFAULT_LIMIT = 50;
 
@@ -536,6 +537,16 @@ export async function POST(request) {
     // Thông báo Web Push khi ghi nhận phiếu THU → các OWNER/MANAGER khác (trừ người vừa tạo).
     // Bọc try/catch riêng: lỗi push KHÔNG được làm hỏng luồng tạo phiếu.
     if (loaiGiaoDich === 'THU') {
+      try {
+        await createThuCreatedInternalNotification({
+          thuChi: newThuChi,
+          quy,
+          user,
+        });
+      } catch (internalNotifErr) {
+        logger.error('createThuCreatedInternalNotification', internalNotifErr);
+      }
+
       try {
         await notifyManagers(
           {
