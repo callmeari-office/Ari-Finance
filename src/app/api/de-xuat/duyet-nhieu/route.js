@@ -51,6 +51,8 @@ export async function POST(request) {
 
     const results = [];
     let successCount = 0;
+    // Gom kết quả thành công theo người tạo để gửi 1 notification tổng hợp
+    const notifyMap = {}; // { nguoiTaoId: { firstId, maPhieus: [], tongTien } }
 
     // Xử lý TUẦN TỰ để mã phiếu chi (TCyymm-xxxx) sinh liên tiếp, không trùng
     for (const it of items) {
@@ -128,14 +130,11 @@ export async function POST(request) {
           moTa: `Duyệt thanh toán ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ từ quỹ ${quy.tenQuy} → sinh phiếu chi ${maThuChi} (duyệt hàng loạt)`,
         });
 
-        try {
-          await notifyProposalApproved(existingProposal.nguoiTaoId, {
-            title: '✅ Phiếu đã được duyệt',
-            body: `${existingProposal.maPhieu} — ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ đã được thanh toán.`,
-            url: '/de-xuat?open=' + existingProposal.id,
-            tag: 'duyet-' + existingProposal.id,
-          });
-        } catch (_) { /* push thất bại không làm hỏng nghiệp vụ */ }
+        // Gom notification theo người tạo, không gửi riêng từng phiếu
+        const nid = existingProposal.nguoiTaoId;
+        if (!notifyMap[nid]) notifyMap[nid] = { firstId: id, maPhieus: [], tongTien: 0 };
+        notifyMap[nid].maPhieus.push(existingProposal.maPhieu);
+        notifyMap[nid].tongTien += Number(existingProposal.soTien);
 
         successCount += 1;
         results.push({ id, maPhieu: existingProposal.maPhieu, success: true, maThuChi });
@@ -143,6 +142,22 @@ export async function POST(request) {
         logger.error('POST /api/de-xuat/duyet-nhieu (item)', err);
         results.push({ id, success: false, error: 'Lỗi khi duyệt phiếu này.' });
       }
+    }
+
+    // Gửi 1 notification tổng hợp cho mỗi người (thay vì N cái riêng lẻ)
+    for (const [nguoiTaoId, info] of Object.entries(notifyMap)) {
+      try {
+        const count = info.maPhieus.length;
+        const body = count === 1
+          ? `${info.maPhieus[0]} — ${info.tongTien.toLocaleString('vi-VN')}đ đã được thanh toán.`
+          : `${count} phiếu (${info.maPhieus.slice(0, 3).join(', ')}${count > 3 ? '...' : ''}) — tổng ${info.tongTien.toLocaleString('vi-VN')}đ đã được thanh toán.`;
+        await notifyProposalApproved(nguoiTaoId, {
+          title: '✅ Phiếu đã được duyệt',
+          body,
+          url: '/de-xuat?open=' + info.firstId,
+          tag: 'duyet-nhieu-' + nguoiTaoId,
+        });
+      } catch (_) { /* push thất bại không làm hỏng nghiệp vụ */ }
     }
 
     const failCount = items.length - successCount;

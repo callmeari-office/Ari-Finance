@@ -462,6 +462,27 @@ function DeXuatPage() {
     }
   };
 
+  // OWNER/MANAGER: Xóa vĩnh viễn phiếu đã hủy (không gắn dòng tiền, dọn rác hệ thống)
+  const handleDeleteHuyProp = async (propId, maPhieu) => {
+    const ok = await showConfirm({
+      title: 'Xóa phiếu đã hủy',
+      message: `Xóa vĩnh viễn phiếu ${maPhieu}?\nPhiếu sẽ bị xóa hẳn khỏi hệ thống.\nThao tác này KHÔNG THỂ hoàn tác.`,
+      confirmLabel: 'Xóa vĩnh viễn',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await fetch(`/api/de-xuat/${propId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Xóa thất bại');
+      toast.success(`Đã xóa phiếu ${maPhieu}.`);
+      fetchData(user);
+      if (selectedProp && selectedProp.id === propId) setSelectedProp(null);
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   // OWNER: Xóa vĩnh viễn phiếu lịch sử đã thanh toán (kèm ThuChi liên kết)
   const handleDeleteLichSu = async (propId, maPhieu) => {
     const ok = await showConfirm({
@@ -1787,6 +1808,17 @@ function DeXuatPage() {
                                 <Trash2 size={16} />
                               </button>
                             )}
+
+                            {/* Xóa phiếu đã hủy: OWNER/MANAGER dọn rác */}
+                            {(user.role === 'OWNER' || user.role === 'MANAGER') && prop.trangThai === 'HUY' && (
+                              <button
+                                onClick={() => handleDeleteHuyProp(prop.id, prop.maPhieu)}
+                                className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                                title="Xóa vĩnh viễn phiếu đã hủy"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1916,6 +1948,17 @@ function DeXuatPage() {
                               onClick={() => handleDeleteLichSu(prop.id, prop.maPhieu)}
                               className={`${styles.actionBtn} ${styles.deleteBtn}`}
                               title="Xóa vĩnh viễn phiếu lịch sử"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+
+                          {/* Xóa phiếu đã hủy: OWNER/MANAGER dọn rác */}
+                          {(user.role === 'OWNER' || user.role === 'MANAGER') && prop.trangThai === 'HUY' && (
+                            <button
+                              onClick={() => handleDeleteHuyProp(prop.id, prop.maPhieu)}
+                              className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                              title="Xóa vĩnh viễn phiếu đã hủy"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -3155,7 +3198,18 @@ function DeXuatPage() {
                     Hủy đề xuất này
                   </button>
                 )}
-                
+
+                {/* OWNER/MANAGER: xóa vĩnh viễn phiếu đã hủy */}
+                {(user.role === 'OWNER' || user.role === 'MANAGER') && selectedProp.trangThai === 'HUY' && (
+                  <button
+                    onClick={() => handleDeleteHuyProp(selectedProp.id, selectedProp.maPhieu)}
+                    className="btn btn-danger"
+                  >
+                    <Trash2 size={16} />
+                    Xóa vĩnh viễn
+                  </button>
+                )}
+
                 {/* OWNER/MANAGER: nút duyệt nhanh ngay tại popup chi tiết */}
                 {(user.role === 'OWNER' || user.role === 'MANAGER') &&
                   (selectedProp.trangThai === 'CHO_THANH_TOAN' || selectedProp.trangThai === 'CHO_HOAN_UNG') && (
