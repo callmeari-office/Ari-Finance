@@ -165,15 +165,16 @@ export async function POST(request) {
       );
     }
 
-    // Tạo toàn bộ dòng hợp lệ trong 1 transaction; retry nếu trùng mã phiếu (P2002).
-    const created = await withUniqueCodeRetry(async () => {
+    // Tạo hàng loạt bằng createMany (1 lệnh INSERT — nhanh, tránh timeout transaction
+    // khi nối Supabase từ xa); retry nếu trùng mã phiếu (P2002).
+    const createData = await withUniqueCodeRetry(async () => {
       const codes = await allocateSequentialCodes({
         model: 'deXuatChiPhi',
         field: 'maPhieu',
         prefix: getDeXuatPrefix(),
         count: valid.length,
       });
-      const createData = valid.map((v, i) => ({
+      const data = valid.map((v, i) => ({
         maPhieu: codes[i],
         ngayPhatSinh: v.ngayPhatSinh,
         danhMucId: v.danhMucId,
@@ -186,21 +187,30 @@ export async function POST(request) {
         nguoiTaoId: user.id,
         ngayCanThanhToan: v.ngayCanThanhToan,
       }));
-      return prisma.$transaction(createData.map((data) => prisma.deXuatChiPhi.create({ data })));
+      await prisma.deXuatChiPhi.createMany({ data });
+      return data;
     });
 
     // Một email tổng hợp cho các phiếu "Chờ thanh toán" (tự bắt lỗi bên trong).
-    const choTTIds = created.filter((p) => p.trangThai === 'CHO_THANH_TOAN').map((p) => p.id);
-    if (choTTIds.length > 0) {
-      await notifyManagersBulkChoThanhToan(choTTIds);
+    // createMany không trả về bản ghi → truy id theo mã phiếu vừa tạo.
+    const choTTCodes = createData.filter((d) => d.trangThai === 'CHO_THANH_TOAN').map((d) => d.maPhieu);
+    if (choTTCodes.length > 0) {
+      const choTTRows = await prisma.deXuatChiPhi.findMany({
+        where: { maPhieu: { in: choTTCodes } },
+        select: { id: true },
+      });
+      if (choTTRows.length > 0) {
+        await notifyManagersBulkChoThanhToan(choTTRows.map((r) => r.id));
+      }
     }
 
+    const successCount = createData.length;
     return NextResponse.json({
       success: true,
-      successCount: created.length,
+      successCount,
       errorCount: errors.length,
       errors,
-      message: `Đã nhập ${created.length} đề xuất chi. Phiếu sẽ chờ quản lý duyệt như bình thường.`,
+      message: `Đã nhập ${successCount} đề xuất chi. Phiếu sẽ chờ quản lý duyệt như bình thường.`,
     });
   } catch (error) {
     logger.error('POST /api/de-xuat/import-de-xuat', error);
