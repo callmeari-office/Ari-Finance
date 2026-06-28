@@ -14,13 +14,15 @@ describe('deriveProposalStatus', () => {
 });
 
 describe('resolveCreateProposalStatus', () => {
-  it('prevents staff/leader from client-controlling paid status', () => {
+  it('lets any role mark shop money as prepaid (Thanh toán sẵn), but personal advance stays reimbursement', () => {
+    // Mọi vai trò (kể cả STAFF/LEADER) được đánh dấu "Shop đã trả rồi".
     expect(resolveCreateProposalStatus({
       role: 'STAFF',
       nguonTien: 'TIEN_SHOP',
       requestedTrangThai: 'DA_THANH_TOAN',
-    })).toBe('CHO_THANH_TOAN');
+    })).toBe('DA_THANH_TOAN');
 
+    // Tiền cá nhân ứng luôn về Chờ hoàn ứng, bất kể requestedTrangThai.
     expect(resolveCreateProposalStatus({
       role: 'LEADER',
       nguonTien: 'TIEN_CA_NHAN',
@@ -28,26 +30,41 @@ describe('resolveCreateProposalStatus', () => {
     })).toBe('CHO_HOAN_UNG');
   });
 
-  it('allows owner/manager to create the explicit prepaid shop-money state', () => {
+  it('defaults shop money to pending payment when not marked prepaid', () => {
     expect(resolveCreateProposalStatus({
       role: 'OWNER',
       nguonTien: 'TIEN_SHOP',
       requestedTrangThai: 'DA_THANH_TOAN',
     })).toBe('DA_THANH_TOAN');
+
+    expect(resolveCreateProposalStatus({
+      role: 'STAFF',
+      nguonTien: 'TIEN_SHOP',
+      requestedTrangThai: 'CHO_THANH_TOAN',
+    })).toBe('CHO_THANH_TOAN');
   });
 });
 
 describe('resolveEditProposalStatus', () => {
-  it('ignores staff attempts to edit a proposal into paid status', () => {
+  it('lets any role edit an unlinked proposal into prepaid status', () => {
     expect(resolveEditProposalStatus({
       role: 'STAFF',
       existingProposal: { trangThai: 'CHO_THANH_TOAN', thuChiId: null, nguonTien: 'TIEN_SHOP' },
       requestedTrangThai: 'DA_THANH_TOAN',
       nextNguonTien: 'TIEN_SHOP',
+    })).toBe('DA_THANH_TOAN');
+  });
+
+  it('never changes status once the proposal is linked to a cash transaction', () => {
+    expect(resolveEditProposalStatus({
+      role: 'OWNER',
+      existingProposal: { trangThai: 'DA_THANH_TOAN', thuChiId: 'TC1', nguonTien: 'TIEN_SHOP' },
+      requestedTrangThai: 'CHO_THANH_TOAN',
+      nextNguonTien: 'TIEN_SHOP',
     })).toBeUndefined();
   });
 
-  it('re-derives status when staff changes the money source', () => {
+  it('re-derives status when the money source changes', () => {
     expect(resolveEditProposalStatus({
       role: 'STAFF',
       existingProposal: { trangThai: 'CHO_THANH_TOAN', thuChiId: null, nguonTien: 'TIEN_SHOP' },

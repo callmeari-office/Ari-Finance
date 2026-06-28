@@ -67,7 +67,22 @@ export async function GET(request) {
         }
       ];
     } else if (trangThai) {
-      where.trangThai = { in: trangThai.split(',').map(s => s.trim()).filter(Boolean) };
+      const states = trangThai.split(',').map(s => s.trim()).filter(Boolean);
+      if (states.length === 1 && states[0] === 'THANH_TOAN_SAN') {
+        // "Thanh toán sẵn (Chờ duyệt)" = đã đánh dấu trả nhưng chưa gán quỹ
+        where.trangThai = 'DA_THANH_TOAN';
+        where.laLichSu = false;
+        where.thuChiId = null;
+      } else if (states.length === 1 && states[0] === 'DA_THANH_TOAN') {
+        // "Đã thanh toán" = thực sự đã chi qua quỹ HOẶC phiếu lịch sử (loại phiếu thanh toán sẵn)
+        where.trangThai = 'DA_THANH_TOAN';
+        where.AND = [
+          ...(where.AND || []),
+          { OR: [{ laLichSu: true }, { thuChiId: { not: null } }] },
+        ];
+      } else {
+        where.trangThai = { in: states };
+      }
     }
     if (nguonTien) {
       where.nguonTien = { in: nguonTien.split(',').map(s => s.trim()).filter(Boolean) };

@@ -13,8 +13,8 @@ function normName(s) {
 }
 
 // "Ai trả khoản này" (token client gửi lên) -> { nguonTien, requestedTrangThai }.
-// Trạng thái cuối cùng vẫn do resolveCreateProposalStatus quyết theo vai trò:
-// Staff/Leader luôn về CHO_THANH_TOAN / CHO_HOAN_UNG (không tự thanh toán được).
+// Trạng thái cuối cùng do resolveCreateProposalStatus quyết (role-agnostic): mọi vai trò
+// được đánh dấu "Shop đã trả rồi" → DA_THANH_TOAN (Thanh toán sẵn, chờ gán quỹ).
 function mapAiTra(token) {
   switch (token) {
     case 'CA_NHAN':

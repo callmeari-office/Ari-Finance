@@ -773,7 +773,7 @@ function DeXuatPage() {
     const aiTraSheet = XLSX.utils.aoa_to_sheet([
       ['GIÁ TRỊ CHO CỘT "AI TRẢ KHOẢN NÀY" (copy đúng 1 trong 3)'],
       ['Shop trả', 'Shop sẽ chi — phiếu chờ quản lý duyệt thanh toán.'],
-      ['Shop đã trả rồi', 'Khoản shop đã trả, chỉ ghi nhận lại (chỉ Chủ shop/Quản lý mới ghi thẳng).'],
+      ['Shop đã trả rồi', 'Khoản shop đã trả rồi — ghi nhận "Thanh toán sẵn", chờ Owner gán quỹ ở bước Duyệt.'],
       ['Mình ứng trước', 'Bạn bỏ tiền túi trước, shop hoàn lại sau khi duyệt.'],
     ]);
     aiTraSheet['!cols'] = [{ wch: 20 }, { wch: 64 }];
@@ -1022,12 +1022,18 @@ function DeXuatPage() {
     }
   };
 
-  const handleBulkNguonTien = (val) => {
-    setBulkCommon((prev) => ({
-      ...prev,
-      nguonTien: val,
-      trangThai: val === 'TIEN_CA_NHAN' ? 'CHO_HOAN_UNG' : 'CHO_THANH_TOAN',
-    }));
+  // "Ai trả khoản này?" cho cả batch — map 1 lựa chọn → nguồn tiền + trạng thái.
+  const getBulkAiTra = () => {
+    if (bulkCommon.nguonTien === 'TIEN_CA_NHAN') return 'CA_NHAN';
+    if (bulkCommon.nguonTien === 'TIEN_SHOP' && bulkCommon.trangThai === 'DA_THANH_TOAN') return 'SHOP_DA_TRA';
+    return 'SHOP_CHUA_TRA';
+  };
+  const handleBulkAiTra = (key) => {
+    setBulkCommon((prev) => {
+      if (key === 'CA_NHAN') return { ...prev, nguonTien: 'TIEN_CA_NHAN', trangThai: 'CHO_HOAN_UNG' };
+      if (key === 'SHOP_DA_TRA') return { ...prev, nguonTien: 'TIEN_SHOP', trangThai: 'DA_THANH_TOAN' };
+      return { ...prev, nguonTien: 'TIEN_SHOP', trangThai: 'CHO_THANH_TOAN' };
+    });
   };
 
   const updateBulkRow = (idx, field, value) => {
@@ -1370,6 +1376,7 @@ function DeXuatPage() {
               <option value="">Tất cả trạng thái</option>
               <option value="CHO_THANH_TOAN">Chờ thanh toán</option>
               <option value="CHO_HOAN_UNG">Chờ hoàn ứng</option>
+              <option value="THANH_TOAN_SAN">Thanh toán sẵn (Chờ duyệt)</option>
               <option value="DA_THANH_TOAN">Đã thanh toán</option>
               <option value="HUY">Đã hủy</option>
             </select>
@@ -2058,33 +2065,16 @@ function DeXuatPage() {
                   />
                 </div>
                 <div className={styles.bulkCommonItem}>
-                  <label className="form-label">Nguồn tiền *</label>
+                  <label className="form-label">Ai trả khoản này? *</label>
                   <select
                     className="form-control"
-                    value={bulkCommon.nguonTien}
-                    onChange={(e) => handleBulkNguonTien(e.target.value)}
+                    value={getBulkAiTra()}
+                    onChange={(e) => handleBulkAiTra(e.target.value)}
                     disabled={bulkLoading}
                   >
-                    <option value="TIEN_SHOP">🏦 Tiền Shop</option>
-                    <option value="TIEN_CA_NHAN">👤 Cá nhân ứng</option>
-                  </select>
-                </div>
-                <div className={styles.bulkCommonItem}>
-                  <label className="form-label">Trạng thái *</label>
-                  <select
-                    className="form-control"
-                    value={bulkCommon.trangThai}
-                    onChange={(e) => setBulkCommon((p) => ({ ...p, trangThai: e.target.value }))}
-                    disabled={bulkLoading || bulkCommon.nguonTien === 'TIEN_CA_NHAN'}
-                  >
-                    {bulkCommon.nguonTien === 'TIEN_SHOP' ? (
-                      <>
-                        <option value="CHO_THANH_TOAN">Chờ thanh toán</option>
-                        <option value="DA_THANH_TOAN">Đã thanh toán sẵn</option>
-                      </>
-                    ) : (
-                      <option value="CHO_HOAN_UNG">Chờ hoàn ứng</option>
-                    )}
+                    <option value="SHOP_CHUA_TRA">🏦 Shop trả (chờ duyệt)</option>
+                    <option value="SHOP_DA_TRA">🏦 Shop đã trả rồi (thanh toán sẵn)</option>
+                    <option value="CA_NHAN">👤 Mình ứng trước (chờ hoàn ứng)</option>
                   </select>
                 </div>
                 <div className={styles.bulkCommonItem}>

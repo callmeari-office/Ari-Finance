@@ -11,11 +11,11 @@ export function deriveProposalStatus(nguonTien) {
   return nguonTien === 'TIEN_CA_NHAN' ? 'CHO_HOAN_UNG' : 'CHO_THANH_TOAN';
 }
 
-export function resolveCreateProposalStatus({ role, nguonTien, requestedTrangThai }) {
-  if (!isAdminRole(role)) {
-    return deriveProposalStatus(nguonTien);
-  }
-
+// Trạng thái khi TẠO phiếu — áp dụng cho MỌI vai trò.
+// Nghiệp vụ: NV cũng có thể đã lấy tiền shop chi rồi nên được phép đánh dấu
+// "Shop đã trả rồi" (DA_THANH_TOAN). Phiếu vẫn ở dạng "Thanh toán sẵn (chờ gán quỹ)"
+// cho tới khi Owner gán quỹ ở bước Duyệt → mới sinh Thu-Chi & trừ quỹ.
+export function resolveCreateProposalStatus({ nguonTien, requestedTrangThai }) {
   if (nguonTien === 'TIEN_CA_NHAN') {
     return 'CHO_HOAN_UNG';
   }
@@ -23,15 +23,10 @@ export function resolveCreateProposalStatus({ role, nguonTien, requestedTrangTha
   return requestedTrangThai === 'DA_THANH_TOAN' ? 'DA_THANH_TOAN' : 'CHO_THANH_TOAN';
 }
 
-export function resolveEditProposalStatus({ role, existingProposal, requestedTrangThai, nextNguonTien }) {
+// Trạng thái khi SỬA phiếu — cũng role-agnostic (nhất quán với create).
+// Vẫn giữ khóa: phiếu đã gán Thu-Chi (thuChiId) thì không đổi trạng thái.
+export function resolveEditProposalStatus({ existingProposal, requestedTrangThai, nextNguonTien }) {
   if (existingProposal?.thuChiId) {
-    return undefined;
-  }
-
-  if (!isAdminRole(role)) {
-    if (nextNguonTien && nextNguonTien !== existingProposal?.nguonTien) {
-      return deriveProposalStatus(nextNguonTien);
-    }
     return undefined;
   }
 
@@ -43,7 +38,7 @@ export function resolveEditProposalStatus({ role, existingProposal, requestedTra
   }
 
   const effectiveNguonTien = nextNguonTien || existingProposal?.nguonTien;
-  return resolveCreateProposalStatus({ role, nguonTien: effectiveNguonTien, requestedTrangThai });
+  return resolveCreateProposalStatus({ nguonTien: effectiveNguonTien, requestedTrangThai });
 }
 
 export function getApprovableProposalError(proposal) {
