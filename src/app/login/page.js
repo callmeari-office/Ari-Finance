@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Lock, ShieldAlert, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { User, Lock, ShieldAlert, ArrowRight, Check, Loader2, Mail, ChevronLeft } from 'lucide-react';
 import AriCameo from '@/components/AriCameo';
 import styles from './login.module.css';
 
@@ -13,6 +13,13 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // Quên mật khẩu
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotUsername, setForgotUsername] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotError, setForgotError] = useState('');
 
   // Kiểm tra nếu đã đăng nhập thì redirect về home
   useEffect(() => {
@@ -25,6 +32,28 @@ export default function LoginPage() {
       })
       .catch(() => {});
   }, [router]);
+
+  const handleForgot = async (e) => {
+    e.preventDefault();
+    if (!forgotUsername.trim()) {
+      setForgotError('Vui lòng nhập Tên đăng nhập.');
+      return;
+    }
+    setForgotError('');
+    setForgotLoading(true);
+    try {
+      await fetch('/api/auth/quen-mat-khau', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: forgotUsername.trim() }),
+      });
+      setForgotSent(true);
+    } catch {
+      setForgotError('Không thể kết nối. Vui lòng thử lại.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -106,82 +135,171 @@ export default function LoginPage() {
 
         {/* Login Card */}
         <div className={`${styles.card} glass-card`}>
-          <h2>Đăng nhập hệ thống</h2>
-          <p className={styles.cardDesc}>Nhập thông tin ID đăng nhập để tiếp tục</p>
 
-          {error && (
-            <div className={styles.errorAlert}>
-              <ShieldAlert size={20} />
-              <span>{error}</span>
-            </div>
-          )}
+          {/* ── View: Quên mật khẩu ── */}
+          {showForgot ? (
+            <>
+              <button
+                onClick={() => { setShowForgot(false); setForgotSent(false); setForgotError(''); setForgotUsername(''); }}
+                className={styles.backLink}
+              >
+                <ChevronLeft size={15} />
+                <span>Quay lại đăng nhập</span>
+              </button>
 
-          {success && (
-            <div className={styles.successAlert}>
-              <Check size={20} />
-              <span>Đăng nhập thành công! Đang chuyển hướng...</span>
-            </div>
-          )}
+              <h2>Lấy lại mật khẩu</h2>
+              <p className={styles.cardDesc}>Nhập Tên đăng nhập — chúng tôi sẽ gửi link đặt lại về email đăng ký</p>
 
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="email">Tên đăng nhập (ID) *</label>
-              <div className={styles.inputWrapper}>
-                <User size={18} className={styles.inputIcon} />
-                <input
-                  id="email"
-                  type="text"
-                  placeholder="Nhập ID (Ví dụ: namnnb, linhnnt...)"
-                  className="form-control"
-                  style={{ paddingLeft: '2.5rem' }}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="password">Mật khẩu *</label>
-              <div className={styles.inputWrapper}>
-                <Lock size={18} className={styles.inputIcon} />
-                <input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  className="form-control"
-                  style={{ paddingLeft: '2.5rem' }}
-                  value={matKhau}
-                  onChange={(e) => setMatKhau(e.target.value)}
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ width: '100%', marginTop: '0.5rem' }}
-              disabled={loading || success}
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={18} className={styles.spinnerIcon} />
-                  <span>Đang xác thực...</span>
-                </>
-              ) : success ? (
-                <>
-                  <Check size={18} />
-                  <span>Thành công!</span>
-                </>
+              {forgotSent ? (
+                <div className={styles.successAlert}>
+                  <Check size={20} />
+                  <span>Nếu tài khoản tồn tại và có email đăng ký, link đặt lại mật khẩu đã được gửi. Hãy kiểm tra hộp thư (kể cả thư mục Spam).</span>
+                </div>
               ) : (
-                <>
-                  <span>Đăng Nhập</span>
-                  <ArrowRight size={18} />
-                </>
+                <form onSubmit={handleForgot} className={styles.form}>
+                  {forgotError && (
+                    <div className={styles.errorAlert}>
+                      <ShieldAlert size={20} />
+                      <span>{forgotError}</span>
+                    </div>
+                  )}
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="forgotUsername">Tên đăng nhập (ID) *</label>
+                    <div className={styles.inputWrapper}>
+                      <User size={18} className={styles.inputIcon} />
+                      <input
+                        id="forgotUsername"
+                        type="text"
+                        placeholder="Ví dụ: namnnb, linhntt..."
+                        className="form-control"
+                        style={{ paddingLeft: '2.5rem' }}
+                        value={forgotUsername}
+                        onChange={(e) => setForgotUsername(e.target.value)}
+                        disabled={forgotLoading}
+                        autoFocus
+                      />
+                    </div>
+                    <p className={styles.fieldHint}>
+                      ID = Tên chính + Họ viết tắt. Ví dụ: Nguyễn Ngọc Bảo Nam → <strong>namnnb</strong>
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ width: '100%', marginTop: '0.5rem' }}
+                    disabled={forgotLoading}
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <Loader2 size={18} className={styles.spinnerIcon} />
+                        <span>Đang gửi...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mail size={18} />
+                        <span>Gửi link đặt lại mật khẩu</span>
+                      </>
+                    )}
+                  </button>
+                </form>
               )}
-            </button>
-          </form>
+            </>
+          ) : (
+
+          /* ── View: Đăng nhập ── */
+          <>
+            <h2>Đăng nhập hệ thống</h2>
+            <p className={styles.cardDesc}>Nhập thông tin ID đăng nhập để tiếp tục</p>
+
+            {error && (
+              <div className={styles.errorAlert}>
+                <ShieldAlert size={20} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {success && (
+              <div className={styles.successAlert}>
+                <Check size={20} />
+                <span>Đăng nhập thành công! Đang chuyển hướng...</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className={styles.form}>
+              <div className="form-group">
+                <label className="form-label" htmlFor="email">Tên đăng nhập (ID) *</label>
+                <div className={styles.inputWrapper}>
+                  <User size={18} className={styles.inputIcon} />
+                  <input
+                    id="email"
+                    type="text"
+                    placeholder="Ví dụ: namnnb, linhntt..."
+                    className="form-control"
+                    style={{ paddingLeft: '2.5rem' }}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+                <p className={styles.fieldHint}>
+                  ID = Tên chính + Họ viết tắt. Ví dụ: Nguyễn Ngọc Bảo Nam → <strong>namnnb</strong>
+                </p>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="password">Mật khẩu *</label>
+                <div className={styles.inputWrapper}>
+                  <Lock size={18} className={styles.inputIcon} />
+                  <input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    className="form-control"
+                    style={{ paddingLeft: '2.5rem' }}
+                    value={matKhau}
+                    onChange={(e) => setMatKhau(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ width: '100%', marginTop: '0.5rem' }}
+                disabled={loading || success}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={18} className={styles.spinnerIcon} />
+                    <span>Đang xác thực...</span>
+                  </>
+                ) : success ? (
+                  <>
+                    <Check size={18} />
+                    <span>Thành công!</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Đăng Nhập</span>
+                    <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className={styles.forgotLink}
+                onClick={() => { setShowForgot(true); setError(''); }}
+              >
+                Quên mật khẩu?
+              </button>
+            </form>
+          </>
+
+          )}
         </div>
 
         {/* Chữ ký thương hiệu — chỉ hiện ở Chế độ Ari */}
