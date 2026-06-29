@@ -13,6 +13,7 @@
 
 | Ngày | File | Nội dung | Trạng thái |
 |---|---|---|---|
+| 2026-06-29 | `add-doi-soat-thang.sql` | Bảng DoiSoatThang (ghi chú đối soát doanh thu theo tháng) | ✅ Đã chạy |
 | 2026-06-15 | `update_ncc_permissions.sql` | Thêm cột `NhaCungCap.loaiDoiTuong` (default 'NCC') + bật quyền `ncc` cho STAFF/LEADER | ✅ Đã chạy |
 | 2026-06-13 | `add-session-indexes.sql` | Index cho bảng Session | ✅ |
 | 2026-06-13 | `migrate-anh-storage.js` | Chuyển ảnh hóa đơn sang Supabase Storage | ✅ |

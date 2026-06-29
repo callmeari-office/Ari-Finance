@@ -297,8 +297,15 @@ export async function POST(request) {
       pushNotifyManagers({
         title: 'Phiáº¿u má»›i chá» duyá»‡t',
         body: `${newProposal.noiDung} â€” ${Number(newProposal.soTien).toLocaleString('vi-VN')}Ä‘`,
-        url: '/de-xuat/duyet?open=' + newProposal.id,
-        tag: 'phieu-' + newProposal.id,
+        url: '/de-xuat/duyet',
+        tag: 'new-proposals',
+      }).catch(() => {});
+    } else if (newProposal.trangThai === 'CHO_HOAN_UNG') {
+      pushNotifyManagers({
+        title: 'Phiếu hoàn ứng mới',
+        body: `${newProposal.noiDung} — ${Number(newProposal.soTien).toLocaleString('vi-VN')}đ`,
+        url: '/de-xuat/duyet',
+        tag: 'new-proposals',
       }).catch(() => {});
     }
 

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { canViewMenu, isRestrictedToOwnProposals, canViewCategory } from '@/lib/roles';
 import { logger } from '@/lib/logger';
-import { getLoiNhuanNam, getCanhBao, getThongKeThang, getDuBao, getFunds, getChiPhiDuKienThang } from '@/lib/dashboardQueries';
+import { getLoiNhuanNam, getCanhBao, getThongKeThang, getDuBao, getFunds, getChiPhiDuKienThang, getDeXuatTheoNguoiThang } from '@/lib/dashboardQueries';
 
 // GET /api/dashboard
 // Gộp 8-10 request Dashboard thành 1 endpoint.
@@ -24,6 +24,8 @@ export async function GET() {
     const seeDuBao    = canViewMenu(user, 'tqDuBao');
     const seeNganSach = isRestricted && canViewMenu(user, 'keHoachDBThang');
     const seeDoanhThu = isRestricted && canViewMenu(user, 'doanhThuDBThang');
+    // Widget "Đề xuất theo người" — Owner/Manager (cùng quyền khối "Cần xử lý").
+    const seeDeXuatNguoi = !isRestricted && canViewMenu(user, 'tqCanXuLy');
 
     const proposalInclude = {
       danhMuc: { include: { nhomChiPhi: true } },
@@ -167,6 +169,9 @@ export async function GET() {
 
       // Chi phí dự kiến cả tháng (OWNER/MANAGER — cùng quyền KPI tài chính)
       seeInsights ? getChiPhiDuKienThang(prisma) : Promise.resolve(null),
+
+      // Đề xuất theo người — pipeline duyệt tháng này (OWNER/MANAGER)
+      seeDeXuatNguoi ? getDeXuatTheoNguoiThang(prisma) : Promise.resolve(null),
     ]);
 
     // Resilience: 1 query hỏng (vd lệch schema, timeout) KHÔNG được kéo sập cả Dashboard.
@@ -188,6 +193,7 @@ export async function GET() {
     const nganSachData = pick(10);
     const doanhThuData = pick(11);
     const chiPhiDuKien = pick(12);
+    const deXuatTheoNguoi = pick(13);
 
     return NextResponse.json({
       loiNhuan,
@@ -203,6 +209,7 @@ export async function GET() {
       nganSach: nganSachData,
       doanhThu: doanhThuData,
       chiPhiDuKien,
+      deXuatTheoNguoi,
     });
   } catch (error) {
     logger.error('GET /api/dashboard', error);

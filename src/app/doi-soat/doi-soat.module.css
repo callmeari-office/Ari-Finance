@@ -1,0 +1,134 @@
+/* doi-soat.module.css — styles riêng cho trang Đối soát doanh thu */
+
+.noteBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(var(--brand-brown-rgb), 0.18);
+  background: rgba(var(--brand-brown-rgb), 0.04);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  margin-top: 1.25rem;
+}
+
+/* Desktop: bảng. Mobile: ẩn bảng. */
+.tableWrap { display: block; }
+.cardList  { display: none; }
+
+@media (max-width: 768px) {
+  .tableWrap { display: none; }
+  .cardList  { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.25rem; }
+}
+
+/* ===== Card từng tháng (mobile) ===== */
+.monthCard {
+  padding: 1rem 1.1rem;
+}
+
+.monthWarn {
+  border-color: var(--warning) !important;
+  background: var(--warning-bg) !important;
+}
+
+.monthCardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.monthLabel {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tyLeChip {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.warnBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--warning);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.warnNote {
+  font-size: 0.78rem;
+  color: var(--warning);
+  margin: 0.3rem 0 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border-left: 3px solid var(--warning);
+  background: var(--warning-bg);
+  border-radius: 0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0;
+}
+
+.monthCardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.cardField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cardField span {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cardField strong {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* ===== Thanh tỷ lệ ===== */
+.barWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.barTrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(var(--brand-brown-rgb), 0.12);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* ===== Ô ghi chú ===== */
+.noteRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}

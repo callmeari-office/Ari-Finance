@@ -297,7 +297,7 @@ export async function PUT(request, { params }) {
           body: `${existingProposal.maPhieu} — ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ đã được thanh toán.`,
           url: '/de-xuat?open=' + existingProposal.id,
           tag: 'duyet-' + existingProposal.id,
-        });
+        }, user.id);
       } catch (_) { /* push thất bại không làm hỏng nghiệp vụ */ }
 
       return NextResponse.json({

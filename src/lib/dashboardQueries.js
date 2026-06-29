@@ -549,3 +549,80 @@ export async function getChiPhiDuKienThang(prisma) {
     conLaiTheoDanhMuc: conLaiTheoDanhMuc.map((d) => ({ ...d, soTien: Math.round(d.soTien) })),
   };
 }
+
+/**
+ * Pipeline duyệt đề xuất theo người — tháng hiện tại (widget Tổng quan, Owner/Manager).
+ * Loại trừ HUY và laLichSu. Phạm vi theo ngayPhatSinh.
+ *  - Đã duyệt & chi: DA_THANH_TOAN AND thuChiId != null
+ *  - Chờ duyệt:      CHO_THANH_TOAN + CHO_HOAN_UNG + (DA_THANH_TOAN & thuChiId null = "thanh toán sẵn")
+ * Kèm "tồn đọng": phiếu chờ duyệt phát sinh trước đầu tháng này (treo từ trước).
+ */
+export async function getDeXuatTheoNguoiThang(prisma) {
+  const now = new Date();
+  const startOfMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
+  const startOfNextMonth = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 1));
+
+  const [rows, backlog] = await Promise.all([
+    prisma.deXuatChiPhi.findMany({
+      where: {
+        laLichSu: false,
+        trangThai: { not: 'HUY' },
+        ngayPhatSinh: { gte: startOfMonth, lt: startOfNextMonth },
+      },
+      select: {
+        soTien: true,
+        trangThai: true,
+        thuChiId: true,
+        nguoiTao: { select: { id: true, hoTen: true, tenNgan: true } },
+      },
+    }),
+    prisma.deXuatChiPhi.findMany({
+      where: {
+        laLichSu: false,
+        ngayPhatSinh: { lt: startOfMonth },
+        OR: [
+          { trangThai: 'CHO_THANH_TOAN' },
+          { trangThai: 'CHO_HOAN_UNG' },
+          { trangThai: 'DA_THANH_TOAN', thuChiId: null },
+        ],
+      },
+      select: { soTien: true },
+    }),
+  ]);
+
+  const byNguoi = {};
+  for (const r of rows) {
+    const id = r.nguoiTao?.id || '__unknown__';
+    const name = r.nguoiTao?.tenNgan || r.nguoiTao?.hoTen || 'Không xác định';
+    if (!byNguoi[id]) byNguoi[id] = { id, name, daDuyet: 0, choDuyet: 0, soPhieu: 0 };
+    const isDone = r.trangThai === 'DA_THANH_TOAN' && r.thuChiId != null;
+    if (isDone) byNguoi[id].daDuyet += r.soTien;
+    else byNguoi[id].choDuyet += r.soTien;
+    byNguoi[id].soPhieu += 1;
+  }
+
+  const nguoiList = Object.values(byNguoi)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      daDuyet: Math.round(p.daDuyet),
+      choDuyet: Math.round(p.choDuyet),
+      tong: Math.round(p.daDuyet + p.choDuyet),
+      soPhieu: p.soPhieu,
+    }))
+    .sort((a, b) => b.choDuyet - a.choDuyet || b.tong - a.tong);
+
+  const tonDong = {
+    soPhieu: backlog.length,
+    soTien: Math.round(backlog.reduce((s, r) => s + r.soTien, 0)),
+  };
+
+  return {
+    nguoiList,
+    tonDong,
+    tongChoDuyet: nguoiList.reduce((s, p) => s + p.choDuyet, 0),
+    tongDaDuyet: nguoiList.reduce((s, p) => s + p.daDuyet, 0),
+    thang: now.getMonth() + 1,
+    nam: now.getFullYear(),
+  };
+}

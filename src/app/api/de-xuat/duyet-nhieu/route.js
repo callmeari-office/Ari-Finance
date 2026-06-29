@@ -156,7 +156,7 @@ export async function POST(request) {
           body,
           url: '/de-xuat?open=' + info.firstId,
           tag: 'duyet-nhieu-' + nguoiTaoId,
-        });
+        }, user.id);
       } catch (_) { /* push thất bại không làm hỏng nghiệp vụ */ }
     }
 

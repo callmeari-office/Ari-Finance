@@ -25,8 +25,10 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Users,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { getInitials, getAvatarColor } from '@/lib/avatar';
 import AriLoader from '@/components/AriLoader';
 import AnimatedNumber from '@/components/AnimatedNumber';
 import { useToast } from '@/components/Toast';
@@ -59,6 +61,8 @@ export default function Dashboard() {
   const [duBao, setDuBao] = useState(null);
   const [duBaoLoading, setDuBaoLoading] = useState(true);
   const [chiPhiDuKien, setChiPhiDuKien] = useState(null);
+  // Đề xuất theo người — pipeline duyệt tháng này (OWNER/MANAGER)
+  const [deXuatTheoNguoi, setDeXuatTheoNguoi] = useState(null);
   // Ngân sách danh mục + doanh thu mini (STAFF/LEADER)
   const [nganSachThang, setNganSachThang] = useState(null);
   const [nganSachLoading, setNganSachLoading] = useState(true);
@@ -143,6 +147,9 @@ export default function Dashboard() {
 
       // Chi phí dự kiến cả tháng
       if (data.chiPhiDuKien != null) setChiPhiDuKien(data.chiPhiDuKien);
+
+      // Đề xuất theo người (OWNER/MANAGER)
+      if (data.deXuatTheoNguoi != null) setDeXuatTheoNguoi(data.deXuatTheoNguoi);
 
       // Ngân sách danh mục (STAFF/LEADER)
       if (data.nganSach !== null) setNganSachThang(data.nganSach);
@@ -794,6 +801,96 @@ export default function Dashboard() {
             )}
           </div>
         )}
+
+        {/* ❷.7 ============= ĐỀ XUẤT THEO NGƯỜI (pipeline duyệt) ============= */}
+        {canXuLy && deXuatTheoNguoi && (deXuatTheoNguoi.nguoiList.length > 0 || deXuatTheoNguoi.tonDong.soPhieu > 0) && (() => {
+          const maxTong = deXuatTheoNguoi.nguoiList.reduce((m, p) => Math.max(m, p.tong), 0) || 1;
+          return (
+            <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
+              <div className={styles.cardTitleBar}>
+                <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={19} style={{ color: 'var(--info)' }} />
+                  Đề xuất theo người — Tháng {deXuatTheoNguoi.thang}/{deXuatTheoNguoi.nam}
+                </h2>
+                <button onClick={() => router.push('/de-xuat/duyet')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                  <span>Đi duyệt</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+
+              {/* Chú thích màu */}
+              <div style={{ display: 'flex', gap: '1.2rem', marginBottom: '1rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#10b981', display: 'inline-block' }} /> Đã duyệt &amp; chi
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#f59e0b', display: 'inline-block' }} /> Chờ duyệt
+                </span>
+              </div>
+
+              {deXuatTheoNguoi.nguoiList.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0 0 0.5rem' }}>
+                  Tháng này chưa có đề xuất mới.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {deXuatTheoNguoi.nguoiList.map((p) => {
+                    const isUnknown = p.id === '__unknown__';
+                    const av = getAvatarColor(p.id, isUnknown);
+                    const wTotal = Math.round((p.tong / maxTong) * 100);
+                    const wDone = p.tong > 0 ? Math.round((p.daDuyet / p.tong) * 100) : 0;
+                    return (
+                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+                        <span style={{
+                          width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.72rem', fontWeight: 700, background: av.bg, color: av.color,
+                        }}>{isUnknown ? '?' : getInitials(p.name)}</span>
+                        <div style={{ flex: '0 0 100px', minWidth: 0 }}>
+                          <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{p.soPhieu} phiếu</div>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', height: '8px', width: `${Math.max(wTotal, 4)}%`, minWidth: '4px', borderRadius: '4px', overflow: 'hidden', background: 'rgba(var(--brand-brown-rgb), 0.08)' }}>
+                            <div style={{ width: `${wDone}%`, height: '100%', background: '#10b981' }} />
+                            <div style={{ width: `${100 - wDone}%`, height: '100%', background: '#f59e0b' }} />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3px', fontSize: '0.74rem' }}>
+                            <span style={{ fontWeight: 600, color: p.choDuyet > 0 ? '#d97706' : 'var(--text-muted)' }}>Chờ: {formatVND(p.choDuyet)}</span>
+                            <span style={{ color: 'var(--text-muted)' }}>Đã: {formatVND(p.daDuyet)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Cảnh báo tồn đọng tháng trước */}
+              {deXuatTheoNguoi.tonDong.soPhieu > 0 && (
+                <div
+                  onClick={() => router.push('/de-xuat/duyet')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1rem',
+                    padding: '0.55rem 0.75rem', borderRadius: '8px', cursor: 'pointer',
+                    background: 'var(--warning-bg, rgba(245, 158, 11, 0.12))', color: 'var(--warning)',
+                  }}
+                >
+                  <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.82rem', flex: 1 }}>
+                    Còn <b>{deXuatTheoNguoi.tonDong.soPhieu} phiếu</b> tháng trước chưa duyệt — <b>{formatVND(deXuatTheoNguoi.tonDong.soTien)}</b>
+                  </span>
+                  <ArrowRight size={14} style={{ flexShrink: 0 }} />
+                </div>
+              )}
+
+              {/* Footer tổng chờ duyệt */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                <span>Tổng chờ duyệt tháng này: <b style={{ color: 'var(--text-main)' }}>{formatVND(deXuatTheoNguoi.tongChoDuyet)}</b></span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ❶ ================= BỨC TRANH THÁNG NÀY (KPI) ================= */}
         {canKPI && (

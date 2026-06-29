@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { lamTronTien } from '@/lib/finance';
 import { getSession, checkRole } from '@/lib/auth';
@@ -6,7 +6,6 @@ import { logger } from '@/lib/logger';
 import { allocateSequentialCodes, generateMaThuChi, getThuChiPrefix, withUniqueCodeRetry } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
 import { notifyManagers } from '@/lib/webpush';
-import { createThuCreatedInternalNotification } from '@/lib/internalNotifications';
 
 const DEFAULT_LIMIT = 50;
 
@@ -14,12 +13,12 @@ export async function GET(request) {
   try {
     const user = await getSession();
     if (!user) {
-      return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+      return NextResponse.json({ error: 'ChÆ°a Ä‘Äƒng nháº­p.' }, { status: 401 });
     }
 
     if (!checkRole(user, ['OWNER', 'MANAGER'])) {
       return NextResponse.json(
-        { error: 'Bạn không có quyền truy cập dữ liệu Thu-Chi.' },
+        { error: 'Báº¡n khĂ´ng cĂ³ quyá»n truy cáº­p dá»¯ liá»‡u Thu-Chi.' },
         { status: 403 }
       );
     }
@@ -62,12 +61,12 @@ export async function GET(request) {
           noiDung: true,
           soTien: true,
           trangThai: true,
-          nguoiTao: { select: { hoTen: true, tenNgan: true } },
+          nguoiTao: { select: { id: true, hoTen: true, tenNgan: true } },
         },
       },
     };
 
-    // Xây dựng where cho ThuChi
+    // XĂ¢y dá»±ng where cho ThuChi
     const where = {};
     if (loaiGiaoDich) {
       where.loaiGiaoDich = { in: loaiGiaoDich.split(',').map(s => s.trim()).filter(Boolean) };
@@ -113,7 +112,7 @@ export async function GET(request) {
       }
     }
 
-    // Tìm kiếm theo mã phiếu / nội dung
+    // TĂ¬m kiáº¿m theo mĂ£ phiáº¿u / ná»™i dung
     if (search && search.trim()) {
       const s = search.trim();
       const searchOR = [
@@ -128,7 +127,7 @@ export async function GET(request) {
       }
     }
 
-    // Khi includeHistory=true: gộp thêm phiếu lịch sử từ DeXuatChiPhi vào kết quả
+    // Khi includeHistory=true: gá»™p thĂªm phiáº¿u lá»‹ch sá»­ tá»« DeXuatChiPhi vĂ o káº¿t quáº£
     if (includeHistory) {
       let isHistoryApplicable = true;
       if (loaiGiaoDich && !loaiGiaoDich.split(',').map(s => s.trim()).includes('CHI')) {
@@ -149,7 +148,7 @@ export async function GET(request) {
             nhomChiPhiId: { in: nhomChiPhiId.split(',').map(s => s.trim()).filter(Boolean) }
           };
         }
-        // Dùng ngayPhatSinh để khớp với /api/loi-nhuan và /api/ke-hoach
+        // DĂ¹ng ngayPhatSinh Ä‘á»ƒ khá»›p vá»›i /api/loi-nhuan vĂ  /api/ke-hoach
         if (!isNaN(year)) {
           if (thang) {
             const months = thang.split(',').map(m => parseInt(m.trim(), 10)).filter(m => !isNaN(m) && m >= 1 && m <= 12);
@@ -251,7 +250,7 @@ export async function GET(request) {
 
       const total = allData.length;
 
-      // Tính toán các chỉ số thống kê trên toàn bộ tập kết quả đã lọc
+      // TĂ­nh toĂ¡n cĂ¡c chá»‰ sá»‘ thá»‘ng kĂª trĂªn toĂ n bá»™ táº­p káº¿t quáº£ Ä‘Ă£ lá»c
       let tongThu = allData
         .filter(t => t.loaiGiaoDich === 'THU')
         .reduce((sum, t) => sum + t.soTien, 0);
@@ -260,7 +259,7 @@ export async function GET(request) {
         .filter(t => t.loaiGiaoDich === 'CHI')
         .reduce((sum, t) => sum + t.soTien, 0);
 
-      // Fallback: tháng chưa hợp thức hoá ThuChi.THU → dùng KeHoachDoanhThu.thucTe làm ước tính
+      // Fallback: thĂ¡ng chÆ°a há»£p thá»©c hoĂ¡ ThuChi.THU â†’ dĂ¹ng KeHoachDoanhThu.thucTe lĂ m Æ°á»›c tĂ­nh
       let tongThuUocTinh = false;
       if (tongThu === 0 && !isNaN(year)) {
         const selectedMonths = thang
@@ -288,9 +287,9 @@ export async function GET(request) {
 
       allData.forEach((tx) => {
         const gId = tx.danhMuc?.nhomChiPhiId;
-        const gName = tx.danhMuc?.nhomChiPhi?.tenNhom || 'Khác';
+        const gName = tx.danhMuc?.nhomChiPhi?.tenNhom || 'KhĂ¡c';
         const catId = tx.danhMucId;
-        const catName = tx.danhMuc?.tenDanhMuc || 'Khác';
+        const catName = tx.danhMuc?.tenDanhMuc || 'KhĂ¡c';
 
         if (tx.loaiGiaoDich === 'CHI') {
           if (gId) {
@@ -312,6 +311,40 @@ export async function GET(request) {
           }
         }
       });
+
+      // === Chi phí theo NGƯỜI ĐỀ XUẤT (đã duyệt & chi thật) ===
+      // Phân bổ ĐÚNG tổng chi của báo cáo theo người: ThuChi có đề xuất → người đề xuất
+      // (phân bổ theo tỷ lệ soTien khi duyệt-gộp nhiều người); còn lại → "Không xác định".
+      const UNKNOWN_NGUOI = '__unknown__';
+      const chiNguoiStats = {};
+      const addChiNguoi = (id, name, amount) => {
+        if (!chiNguoiStats[id]) chiNguoiStats[id] = { id, name, amount: 0, count: 0 };
+        chiNguoiStats[id].amount += amount;
+        chiNguoiStats[id].count += 1;
+      };
+      allData.forEach((tx) => {
+        if (tx.loaiGiaoDich !== 'CHI') return;
+        const dxs = (!tx.laLichSu && Array.isArray(tx.deXuatChiPhi)) ? tx.deXuatChiPhi : [];
+        if (dxs.length === 0) {
+          addChiNguoi(UNKNOWN_NGUOI, 'Không xác định', tx.soTien);
+          return;
+        }
+        const sumDx = dxs.reduce((s, d) => s + d.soTien, 0) || 1;
+        dxs.forEach((d) => {
+          const pid = d.nguoiTao?.id || UNKNOWN_NGUOI;
+          const pname = d.nguoiTao?.id
+            ? (d.nguoiTao.tenNgan || d.nguoiTao.hoTen || 'Không tên')
+            : 'Không xác định';
+          addChiNguoi(pid, pname, tx.soTien * (d.soTien / sumDx));
+        });
+      });
+      const sortedChiNguoi = Object.values(chiNguoiStats)
+        .map((p) => ({ ...p, amount: Math.round(p.amount) }))
+        .sort((a, b) => {
+          if (a.id === UNKNOWN_NGUOI) return 1;
+          if (b.id === UNKNOWN_NGUOI) return -1;
+          return b.amount - a.amount;
+        });
 
       const sortedChiGroups = Object.values(chiGroupStats).sort((a, b) => b.amount - a.amount);
       const sortedThuGroups = Object.values(thuGroupStats).sort((a, b) => b.amount - a.amount);
@@ -338,6 +371,7 @@ export async function GET(request) {
           sortedThuGroups,
           sortedChiCats,
           sortedThuCats,
+          sortedChiNguoi,
         }
       });
     }
@@ -372,7 +406,7 @@ export async function GET(request) {
   } catch (error) {
     logger.error('GET /api/thu-chi', error);
     return NextResponse.json(
-      { error: 'Đã xảy ra lỗi trên hệ thống.' },
+      { error: 'ÄĂ£ xáº£y ra lá»—i trĂªn há»‡ thá»‘ng.' },
       { status: 500 }
     );
   }
@@ -382,12 +416,12 @@ export async function POST(request) {
   try {
     const user = await getSession();
     if (!user) {
-      return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
+      return NextResponse.json({ error: 'ChÆ°a Ä‘Äƒng nháº­p.' }, { status: 401 });
     }
 
     if (!checkRole(user, ['OWNER', 'MANAGER'])) {
       return NextResponse.json(
-        { error: 'Chỉ Chủ shop (Owner) hoặc Quản lý (Manager) mới có quyền tạo giao dịch Thu-Chi trực tiếp.' },
+        { error: 'Chá»‰ Chá»§ shop (Owner) hoáº·c Quáº£n lĂ½ (Manager) má»›i cĂ³ quyá»n táº¡o giao dá»‹ch Thu-Chi trá»±c tiáº¿p.' },
         { status: 403 }
       );
     }
@@ -397,32 +431,32 @@ export async function POST(request) {
 
     if (!ngayGiaoDich || !loaiGiaoDich || !soTien || !quyId || !danhMucId || !noiDung) {
       return NextResponse.json(
-        { error: 'Vui lòng cung cấp đầy đủ thông tin bắt buộc.' },
+        { error: 'Vui lĂ²ng cung cáº¥p Ä‘áº§y Ä‘á»§ thĂ´ng tin báº¯t buá»™c.' },
         { status: 400 }
       );
     }
 
     if (typeof noiDung !== 'string' || noiDung.trim().length === 0 || noiDung.length > 500) {
       return NextResponse.json(
-        { error: 'Nội dung giao dịch không hợp lệ (1–500 ký tự).' },
+        { error: 'Ná»™i dung giao dá»‹ch khĂ´ng há»£p lá»‡ (1â€“500 kĂ½ tá»±).' },
         { status: 400 }
       );
     }
 
     if (Number(soTien) <= 0) {
       return NextResponse.json(
-        { error: 'Số tiền giao dịch phải lớn hơn 0.' },
+        { error: 'Sá»‘ tiá»n giao dá»‹ch pháº£i lá»›n hÆ¡n 0.' },
         { status: 400 }
       );
     }
 
     if (!['CHI', 'THU'].includes(loaiGiaoDich)) {
-      return NextResponse.json({ error: 'Loại giao dịch không hợp lệ.' }, { status: 400 });
+      return NextResponse.json({ error: 'Loáº¡i giao dá»‹ch khĂ´ng há»£p lá»‡.' }, { status: 400 });
     }
 
-    // buTruLichSu chỉ cho phép với CHI (CHI + THU tự sinh = cặp bù trừ)
+    // buTruLichSu chá»‰ cho phĂ©p vá»›i CHI (CHI + THU tá»± sinh = cáº·p bĂ¹ trá»«)
     if (buTruLichSu && loaiGiaoDich !== 'CHI') {
-      return NextResponse.json({ error: 'Bù trừ lịch sử chỉ áp dụng cho giao dịch CHI.' }, { status: 400 });
+      return NextResponse.json({ error: 'BĂ¹ trá»« lá»‹ch sá»­ chá»‰ Ă¡p dá»¥ng cho giao dá»‹ch CHI.' }, { status: 400 });
     }
 
     const [quy, danhMuc] = await Promise.all([
@@ -431,20 +465,20 @@ export async function POST(request) {
     ]);
 
     if (!quy) {
-      return NextResponse.json({ error: 'Quỹ được chọn không hợp lệ.' }, { status: 400 });
+      return NextResponse.json({ error: 'Quá»¹ Ä‘Æ°á»£c chá»n khĂ´ng há»£p lá»‡.' }, { status: 400 });
     }
     if (!danhMuc) {
-      return NextResponse.json({ error: 'Danh mục giao dịch không hợp lệ.' }, { status: 400 });
+      return NextResponse.json({ error: 'Danh má»¥c giao dá»‹ch khĂ´ng há»£p lá»‡.' }, { status: 400 });
     }
-    // Khi buTruLichSu=true, danhMucId là danh mục CHI — bỏ qua kiểm tra loại cho cặp THU bù trừ
+    // Khi buTruLichSu=true, danhMucId lĂ  danh má»¥c CHI â€” bá» qua kiá»ƒm tra loáº¡i cho cáº·p THU bĂ¹ trá»«
     if (!buTruLichSu && danhMuc.loaiGiaoDich !== loaiGiaoDich) {
       return NextResponse.json(
-        { error: `Danh mục "${danhMuc.tenDanhMuc}" là loại ${danhMuc.loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'}, không khớp với loại giao dịch đã chọn.` },
+        { error: `Danh má»¥c "${danhMuc.tenDanhMuc}" lĂ  loáº¡i ${danhMuc.loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'}, khĂ´ng khá»›p vá»›i loáº¡i giao dá»‹ch Ä‘Ă£ chá»n.` },
         { status: 400 }
       );
     }
 
-    // ——— CHẾ ĐỘ BÙ TRỪ LỊCH SỬ: tạo cặp CHI + THU cùng lúc ———
+    // â€”â€”â€” CHáº¾ Äá»˜ BĂ™ TRá»ª Lá»CH Sá»¬: táº¡o cáº·p CHI + THU cĂ¹ng lĂºc â€”â€”â€”
     if (buTruLichSu) {
       const ngay = new Date(ngayGiaoDich);
       const soTienRound = lamTronTien(soTien);
@@ -507,7 +541,7 @@ export async function POST(request) {
         message: `Da nhap lich su quy: ${chiRecord.maPhieu} (CHI) + ${thuRecord.maPhieu} (THU bu tru). So du quy khong doi.`,
       });
     }
-    // ——— LUỒNG BÌNH THƯỜNG ———
+    // â€”â€”â€” LUá»’NG BĂŒNH THÆ¯á»œNG â€”â€”â€”
     const newThuChi = await withUniqueCodeRetry(async () => {
       const maPhieu = await generateMaThuChi();
       return prisma.thuChi.create({
@@ -531,47 +565,40 @@ export async function POST(request) {
       hanhDong: 'TAO',
       doiTuong: 'THU_CHI',
       maDoiTuong: newThuChi.maPhieu,
-      moTa: `Tạo phiếu ${loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'} "${newThuChi.noiDung}" — ${Number(newThuChi.soTien).toLocaleString('vi-VN')}đ (quỹ ${quy.tenQuy})`,
+      moTa: `Táº¡o phiáº¿u ${loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'} "${newThuChi.noiDung}" â€” ${Number(newThuChi.soTien).toLocaleString('vi-VN')}Ä‘ (quá»¹ ${quy.tenQuy})`,
     });
 
-    // Thông báo Web Push khi ghi nhận phiếu THU → các OWNER/MANAGER khác (trừ người vừa tạo).
-    // Bọc try/catch riêng: lỗi push KHÔNG được làm hỏng luồng tạo phiếu.
+    // ThĂ´ng bĂ¡o Web Push khi ghi nháº­n phiáº¿u THU â†’ cĂ¡c OWNER/MANAGER khĂ¡c (trá»« ngÆ°á»i vá»«a táº¡o).
+    // Bá»c try/catch riĂªng: lá»—i push KHĂ”NG Ä‘Æ°á»£c lĂ m há»ng luá»“ng táº¡o phiáº¿u.
     if (loaiGiaoDich === 'THU') {
-      try {
-        await createThuCreatedInternalNotification({
-          thuChi: newThuChi,
-          quy,
-          user,
-        });
-      } catch (internalNotifErr) {
-        logger.error('createThuCreatedInternalNotification', internalNotifErr);
-      }
 
       try {
         await notifyManagers(
           {
-            title: '💰 Có phiếu Thu mới',
-            body: `${newThuChi.maPhieu} · ${Number(newThuChi.soTien).toLocaleString('vi-VN')}đ — ${newThuChi.noiDung}`,
+            title: 'đŸ’° CĂ³ phiáº¿u Thu má»›i',
+            body: `${newThuChi.maPhieu} Â· ${Number(newThuChi.soTien).toLocaleString('vi-VN')}Ä‘ â€” ${newThuChi.noiDung}`,
             url: '/thu-chi',
             tag: 'thu-chi-thu',
           },
           { excludeUserId: user.id }
         );
       } catch (pushErr) {
-        logger.error('notifyManagers (phiếu Thu)', pushErr);
+        logger.error('notifyManagers (phiáº¿u Thu)', pushErr);
       }
     }
 
     return NextResponse.json({
       success: true,
       thuChi: newThuChi,
-      message: `Đã ghi nhận phiếu ${loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'} ${newThuChi.maPhieu} thành công.`,
+      message: `ÄĂ£ ghi nháº­n phiáº¿u ${loaiGiaoDich === 'THU' ? 'Thu' : 'Chi'} ${newThuChi.maPhieu} thĂ nh cĂ´ng.`,
     });
   } catch (error) {
     logger.error('POST /api/thu-chi', error);
     return NextResponse.json(
-      { error: 'Đã xảy ra lỗi trên hệ thống.' },
+      { error: 'ÄĂ£ xáº£y ra lá»—i trĂªn há»‡ thá»‘ng.' },
       { status: 500 }
     );
   }
 }
+
+

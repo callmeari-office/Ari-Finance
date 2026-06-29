@@ -4,6 +4,7 @@ import { lamTronTien } from '@/lib/finance';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { notifyManagersBulkChoThanhToan } from '@/lib/email';
+import { notifyManagers as pushNotifyManagers } from '@/lib/webpush';
 import { canViewCategory } from '@/lib/roles';
 import { allocateSequentialCodes, getDeXuatPrefix, withUniqueCodeRetry } from '@/lib/generateId';
 import { VALID_NGUON_TIEN, resolveCreateProposalStatus } from '@/lib/proposalWorkflow';
@@ -128,6 +129,12 @@ export async function POST(request) {
     const choTTIds = created.filter((p) => p.trangThai === 'CHO_THANH_TOAN').map((p) => p.id);
     if (choTTIds.length > 0) {
       await notifyManagersBulkChoThanhToan(choTTIds);
+      pushNotifyManagers({
+        title: `${choTTIds.length} phiếu mới chờ duyệt`,
+        body: `Vừa tạo ${choTTIds.length} đề xuất — bấm để xem.`,
+        url: '/de-xuat/duyet',
+        tag: 'new-proposals',
+      }).catch(() => {});
     }
 
     return NextResponse.json({

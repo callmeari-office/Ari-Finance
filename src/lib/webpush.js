@@ -109,10 +109,10 @@ export async function notifyUser(userId, payload) {
  * 1. Tất cả OWNER + MANAGER (qua notifyManagers)
  * 2. Người tạo đề xuất (nếu người tạo là LEADER hoặc STAFF)
  */
-export async function notifyProposalApproved(creatorId, payload) {
+export async function notifyProposalApproved(creatorId, payload, approverId = null) {
   try {
-    // 1. Gửi cho tất cả Owner + Manager đang hoạt động
-    await notifyManagers(payload);
+    // 1. Gửi cho tất cả Owner + Manager đang hoạt động (exclude người vừa duyệt)
+    await notifyManagers(payload, approverId ? { excludeUserId: approverId } : {});
 
     // 2. Tìm thông tin người tạo đề xuất để kiểm tra vai trò
     const creator = await prisma.nhanVien.findUnique({

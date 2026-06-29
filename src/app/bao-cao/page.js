@@ -18,8 +18,10 @@ import {
   Eye,
   Send,
   Printer,
+  Users,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { getInitials, getAvatarColor } from '@/lib/avatar';
 import FilterDropdown from '@/components/FilterDropdown';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
@@ -59,6 +61,7 @@ export default function BaoCaoThuChiPage() {
   const [sortedThuGroups, setSortedThuGroups] = useState([]);
   const [sortedChiCats, setSortedChiCats] = useState([]);
   const [sortedThuCats, setSortedThuCats] = useState([]);
+  const [sortedChiNguoi, setSortedChiNguoi] = useState([]);
 
   const [loiNhuanData, setLoiNhuanData] = useState(null);
   const [loiNhuanLoading, setLoiNhuanLoading] = useState(false);
@@ -148,6 +151,7 @@ export default function BaoCaoThuChiPage() {
           setSortedThuGroups(txData.stats.sortedThuGroups || []);
           setSortedChiCats(txData.stats.sortedChiCats || []);
           setSortedThuCats(txData.stats.sortedThuCats || []);
+          setSortedChiNguoi(txData.stats.sortedChiNguoi || []);
         }
       }
     } catch (e) {
@@ -263,6 +267,8 @@ export default function BaoCaoThuChiPage() {
   const tongThuTuNhom = sortedThuGroups.reduce((sum, g) => sum + g.amount, 0) || 1;
   const maxChiCatAmount = sortedChiCats.length > 0 ? sortedChiCats[0].amount : 1;
   const maxThuCatAmount = sortedThuCats.length > 0 ? sortedThuCats[0].amount : 1;
+  const tongChiNguoi = sortedChiNguoi.reduce((sum, p) => sum + p.amount, 0) || 1;
+  const maxChiNguoiAmount = sortedChiNguoi.reduce((m, p) => Math.max(m, p.amount), 0) || 1;
 
   const formatVND = (num) => {
     return num.toLocaleString('vi-VN') + ' ₫';
@@ -735,6 +741,57 @@ export default function BaoCaoThuChiPage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* SECTION 3.5: CHI PHÍ THEO NGƯỜI ĐỀ XUẤT */}
+        <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
+          <div className={styles.cardHeader}>
+            <Users size={18} className={styles.cardTitleIcon} style={{ color: 'var(--danger)' }} />
+            <h2>Chi phí theo người đề xuất</h2>
+          </div>
+          {dataLoading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+              {[1, 2, 3].map((i) => <div key={i} className="skeleton skeletonRow" />)}
+            </div>
+          ) : sortedChiNguoi.length === 0 ? (
+            <div className={styles.emptyState}>Chưa ghi nhận chi phí nào trong kỳ.</div>
+          ) : (
+            <div className={styles.statsBox}>
+              {sortedChiNguoi.map((p) => {
+                const isUnknown = p.id === '__unknown__';
+                const percentOfTotal = Math.round((p.amount / tongChiNguoi) * 100);
+                const barWidth = Math.round((p.amount / maxChiNguoiAmount) * 100);
+                const av = getAvatarColor(p.id, isUnknown);
+                return (
+                  <div key={p.id} className={styles.statItem}>
+                    <div className={styles.statHeader} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <span style={{
+                        width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.72rem', fontWeight: 700, background: av.bg, color: av.color,
+                      }}>{isUnknown ? '?' : getInitials(p.name)}</span>
+                      <span style={{ flex: 1, minWidth: 0, color: isUnknown ? 'var(--text-muted)' : 'var(--text-main)' }}>
+                        {p.name}
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.8rem' }}> · {p.count} phiếu</span>
+                      </span>
+                      <span style={{ whiteSpace: 'nowrap' }}>{formatVND(p.amount)} (<strong>{percentOfTotal}%</strong>)</span>
+                    </div>
+                    <div className={styles.progressBarWrapper}>
+                      <div
+                        className={styles.progressBar}
+                        style={{
+                          width: `${barWidth}%`,
+                          background: isUnknown
+                            ? 'rgba(var(--brand-brown-rgb), 0.35)'
+                            : 'linear-gradient(90deg, #f59e0b 0%, #d97706 100%)',
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* SECTION 4: TABLE OF FILTERED TRANSACTIONS */}

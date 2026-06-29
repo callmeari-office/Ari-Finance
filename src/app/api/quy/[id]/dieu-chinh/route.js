@@ -24,6 +24,13 @@ export async function POST(request, { params }) {
     if (soDuMucTieu === undefined || soDuMucTieu === null || isNaN(Number(soDuMucTieu))) {
       return NextResponse.json({ error: 'Vui lòng nhập số dư thực tế hợp lệ.' }, { status: 400 });
     }
+    const lyDoTrimmed = lyDo ? String(lyDo).trim() : '';
+    if (!lyDoTrimmed) {
+      return NextResponse.json({ error: 'Vui lòng nhập lý do điều chỉnh số dư.' }, { status: 400 });
+    }
+    if (lyDoTrimmed.length > 300) {
+      return NextResponse.json({ error: 'Lý do điều chỉnh không được vượt quá 300 ký tự.' }, { status: 400 });
+    }
     const target = lamTronTien(soDuMucTieu);
 
     const quy = await prisma.quy.findUnique({ where: { id } });
@@ -54,7 +61,7 @@ export async function POST(request, { params }) {
       hanhDong: 'DIEU_CHINH',
       doiTuong: 'QUY',
       maDoiTuong: id,
-      moTa: `Điều chỉnh số dư quỹ "${quy.tenQuy}": ${fmt(soDuTruoc)} → ${fmt(target)} (chênh ${chenhLech >= 0 ? '+' : ''}${fmt(chenhLech)})${lyDo ? ` — Lý do: ${String(lyDo).slice(0, 300)}` : ''}`,
+      moTa: `Điều chỉnh số dư quỹ "${quy.tenQuy}": ${fmt(soDuTruoc)} → ${fmt(target)} (chênh ${chenhLech >= 0 ? '+' : ''}${fmt(chenhLech)}) — Lý do: ${lyDoTrimmed}`,
     });
 
     return NextResponse.json({

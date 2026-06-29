@@ -16,6 +16,7 @@ import {
   Lock,
   Users,
   BarChart3,
+  BarChart2,
   Store,
   Bell,
   CalendarRange,
@@ -23,6 +24,7 @@ import {
   KeyRound,
   ScrollText,
   Scale,
+  GitCompare,
   Repeat,
   AlertTriangle,
   Clock,
@@ -43,6 +45,15 @@ const TAG_STYLE = {
   QUAN_TRONG: { bg: '#fef2f2', color: '#b91c1c', border: '#fca5a5', label: 'Quan trọng' },
   NHAC_NHO:   { bg: '#fffbeb', color: '#92400e', border: '#fcd34d', label: 'Nhắc nhở' },
   THONG_BAO:  { bg: '#f0f9ff', color: '#0369a1', border: '#7dd3fc', label: 'Thông báo' },
+};
+
+const SEEN_KEY = (uid) => `ari-seen-tb-${uid}`;
+const getSeenIds = (uid) => {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY(uid)) || '[]')); }
+  catch { return new Set(); }
+};
+const markSeen = (uid, ids) => {
+  try { localStorage.setItem(SEEN_KEY(uid), JSON.stringify([...ids])); } catch {}
 };
 
 export default function Sidebar({ user }) {
@@ -66,6 +77,9 @@ export default function Sidebar({ user }) {
   };
   const [tbList, setTbList] = useState([]);
   const [nhacHan, setNhacHan] = useState([]);
+  const [vuotHanMuc, setVuotHanMuc] = useState([]);
+  const [vuotKeHoach, setVuotKeHoach] = useState([]);
+  const [seenTbIds, setSeenTbIds] = useState(new Set());
   const [hasQuanTrong, setHasQuanTrong] = useState(false);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const panelWrapRef = useRef(null);
@@ -89,13 +103,35 @@ export default function Sidebar({ user }) {
           const cb = await resCb.json();
           setPendingCount(cb.pendingCount || 0);
           setNhacHan(Array.isArray(cb.nhacHan) ? cb.nhacHan.slice(0, 5) : []);
+          setVuotHanMuc(Array.isArray(cb.vuotHanMuc) ? cb.vuotHanMuc.slice(0, 3) : []);
+          setVuotKeHoach(Array.isArray(cb.vuotKeHoach) ? cb.vuotKeHoach.slice(0, 3) : []);
         }
       } catch {}
     };
     fetchAll();
     const interval = setInterval(fetchAll, 30000);
-    return () => clearInterval(interval);
+    const handleVisibility = () => { if (!document.hidden) fetchAll(); };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [user]);
+
+  // Init seenTbIds from localStorage when user loads
+  useEffect(() => {
+    if (!user) return;
+    setSeenTbIds(getSeenIds(user.id));
+  }, [user?.id]);
+
+  // Mark all visible tbList as seen when panel opens
+  useEffect(() => {
+    if (!showNotifPanel || !user) return;
+    const seenIds = getSeenIds(user.id);
+    tbList.forEach(tb => seenIds.add(tb.id));
+    markSeen(user.id, seenIds);
+    setSeenTbIds(new Set(seenIds));
+  }, [showNotifPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close panel on click outside
   useEffect(() => {
@@ -134,8 +170,9 @@ export default function Sidebar({ user }) {
   if (!user) return null;
 
   const isOwnerOrManager = user.role === 'OWNER' || user.role === 'MANAGER';
-  const bellBadge = tbList.length + (isOwnerOrManager ? nhacHan.length : 0);
-  const bellRed = hasQuanTrong || nhacHan.some((n) => n.quaHan);
+  const unreadTbCount = tbList.filter(tb => !seenTbIds.has(tb.id)).length;
+  const bellBadge = unreadTbCount + (isOwnerOrManager ? nhacHan.length + vuotHanMuc.length + vuotKeHoach.length : 0);
+  const bellRed = hasQuanTrong || nhacHan.some((n) => n.quaHan) || vuotHanMuc.length > 0;
 
   const menuItems = [
     { key: 'tongQuan', name: 'Tổng quan', path: '/', icon: LayoutDashboard },
@@ -146,6 +183,7 @@ export default function Sidebar({ user }) {
     { key: 'keHoach', name: 'Kế hoạch chi phí', path: '/ke-hoach', icon: CalendarRange },
     { key: 'doanhThu', name: 'Kế hoạch doanh thu', path: '/doanh-thu', icon: TrendingUp },
     { key: 'loiNhuan', name: 'Lợi nhuận (Lãi/Lỗ)', path: '/loi-nhuan', icon: Scale },
+    { key: 'doiSoat', name: 'Đối soát doanh thu', path: '/doi-soat', icon: GitCompare },
     { key: 'baoCao', name: 'Báo cáo Thu - Chi', path: '/bao-cao', icon: BarChart3 },
     { key: 'dinhKy', name: 'Chi phí định kỳ', path: '/dinh-ky', icon: Repeat },
     { key: 'nhanSu', name: 'Nhân sự', path: '/nhan-su', icon: Users },
@@ -444,9 +482,105 @@ export default function Sidebar({ user }) {
                 </>
               )}
 
+              {/* Vượt hạn mức (OWNER/MANAGER) */}
+              {isOwnerOrManager && vuotHanMuc.length > 0 && vuotHanMuc.map((item) => (
+                <Link
+                  key={`hanmuc-${item.danhMucId}`}
+                  href="/ke-hoach"
+                  onClick={() => setShowNotifPanel(false)}
+                  style={{
+                    display: 'block',
+                    padding: '0.625rem 0.875rem',
+                    borderBottom: '1px solid var(--border)',
+                    textDecoration: 'none',
+                    background: 'transparent',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99,77,62,0.04)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <span style={{ marginTop: '1px', flexShrink: 0 }}>
+                      <BarChart2 size={13} style={{ color: 'var(--warning)' }} />
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1px' }}>
+                        <span style={{
+                          fontSize: '0.65rem', fontWeight: '700',
+                          padding: '1px 5px', borderRadius: '999px',
+                          background: 'var(--warning-bg)', color: 'var(--warning)',
+                          border: '1px solid var(--warning)', flexShrink: 0,
+                        }}>
+                          Vượt hạn mức
+                        </span>
+                      </div>
+                      <p style={{
+                        margin: 0, fontSize: '0.78rem', fontWeight: '600',
+                        color: 'var(--text-main)', overflow: 'hidden',
+                        textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {item.tenDanhMuc}
+                      </p>
+                      <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {Number(item.daChi).toLocaleString('vi-VN')}đ / {Number(item.hanMuc).toLocaleString('vi-VN')}đ ({item.tile}%)
+                      </p>
+                    </div>
+                    <ChevronRight size={12} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: '2px' }} />
+                  </div>
+                </Link>
+              ))}
+
+              {/* Vượt kế hoạch (OWNER/MANAGER) */}
+              {isOwnerOrManager && vuotKeHoach.length > 0 && vuotKeHoach.map((item) => (
+                <Link
+                  key={`kehoach-${item.danhMucId}`}
+                  href="/ke-hoach"
+                  onClick={() => setShowNotifPanel(false)}
+                  style={{
+                    display: 'block',
+                    padding: '0.625rem 0.875rem',
+                    borderBottom: '1px solid var(--border)',
+                    textDecoration: 'none',
+                    background: 'transparent',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99,77,62,0.04)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <span style={{ marginTop: '1px', flexShrink: 0 }}>
+                      <TrendingUp size={13} style={{ color: 'var(--info)' }} />
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1px' }}>
+                        <span style={{
+                          fontSize: '0.65rem', fontWeight: '700',
+                          padding: '1px 5px', borderRadius: '999px',
+                          background: 'var(--info-bg)', color: 'var(--info)',
+                          border: '1px solid var(--info)', flexShrink: 0,
+                        }}>
+                          Vượt kế hoạch
+                        </span>
+                      </div>
+                      <p style={{
+                        margin: 0, fontSize: '0.78rem', fontWeight: '600',
+                        color: 'var(--text-main)', overflow: 'hidden',
+                        textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {item.tenDanhMuc}
+                      </p>
+                      <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {Number(item.daChi).toLocaleString('vi-VN')}đ / {Number(item.keHoach).toLocaleString('vi-VN')}đ ({item.tile}%)
+                      </p>
+                    </div>
+                    <ChevronRight size={12} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: '2px' }} />
+                  </div>
+                </Link>
+              ))}
+
               {/* ThongBaoNoiBo items */}
-              <div style={{ maxHeight: nhacHan.length > 0 ? '180px' : '260px', overflowY: 'auto' }}>
-                {tbList.length === 0 && nhacHan.length === 0 ? (
+              <div style={{ maxHeight: (nhacHan.length + vuotHanMuc.length + vuotKeHoach.length) > 0 ? '180px' : '260px', overflowY: 'auto' }}>
+                {tbList.length === 0 && nhacHan.length === 0 && vuotHanMuc.length === 0 && vuotKeHoach.length === 0 ? (
                   <p
                     style={{
                       padding: '1rem 0.875rem',
@@ -461,12 +595,14 @@ export default function Sidebar({ user }) {
                 ) : tbList.length > 0 ? (
                   tbList.map((tb) => {
                     const ts = TAG_STYLE[tb.tag] || TAG_STYLE.THONG_BAO;
+                    const isUnread = !seenTbIds.has(tb.id);
                     return (
                       <div
                         key={tb.id}
                         style={{
                           padding: '0.625rem 0.875rem',
                           borderBottom: '1px solid var(--border)',
+                          background: isUnread ? 'rgba(var(--brand-brown-rgb),0.03)' : 'transparent',
                         }}
                       >
                         <div
@@ -504,6 +640,14 @@ export default function Sidebar({ user }) {
                           >
                             {tb.tieuDe}
                           </span>
+                          {isUnread && (
+                            <span style={{
+                              width: '6px', height: '6px',
+                              borderRadius: '50%',
+                              background: 'var(--info)',
+                              flexShrink: 0,
+                            }} />
+                          )}
                         </div>
                         {tb.noiDung && (
                           <p
@@ -536,7 +680,7 @@ export default function Sidebar({ user }) {
               </div>
 
               {/* Footer: link to dashboard if there's anything */}
-              {(tbList.length > 0 || nhacHan.length > 0) && (
+              {(tbList.length > 0 || nhacHan.length > 0 || vuotHanMuc.length > 0 || vuotKeHoach.length > 0) && (
                 <Link
                   href="/"
                   onClick={() => setShowNotifPanel(false)}

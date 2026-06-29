@@ -106,6 +106,7 @@ export const DEFAULT_MENU_ROLES = {
   doanhThuDBThang: ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
   doanhThuDBNam:   ['OWNER', 'MANAGER', 'LEADER', 'STAFF'],
   loiNhuan:        ['OWNER', 'MANAGER'],
+  doiSoat:         ['OWNER', 'MANAGER'],
   baoCao:          ['OWNER', 'MANAGER'],
   dinhKy:          ['OWNER', 'MANAGER'],
   nhanSu:          ['OWNER'],

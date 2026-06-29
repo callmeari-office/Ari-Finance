@@ -148,6 +148,10 @@ export default function QuyReportPage() {
 
   const submitAdjust = async () => {
     if (!adjustFund) return;
+    if (!adjustReason.trim()) {
+      setAdjustError('Vui lòng nhập lý do điều chỉnh số dư.');
+      return;
+    }
     const target = parseInt(String(adjustTarget).replace(/[^\d-]/g, ''), 10);
     if (isNaN(target)) {
       setAdjustError('Vui lòng nhập số dư thực tế hợp lệ.');
@@ -501,7 +505,7 @@ export default function QuyReportPage() {
               </strong>
             </div>
 
-            <label className={styles.modalLabel}>Lý do (khuyến nghị)</label>
+            <label className={styles.modalLabel}>Lý do <span style={{ color: 'var(--danger)' }}>*</span></label>
             <textarea
               className={styles.modalTextarea}
               value={adjustReason}
@@ -514,7 +518,7 @@ export default function QuyReportPage() {
 
             <div className={styles.modalActions}>
               <button className={styles.btnGhost} onClick={() => setAdjustFund(null)} disabled={adjustSubmitting}>Hủy</button>
-              <button className={styles.btnPrimary} onClick={submitAdjust} disabled={adjustSubmitting || adjustDelta === 0}>
+              <button className={styles.btnPrimary} onClick={submitAdjust} disabled={adjustSubmitting || adjustDelta === 0 || !adjustReason.trim()}>
                 {adjustSubmitting ? 'Đang lưu...' : 'Xác nhận điều chỉnh'}
               </button>
             </div>

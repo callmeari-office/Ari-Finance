@@ -144,7 +144,7 @@ export async function POST(request) {
         body: `${proposals.length} phiếu hoàn ứng của bạn — ${tongTien.toLocaleString('vi-VN')}đ đã được thanh toán gộp.`,
         url: '/de-xuat?open=' + proposals[0].id,
         tag: 'duyet-gop-' + maThuChi,
-      });
+      }, user.id);
     } catch (_) { /* push thất bại không làm hỏng nghiệp vụ */ }
 
     return NextResponse.json({

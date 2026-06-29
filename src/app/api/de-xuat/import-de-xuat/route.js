@@ -4,6 +4,7 @@ import { lamTronTien } from '@/lib/finance';
 import { getSession } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { notifyManagersBulkChoThanhToan } from '@/lib/email';
+import { notifyManagers as pushNotifyManagers } from '@/lib/webpush';
 import { canViewCategory } from '@/lib/roles';
 import { allocateSequentialCodes, withUniqueCodeRetry, getDeXuatPrefix } from '@/lib/generateId';
 import { resolveCreateProposalStatus } from '@/lib/proposalWorkflow';
@@ -201,6 +202,12 @@ export async function POST(request) {
       });
       if (choTTRows.length > 0) {
         await notifyManagersBulkChoThanhToan(choTTRows.map((r) => r.id));
+        pushNotifyManagers({
+          title: `${choTTRows.length} phiếu import chờ duyệt`,
+          body: `Vừa nhập ${choTTRows.length} đề xuất từ Excel.`,
+          url: '/de-xuat/duyet',
+          tag: 'new-proposals',
+        }).catch(() => {});
       }
     }
 
