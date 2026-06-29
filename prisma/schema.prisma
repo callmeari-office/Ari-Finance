@@ -260,6 +260,13 @@ model PhieuDinhKy {
   updatedAt         DateTime @updatedAt
 }
 
+// Tham số hệ thống dạng key–value (ví dụ: soNgaySapToiHan).
+model CauHinh {
+  khoa    String   @id
+  giaTri  String
+  capNhat DateTime @updatedAt
+}
+
 // Đăng ký nhận Web Push Notification theo từng trình duyệt/thiết bị.
 model PushSubscription {
   id        String   @id @default(uuid())

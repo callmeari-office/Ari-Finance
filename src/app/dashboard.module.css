@@ -606,6 +606,35 @@
   color: var(--danger);
 }
 
+/* Quỹ trống (0đ) — làm mờ, đã được đẩy xuống cuối ở JS */
+.fundChipZero {
+  opacity: 0.5;
+}
+
+/* Hàng tiêu đề trên Fund Strip (thay cho Fund Hero cũ) */
+.fundStripHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+/* Lưới 2 cột (desktop): Biểu đồ xu hướng + Đề xuất theo người */
+.twoColRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  align-items: start;
+  margin-bottom: 1.5rem;
+}
+@media (min-width: 1100px) {
+  .twoColRow {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .fundHeroVal { font-size: 1.7rem; }
 }
@@ -639,9 +668,21 @@
     width: 100%;
   }
   .dashboardGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr); /* KPI 2×2 trên mobile thay vì 1 cột bị bóp */
+    gap: var(--space-3);
   }
   .largeCard {
     grid-column: span 1;
+  }
+  /* Số KPI gọn lại (đã rút tr/k ở JS) để vừa 2 cột hẹp */
+  .statCard h3 {
+    font-size: 1.3rem;
+  }
+  .cardHeader {
+    font-size: 0.62rem;
+    margin-bottom: 0.5rem;
+  }
+  .cardInfo {
+    font-size: 0.72rem;
   }
 }

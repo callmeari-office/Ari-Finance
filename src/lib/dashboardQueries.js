@@ -4,6 +4,7 @@
 // Các route gốc vẫn giữ nguyên URL + response shape, chỉ đổi ruột thành gọi hàm này.
 
 import { tinhSoDuQuy } from './finance';
+import { getSoNgaySapToiHan } from './cauHinh';
 
 /**
  * Tổng hợp lãi/lỗ theo tháng cho cả năm.
@@ -500,6 +501,22 @@ export function gomConLaiTheoDanhMuc(rows) {
 }
 
 /**
+ * Tách các dòng "còn lại" thành: sắp tới hạn (ngày tới hạn <= nguong, GỒM quá hạn) và phần xa.
+ * rows: [{ ..., ngay: Date|string }]; nguong: Date (cuối ngày hôm nay + N).
+ * Pure — test được (xem chiPhiDuKien.test.js).
+ */
+export function splitSapToiHan(rows, nguong) {
+  const sapToiHanRows = [];
+  const conLaiXaRows = [];
+  for (const r of rows || []) {
+    const ngay = r.ngay instanceof Date ? r.ngay : new Date(r.ngay);
+    if (!Number.isNaN(ngay.getTime()) && ngay <= nguong) sapToiHanRows.push(r);
+    else conLaiXaRows.push(r);
+  }
+  return { sapToiHanRows, conLaiXaRows };
+}
+
+/**
  * Chi phí dự kiến cả tháng (tháng hiện tại) — lớp phái sinh, KHÔNG đụng invariant §4.
  *   daChiThang  : đã chi thực tế tháng (ThuChi CHI + DeXuat laLichSu) — KHỚP getLoiNhuanNam.
  *   conLaiCoDinh: Σ phiếu Chờ thanh toán/Chờ hoàn ứng (laLichSu=false, chưa thành ThuChi),
@@ -527,7 +544,8 @@ export async function getChiPhiDuKienThang(prisma) {
         AND "ngayPhatSinh" < ${endOfMonth}
     `,
     prisma.$queryRaw`
-      SELECT d."danhMucId", dm."tenDanhMuc", SUM(d."soTien") AS "soTien"
+      SELECT d."danhMucId", dm."tenDanhMuc", d."soTien",
+             COALESCE(d."ngayCanThanhToan", d."ngayPhatSinh") AS "ngay"
       FROM "DeXuatChiPhi" d
       LEFT JOIN "DanhMuc" dm ON dm."id" = d."danhMucId"
       WHERE d."laLichSu" = false
@@ -535,18 +553,27 @@ export async function getChiPhiDuKienThang(prisma) {
         AND d."trangThai" IN ('CHO_THANH_TOAN', 'CHO_HOAN_UNG')
         AND COALESCE(d."ngayCanThanhToan", d."ngayPhatSinh") >= ${startOfMonth}
         AND COALESCE(d."ngayCanThanhToan", d."ngayPhatSinh") < ${endOfMonth}
-      GROUP BY d."danhMucId", dm."tenDanhMuc"
     `,
   ]);
 
   const daChiThang = Number(chiThuChiRows[0]?.total || 0) + Number(chiLichSuRows[0]?.total || 0);
   const { conLaiCoDinh, conLaiTheoDanhMuc } = gomConLaiTheoDanhMuc(conLaiRows);
 
+  // Lát cắt "sắp tới hạn N ngày" (gồm khoản quá hạn chưa trả).
+  const soNgay = await getSoNgaySapToiHan(prisma);
+  const nguong = new Date(now.getFullYear(), now.getMonth(), now.getDate() + soNgay, 23, 59, 59, 999);
+  const { sapToiHanRows } = splitSapToiHan(conLaiRows, nguong);
+  const { conLaiCoDinh: sapToiHan, conLaiTheoDanhMuc: sapToiHanTheoDanhMuc } = gomConLaiTheoDanhMuc(sapToiHanRows);
+
   return {
     daChiThang: Math.round(daChiThang),
     conLaiCoDinh: Math.round(conLaiCoDinh),
     duKienCaThang: Math.round(daChiThang + conLaiCoDinh),
     conLaiTheoDanhMuc: conLaiTheoDanhMuc.map((d) => ({ ...d, soTien: Math.round(d.soTien) })),
+    soNgay,
+    sapToiHan: Math.round(sapToiHan),
+    sapToiHanTheoDanhMuc: sapToiHanTheoDanhMuc.map((d) => ({ ...d, soTien: Math.round(d.soTien) })),
+    conLaiXa: Math.round(conLaiCoDinh - sapToiHan),
   };
 }
 

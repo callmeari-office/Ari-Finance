@@ -32,6 +32,8 @@ export default function CauHinhPage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [soNgaySapToiHan, setSoNgaySapToiHan] = useState(7);
+  const [thamSoSaving, setThamSoSaving] = useState(false);
 
   // Configuration data states
   const [categories, setCategories] = useState([]);
@@ -132,10 +134,40 @@ export default function CauHinhPage() {
         const quyData = await quyRes.json();
         setFunds(quyData);
       }
+      try {
+        const tsRes = await fetch('/api/cau-hinh/tham-so');
+        if (tsRes.ok) {
+          const ts = await tsRes.json();
+          if (ts?.soNgaySapToiHan) setSoNgaySapToiHan(ts.soNgaySapToiHan);
+        }
+      } catch { /* giữ mặc định */ }
     } catch (e) {
       console.error('Error fetching configuration:', e);
     } finally {
       setDataLoading(false);
+    }
+  };
+
+  // Lưu tham số "cửa sổ sắp tới hạn".
+  const handleSaveThamSo = async () => {
+    setThamSoSaving(true);
+    try {
+      const res = await fetch('/api/cau-hinh/tham-so', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ soNgaySapToiHan: Number(soNgaySapToiHan) }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSoNgaySapToiHan(data.soNgaySapToiHan);
+        toast.success(`Đã lưu: cảnh báo sắp tới hạn ${data.soNgaySapToiHan} ngày.`);
+      } else {
+        toast.error(data.error || 'Lưu thất bại.');
+      }
+    } catch {
+      toast.error('Lỗi kết nối.');
+    } finally {
+      setThamSoSaving(false);
     }
   };
  
@@ -893,6 +925,37 @@ export default function CauHinhPage() {
                 </div>
               </div>
               <PushToggle />
+            </div>
+
+            {/* PHẦN THAM SỐ HỆ THỐNG */}
+            <div className={styles.panel} style={{ marginTop: '2rem' }}>
+              <div className={styles.panelHeader} style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
+                <div className={styles.panelTitle}>
+                  <Settings className={styles.panelIcon} size={20} style={{ color: 'var(--brand-brown)' }} />
+                  <h2 style={{ fontSize: '1.1rem', margin: 0 }}>Tham Số Hệ Thống</h2>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '0.75rem' }}>
+                <div className="form-group" style={{ margin: 0, flex: '1 1 240px' }}>
+                  <label className="form-label">Cửa sổ cảnh báo &quot;sắp tới hạn&quot; (ngày)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={28}
+                    className="form-control"
+                    value={soNgaySapToiHan}
+                    onChange={(e) => setSoNgaySapToiHan(e.target.value)}
+                    style={{ width: '120px' }}
+                  />
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                    Khoản cố định có ngày tới hạn trong khoảng này (gồm cả quá hạn chưa trả) sẽ được gắn nhãn
+                    &quot;sắp tới hạn&quot; ở Tổng quan và Kế hoạch. Từ 1–28, mặc định 7.
+                  </p>
+                </div>
+                <button className="btn btn-primary" onClick={handleSaveThamSo} disabled={thamSoSaving}>
+                  <Check size={16} /> <span>{thamSoSaving ? 'Đang lưu...' : 'Lưu'}</span>
+                </button>
+              </div>
             </div>
           </>
         )}

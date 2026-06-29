@@ -61,6 +61,9 @@ export default function KeHoachPage() {
   // Dữ liệu thực tế: { [danhMucId_thang]: soTien }
   const [thucTeMap, setThucTeMap] = useState({});
 
+  // Chi phí dự kiến tháng hiện tại (cố định chưa chi + sắp tới hạn) — chỉ OWNER/MANAGER.
+  const [chiPhiDuKien, setChiPhiDuKien] = useState(null);
+
   // Dashboard: expand state per nhóm
   const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -124,6 +127,14 @@ export default function KeHoachPage() {
         }
       });
       setThucTeMap(tm);
+
+      // Chi phí dự kiến tháng hiện tại (cố định chưa chi + sắp tới hạn) — chỉ OWNER/MANAGER xem được.
+      if (user?.role === 'OWNER' || user?.role === 'MANAGER') {
+        try {
+          const cpRes = await fetch('/api/chi-phi-du-kien');
+          setChiPhiDuKien(cpRes.ok ? await cpRes.json() : null);
+        } catch { setChiPhiDuKien(null); }
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -536,6 +547,7 @@ export default function KeHoachPage() {
             nam={nam}
             thang={thangXem}
             setThang={setThangXem}
+            chiPhiDuKien={chiPhiDuKien}
           />
         )}
 
@@ -646,7 +658,7 @@ export default function KeHoachPage() {
 }
 
 // Dashboard THEO THÁNG: so sánh thực chi vs kế hoạch của 1 tháng + dự đoán cuối tháng.
-function DashboardThangView({ categories, groupedCats, getKH, getTT, dataLoading, nam, thang, setThang }) {
+function DashboardThangView({ categories, groupedCats, getKH, getTT, dataLoading, nam, thang, setThang, chiPhiDuKien }) {
   const formatVND = (num) => Number(num || 0).toLocaleString('vi-VN') + ' ₫';
   const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
   // Chi phí: cao là XẤU -> đỏ ≥100% (vượt KH), vàng 80-99% (sắp chạm), xanh <80% (trong KH).
@@ -750,6 +762,11 @@ function DashboardThangView({ categories, groupedCats, getKH, getTT, dataLoading
                   : conLai < 0 ? <span style={{ color: 'var(--danger)' }}>▲ Vượt {formatVND(-conLai)}</span>
                   : <span style={{ color: 'var(--success)' }}>Còn được chi {formatVND(conLai)}</span>}
               </div>
+              {isCurrentMonth && chiPhiDuKien && chiPhiDuKien.conLaiCoDinh > 0 && (
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                  (đã cam kết ~{formatVND(chiPhiDuKien.conLaiCoDinh)} sắp chi)
+                </div>
+              )}
             </div>
 
             <div className={`glass-card ${styles.kpiCard}`}>
@@ -788,6 +805,26 @@ function DashboardThangView({ categories, groupedCats, getKH, getTT, dataLoading
               </div>
             )}
           </div>
+
+          {/* Banner cố định chưa chi + sắp tới hạn (chỉ tháng hiện tại) */}
+          {isCurrentMonth && chiPhiDuKien && chiPhiDuKien.conLaiCoDinh > 0 && (
+            <div
+              className="glass-card"
+              style={{ padding: '0.6rem 0.9rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem 1.1rem', fontSize: '0.85rem' }}
+            >
+              <span style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                <CalendarDays size={14} style={{ flexShrink: 0, color: 'var(--brand-brown)' }} />
+                Cố định chưa chi tháng này:{' '}
+                <strong style={{ color: 'var(--text-main)' }}>~{formatVND(chiPhiDuKien.conLaiCoDinh)}</strong>
+              </span>
+              {chiPhiDuKien.sapToiHan > 0 && (
+                <span style={{ color: 'var(--warning)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                  sắp tới hạn {chiPhiDuKien.soNgay} ngày: ~{formatVND(chiPhiDuKien.sapToiHan)}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* CEO VISUAL DASHBOARD CHARTS */}
           <div className={styles.chartsGrid}>

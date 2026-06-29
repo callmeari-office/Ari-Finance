@@ -374,6 +374,14 @@ async function main() {
     console.log(`  (Bỏ qua — đã có ${soKenhHienCo} kênh bán)`);
   }
 
+  // Tham số hệ thống mặc định (không xóa nếu đã có).
+  console.log('Tạo tham số hệ thống mặc định...');
+  await prisma.cauHinh.upsert({
+    where: { khoa: 'soNgaySapToiHan' },
+    update: {},
+    create: { khoa: 'soNgaySapToiHan', giaTri: '7' },
+  });
+
   console.log('Seed dữ liệu thành công!');
 }
 

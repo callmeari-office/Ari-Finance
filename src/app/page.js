@@ -43,6 +43,8 @@ export default function Dashboard() {
   const showConfirm = useConfirm();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Màn hình hẹp (mobile) → rút gọn số tiền KPI thành tr/k cho đỡ tràn
+  const [isCompact, setIsCompact] = useState(false);
 
   // Dashboard states
   const [funds, setFunds] = useState([]);
@@ -102,6 +104,16 @@ export default function Dashboard() {
         router.push('/login');
       });
   }, [router]);
+
+  // Theo dõi breakpoint mobile để rút gọn số tiền KPI
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsCompact(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
 
   const fetchDashboard = async (u) => {
     try {
@@ -192,6 +204,17 @@ export default function Dashboard() {
   }
 
   const formatVND = (num) => (num || 0).toLocaleString('vi-VN') + ' ₫';
+  // Rút gọn cho mobile: 345.107.850 → "345,1tr"; giữ số đầy đủ ở tooltip/desktop
+  const formatVNDShort = (num) => {
+    const n = num || 0;
+    const abs = Math.abs(n);
+    const sign = n < 0 ? '−' : '';
+    if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ`;
+    if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}tr`;
+    if (abs >= 1_000) return `${sign}${Math.round(abs / 1_000)}k`;
+    return `${sign}${abs.toLocaleString('vi-VN')} ₫`;
+  };
+  const fmtKpi = isCompact ? formatVNDShort : formatVND;
   const currentYear = new Date().getFullYear();
 
   // ===== Thông báo nội bộ helpers =====
@@ -334,6 +357,8 @@ export default function Dashboard() {
   const conLaiCoDinh = chiPhiDuKien?.conLaiCoDinh || 0;
   const duKienCaThang = chiPhiDuKien ? chiPhiDuKien.duKienCaThang : chiPhiThang;
   const laiDuKienCaThang = doanhThuThang - duKienCaThang;
+  const sapToiHan = chiPhiDuKien?.sapToiHan || 0;
+  const soNgaySapToiHan = chiPhiDuKien?.soNgay || 7;
 
   // ===== Ngân sách theo danh mục — STAFF/LEADER =====
   const nganSachRows = (() => {
@@ -666,58 +691,73 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ❹ ================= FUND HERO + FUND STRIP ================= */}
-        {canQuy && (
+        {/* ❶ ================= BỨC TRANH THÁNG NÀY (KPI) ================= */}
+        {canKPI && (
           <>
-            {/* Fund Hero — tổng tiền đang có */}
-            <div className={styles.fundHero}>
-              <div>
-                <div className={styles.fundHeroLabel}>
-                  Tiền đang có · tổng {funds.length} quỹ
+            <h2 className={styles.sectionTitle}>
+              Sức khỏe tài chính — Tháng {thisMonth}/{currentYear}
+            </h2>
+            <div className={styles.dashboardGrid} style={{ marginBottom: '1.5rem' }}>
+              {/* Doanh thu vs chỉ tiêu */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${tileColor}` }}>
+                <div className={styles.cardHeader}>
+                  <span>Doanh thu tháng này</span>
+                  <Target className={styles.cardIcon} style={{ color: tileColor }} />
                 </div>
-                <div className={styles.fundHeroVal}>
-                  {fundsLoading
-                    ? <span className="skeleton" style={{ display: 'block', width: '200px', height: '2.2rem', borderRadius: '6px', background: 'rgba(255,255,255,0.2)' }} />
-                    : formatVND(tongSoDuQuy)
-                  }
-                </div>
-                <div className={styles.fundHeroMeta}>
-                  Cập nhật realtime
-                  {pendingReimburse > 0 && ` · ${pendingReimburse} phiếu NV đang ứng chưa hoàn`}
-                </div>
+                <h3 style={{ color: tileColor }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={doanhThuThang} format={fmtKpi} />}</h3>
+                <p className={styles.cardInfo}>Đạt {tileChiTieu}% chỉ tiêu ({formatVND(chiTieuThang)})</p>
               </div>
-              <button
-                onClick={() => router.push('/quy')}
-                className="btn"
-                style={{ background: 'rgba(255,255,255,0.18)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)', flexShrink: 0 }}
-              >
-                <span>Chi tiết quỹ</span>
-                <ArrowRight size={14} />
-              </button>
-            </div>
 
-            {/* Fund Strip — chip từng quỹ */}
-            <div className={styles.fundStrip}>
-              {fundsLoading
-                ? [1, 2, 3].map((i) => (
-                    <div key={i} className={styles.fundChip}>
-                      <span className="skeleton skeletonText" style={{ display: 'block', width: '80%', marginBottom: '0.4rem' }} />
-                      <span className="skeleton skeletonText" style={{ display: 'block', width: '60%' }} />
-                    </div>
-                  ))
-                : funds.map((fund) => (
-                    <div
-                      key={fund.id}
-                      className={`${styles.fundChip} ${fund.soDuHienTai < 0 ? styles.fundChipNeg : ''}`}
-                    >
-                      <div className={styles.fundChipName}>
-                        <Wallet size={13} />
-                        {fund.tenQuy}
-                      </div>
-                      <div className={styles.fundChipVal}>{formatVND(fund.soDuHienTai)}</div>
-                    </div>
-                  ))
-              }
+              {/* Chi phí vs kế hoạch */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--danger)' }}>
+                <div className={styles.cardHeader}>
+                  <span>Chi phí tháng này</span>
+                  <TrendingDown className={styles.cardIcon} style={{ color: 'var(--danger)' }} />
+                </div>
+                <h3 style={{ color: 'var(--danger)' }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={chiPhiThang} format={fmtKpi} />}</h3>
+                <p className={styles.cardInfo}>
+                  {chiPhiKeHoachThang > 0 ? `${tileChiPhi}% kế hoạch (${formatVND(chiPhiKeHoachThang)})` : 'Chưa đặt kế hoạch chi tháng'}
+                </p>
+                {conLaiCoDinh > 0 && (
+                  <>
+                    {sapToiHan > 0 && (
+                      <p className={styles.cardInfo} style={{ marginTop: '0.15rem', color: 'var(--warning)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <Clock size={13} style={{ flexShrink: 0 }} /> Sắp tới hạn {soNgaySapToiHan} ngày ~{formatVND(sapToiHan)}
+                      </p>
+                    )}
+                    <p className={styles.cardInfo} style={{ marginTop: '0.1rem', color: 'var(--text-muted)' }}>
+                      ước cả tháng ~{formatVND(duKienCaThang)}
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Lãi/Lỗ tháng + biên lợi nhuận */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${laiLoThang >= 0 ? '#10b981' : '#ef4444'}` }}>
+                <div className={styles.cardHeader}>
+                  <span>{laiLoThang >= 0 ? 'Lãi tháng này' : 'Lỗ tháng này'}</span>
+                  <Scale className={styles.cardIcon} style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }} />
+                </div>
+                <h3 style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }}>
+                  {insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={laiLoThang} format={fmtKpi} />}
+                </h3>
+                <p className={styles.cardInfo}>Biên lợi nhuận {bienLoiNhuan}% · <span style={{ cursor: 'pointer', color: 'var(--info)' }} onClick={() => router.push('/loi-nhuan')}>Xem 12 tháng →</span></p>
+                {conLaiCoDinh > 0 && (
+                  <p className={styles.cardInfo} style={{ marginTop: '0.15rem', color: laiDuKienCaThang >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    Lãi ước cả tháng ~{formatVND(laiDuKienCaThang)}
+                  </p>
+                )}
+              </div>
+
+              {/* Tiền đang có (số dư quỹ) */}
+              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--info)' }}>
+                <div className={styles.cardHeader}>
+                  <span>Tiền đang có</span>
+                  <Banknote className={styles.cardIcon} style={{ color: 'var(--info)' }} />
+                </div>
+                <h3>{fundsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={tongSoDuQuy} format={fmtKpi} />}</h3>
+                <p className={styles.cardInfo}>Tổng số dư {funds.length} quỹ (thực tế dùng thanh toán)</p>
+              </div>
             </div>
           </>
         )}
@@ -802,156 +842,53 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ❷.7 ============= ĐỀ XUẤT THEO NGƯỜI (pipeline duyệt) ============= */}
-        {canXuLy && deXuatTheoNguoi && (deXuatTheoNguoi.nguoiList.length > 0 || deXuatTheoNguoi.tonDong.soPhieu > 0) && (() => {
-          const maxTong = deXuatTheoNguoi.nguoiList.reduce((m, p) => Math.max(m, p.tong), 0) || 1;
-          return (
-            <div className="glass-card" style={{ marginBottom: '1.5rem' }}>
-              <div className={styles.cardTitleBar}>
-                <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Users size={19} style={{ color: 'var(--info)' }} />
-                  Đề xuất theo người — Tháng {deXuatTheoNguoi.thang}/{deXuatTheoNguoi.nam}
-                </h2>
-                <button onClick={() => router.push('/de-xuat/duyet')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                  <span>Đi duyệt</span>
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-
-              {/* Chú thích màu */}
-              <div style={{ display: 'flex', gap: '1.2rem', marginBottom: '1rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#10b981', display: 'inline-block' }} /> Đã duyệt &amp; chi
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#f59e0b', display: 'inline-block' }} /> Chờ duyệt
-                </span>
-              </div>
-
-              {deXuatTheoNguoi.nguoiList.length === 0 ? (
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0 0 0.5rem' }}>
-                  Tháng này chưa có đề xuất mới.
-                </p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  {deXuatTheoNguoi.nguoiList.map((p) => {
-                    const isUnknown = p.id === '__unknown__';
-                    const av = getAvatarColor(p.id, isUnknown);
-                    const wTotal = Math.round((p.tong / maxTong) * 100);
-                    const wDone = p.tong > 0 ? Math.round((p.daDuyet / p.tong) * 100) : 0;
-                    return (
-                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
-                        <span style={{
-                          width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '0.72rem', fontWeight: 700, background: av.bg, color: av.color,
-                        }}>{isUnknown ? '?' : getInitials(p.name)}</span>
-                        <div style={{ flex: '0 0 100px', minWidth: 0 }}>
-                          <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{p.soPhieu} phiếu</div>
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', height: '8px', width: `${Math.max(wTotal, 4)}%`, minWidth: '4px', borderRadius: '4px', overflow: 'hidden', background: 'rgba(var(--brand-brown-rgb), 0.08)' }}>
-                            <div style={{ width: `${wDone}%`, height: '100%', background: '#10b981' }} />
-                            <div style={{ width: `${100 - wDone}%`, height: '100%', background: '#f59e0b' }} />
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3px', fontSize: '0.74rem' }}>
-                            <span style={{ fontWeight: 600, color: p.choDuyet > 0 ? '#d97706' : 'var(--text-muted)' }}>Chờ: {formatVND(p.choDuyet)}</span>
-                            <span style={{ color: 'var(--text-muted)' }}>Đã: {formatVND(p.daDuyet)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Cảnh báo tồn đọng tháng trước */}
-              {deXuatTheoNguoi.tonDong.soPhieu > 0 && (
-                <div
-                  onClick={() => router.push('/de-xuat/duyet')}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1rem',
-                    padding: '0.55rem 0.75rem', borderRadius: '8px', cursor: 'pointer',
-                    background: 'var(--warning-bg, rgba(245, 158, 11, 0.12))', color: 'var(--warning)',
-                  }}
-                >
-                  <AlertTriangle size={15} style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: '0.82rem', flex: 1 }}>
-                    Còn <b>{deXuatTheoNguoi.tonDong.soPhieu} phiếu</b> tháng trước chưa duyệt — <b>{formatVND(deXuatTheoNguoi.tonDong.soTien)}</b>
-                  </span>
-                  <ArrowRight size={14} style={{ flexShrink: 0 }} />
-                </div>
-              )}
-
-              {/* Footer tổng chờ duyệt */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                <span>Tổng chờ duyệt tháng này: <b style={{ color: 'var(--text-main)' }}>{formatVND(deXuatTheoNguoi.tongChoDuyet)}</b></span>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* ❶ ================= BỨC TRANH THÁNG NÀY (KPI) ================= */}
-        {canKPI && (
+        {/* ❹ ================= FUND STRIP (số dư từng quỹ) ================= */}
+        {/* Tổng "Tiền đang có" đã nằm ở thẻ KPI phía trên — ở đây chỉ liệt kê chi tiết từng quỹ. */}
+        {canQuy && (
           <>
-            <h2 className={styles.sectionTitle}>
-              Sức khỏe tài chính — Tháng {thisMonth}/{currentYear}
-            </h2>
-            <div className={styles.dashboardGrid} style={{ marginBottom: '1.5rem' }}>
-              {/* Doanh thu vs chỉ tiêu */}
-              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${tileColor}` }}>
-                <div className={styles.cardHeader}>
-                  <span>Doanh thu tháng này</span>
-                  <Target className={styles.cardIcon} style={{ color: tileColor }} />
-                </div>
-                <h3 style={{ color: tileColor }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={doanhThuThang} format={formatVND} />}</h3>
-                <p className={styles.cardInfo}>Đạt {tileChiTieu}% chỉ tiêu ({formatVND(chiTieuThang)})</p>
-              </div>
-
-              {/* Chi phí vs kế hoạch */}
-              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--danger)' }}>
-                <div className={styles.cardHeader}>
-                  <span>Chi phí tháng này</span>
-                  <TrendingDown className={styles.cardIcon} style={{ color: 'var(--danger)' }} />
-                </div>
-                <h3 style={{ color: 'var(--danger)' }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={chiPhiThang} format={formatVND} />}</h3>
-                <p className={styles.cardInfo}>
-                  {chiPhiKeHoachThang > 0 ? `${tileChiPhi}% kế hoạch (${formatVND(chiPhiKeHoachThang)})` : 'Chưa đặt kế hoạch chi tháng'}
-                </p>
-                {conLaiCoDinh > 0 && (
-                  <p className={styles.cardInfo} style={{ marginTop: '0.15rem' }}>
-                    đã chi {formatVND(chiPhiThang)} · dự kiến thêm ~{formatVND(conLaiCoDinh)} → ước cả tháng ~{formatVND(duKienCaThang)}
-                  </p>
+            <div className={styles.fundStripHead}>
+              <h2 className={styles.sectionTitle} style={{ margin: 0 }}>
+                Quỹ — số dư từng nơi
+                {pendingReimburse > 0 && (
+                  <span style={{ fontWeight: 600, color: 'var(--text-muted)', textTransform: 'none', letterSpacing: 0 }}>
+                    {' · '}{pendingReimburse} phiếu NV đang ứng chưa hoàn
+                  </span>
                 )}
-              </div>
+              </h2>
+              <button onClick={() => router.push('/quy')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                <span>Chi tiết quỹ</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
 
-              {/* Lãi/Lỗ tháng + biên lợi nhuận */}
-              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${laiLoThang >= 0 ? '#10b981' : '#ef4444'}` }}>
-                <div className={styles.cardHeader}>
-                  <span>{laiLoThang >= 0 ? 'Lãi tháng này' : 'Lỗ tháng này'}</span>
-                  <Scale className={styles.cardIcon} style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }} />
-                </div>
-                <h3 style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }}>
-                  {insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={laiLoThang} format={formatVND} />}
-                </h3>
-                <p className={styles.cardInfo}>Biên lợi nhuận {bienLoiNhuan}% · <span style={{ cursor: 'pointer', color: 'var(--info)' }} onClick={() => router.push('/loi-nhuan')}>Xem 12 tháng →</span></p>
-                {conLaiCoDinh > 0 && (
-                  <p className={styles.cardInfo} style={{ marginTop: '0.15rem', color: laiDuKienCaThang >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                    Lãi ước cả tháng ~{formatVND(laiDuKienCaThang)}
-                  </p>
-                )}
-              </div>
-
-              {/* Tiền đang có (số dư quỹ) */}
-              <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--info)' }}>
-                <div className={styles.cardHeader}>
-                  <span>Tiền đang có</span>
-                  <Banknote className={styles.cardIcon} style={{ color: 'var(--info)' }} />
-                </div>
-                <h3>{fundsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={tongSoDuQuy} format={formatVND} />}</h3>
-                <p className={styles.cardInfo}>Tổng số dư {funds.length} quỹ (thực tế dùng thanh toán)</p>
-              </div>
+            {/* Fund Strip — chip từng quỹ. Sắp xếp: quỹ có tiền (giảm dần) → quỹ âm (cảnh báo) → quỹ 0đ (làm mờ, xuống cuối) */}
+            <div className={styles.fundStrip}>
+              {fundsLoading
+                ? [1, 2, 3].map((i) => (
+                    <div key={i} className={styles.fundChip}>
+                      <span className="skeleton skeletonText" style={{ display: 'block', width: '80%', marginBottom: '0.4rem' }} />
+                      <span className="skeleton skeletonText" style={{ display: 'block', width: '60%' }} />
+                    </div>
+                  ))
+                : [...funds].sort((a, b) => {
+                    // Hạng: 0 = có tiền, 1 = âm (cảnh báo), 2 = trống (0đ → xuống cuối)
+                    const rank = (v) => (v > 0 ? 0 : v < 0 ? 1 : 2);
+                    const ra = rank(a.soDuHienTai), rb = rank(b.soDuHienTai);
+                    if (ra !== rb) return ra - rb;
+                    return b.soDuHienTai - a.soDuHienTai;
+                  }).map((fund) => (
+                    <div
+                      key={fund.id}
+                      className={`${styles.fundChip} ${fund.soDuHienTai < 0 ? styles.fundChipNeg : ''} ${fund.soDuHienTai === 0 ? styles.fundChipZero : ''}`}
+                    >
+                      <div className={styles.fundChipName}>
+                        <Wallet size={13} />
+                        {fund.tenQuy}
+                      </div>
+                      <div className={styles.fundChipVal}>{formatVND(fund.soDuHienTai)}</div>
+                    </div>
+                  ))
+              }
             </div>
           </>
         )}
@@ -1057,9 +994,12 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* ❸ ================= BIỂU ĐỒ XU HƯỚNG (Thu-Chi + Lãi/Lỗ) ================= */}
+        {/* ❸+❹ =========== 2 CỘT: BIỂU ĐỒ XU HƯỚNG + ĐỀ XUẤT THEO NGƯỜI =========== */}
+        {(canXuHuong || canXuLy) && (
+        <div className={styles.twoColRow}>
+        {/* Biểu đồ Thu-Chi + Lãi/Lỗ 6 tháng */}
         {canXuHuong && (
-          <div className={`glass-card ${styles.largeCard}`} style={{ marginBottom: '1.5rem' }}>
+          <div className="glass-card" style={{ marginBottom: 0 }}>
             <div className={styles.cardTitleBar}>
               <h2>Thu - Chi & Lãi/Lỗ 6 tháng gần nhất</h2>
               <button onClick={() => router.push('/bao-cao')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
@@ -1135,6 +1075,98 @@ export default function Dashboard() {
             )}
           </div>
         )}
+
+        {/* ❷.7 ============= ĐỀ XUẤT THEO NGƯỜI (pipeline duyệt) ============= */}
+        {canXuLy && deXuatTheoNguoi && (deXuatTheoNguoi.nguoiList.length > 0 || deXuatTheoNguoi.tonDong.soPhieu > 0) && (() => {
+          const maxTong = deXuatTheoNguoi.nguoiList.reduce((m, p) => Math.max(m, p.tong), 0) || 1;
+          return (
+            <div className="glass-card" style={{ marginBottom: 0 }}>
+              <div className={styles.cardTitleBar}>
+                <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={19} style={{ color: 'var(--info)' }} />
+                  Đề xuất theo người — Tháng {deXuatTheoNguoi.thang}/{deXuatTheoNguoi.nam}
+                </h2>
+                <button onClick={() => router.push('/de-xuat/duyet')} className="btn btn-secondary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                  <span>Đi duyệt</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+
+              {/* Chú thích màu */}
+              <div style={{ display: 'flex', gap: '1.2rem', marginBottom: '1rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#10b981', display: 'inline-block' }} /> Đã duyệt &amp; chi
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#f59e0b', display: 'inline-block' }} /> Chờ duyệt
+                </span>
+              </div>
+
+              {deXuatTheoNguoi.nguoiList.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0 0 0.5rem' }}>
+                  Tháng này chưa có đề xuất mới.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {deXuatTheoNguoi.nguoiList.map((p) => {
+                    const isUnknown = p.id === '__unknown__';
+                    const av = getAvatarColor(p.id, isUnknown);
+                    const wTotal = Math.round((p.tong / maxTong) * 100);
+                    const wDone = p.tong > 0 ? Math.round((p.daDuyet / p.tong) * 100) : 0;
+                    return (
+                      <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
+                        <span style={{
+                          width: '30px', height: '30px', borderRadius: '50%', flexShrink: 0,
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.72rem', fontWeight: 700, background: av.bg, color: av.color,
+                        }}>{isUnknown ? '?' : getInitials(p.name)}</span>
+                        <div style={{ flex: '0 0 100px', minWidth: 0 }}>
+                          <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{p.soPhieu} phiếu</div>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', height: '8px', width: `${Math.max(wTotal, 4)}%`, minWidth: '4px', borderRadius: '4px', overflow: 'hidden', background: 'rgba(var(--brand-brown-rgb), 0.08)' }}>
+                            <div style={{ width: `${wDone}%`, height: '100%', background: '#10b981' }} />
+                            <div style={{ width: `${100 - wDone}%`, height: '100%', background: '#f59e0b' }} />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3px', fontSize: '0.74rem' }}>
+                            <span style={{ fontWeight: 600, color: p.choDuyet > 0 ? '#d97706' : 'var(--text-muted)' }}>Chờ: {formatVND(p.choDuyet)}</span>
+                            <span style={{ color: 'var(--text-muted)' }}>Đã: {formatVND(p.daDuyet)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Cảnh báo tồn đọng tháng trước */}
+              {deXuatTheoNguoi.tonDong.soPhieu > 0 && (
+                <div
+                  onClick={() => router.push('/de-xuat/duyet')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px', marginTop: '1rem',
+                    padding: '0.55rem 0.75rem', borderRadius: '8px', cursor: 'pointer',
+                    background: 'var(--warning-bg, rgba(245, 158, 11, 0.12))', color: 'var(--warning)',
+                  }}
+                >
+                  <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.82rem', flex: 1 }}>
+                    Còn <b>{deXuatTheoNguoi.tonDong.soPhieu} phiếu</b> tháng trước chưa duyệt — <b>{formatVND(deXuatTheoNguoi.tonDong.soTien)}</b>
+                  </span>
+                  <ArrowRight size={14} style={{ flexShrink: 0 }} />
+                </div>
+              )}
+
+              {/* Footer tổng chờ duyệt */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                <span>Tổng chờ duyệt tháng này: <b style={{ color: 'var(--text-main)' }}>{formatVND(deXuatTheoNguoi.tongChoDuyet)}</b></span>
+              </div>
+            </div>
+          );
+        })()}
+        </div>
+        )}{/* /twoColRow */}
 
         {/* ================= KHỐI CÁ NHÂN (LEADER/STAFF) ================= */}
         {canPersonal && (
