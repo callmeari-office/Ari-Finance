@@ -32,6 +32,7 @@ export async function GET() {
       nhaCungCap: true,
       quyThanhToan: true,
       nguoiTao: { select: { id: true, hoTen: true, tenNgan: true, email: true, role: true } },
+      nguoiDeXuat: { select: { id: true, hoTen: true, tenNgan: true, email: true, role: true } },
       nguoiDuyet: { select: { id: true, hoTen: true, tenNgan: true, email: true } },
     };
 
@@ -56,9 +57,9 @@ export async function GET() {
         take: 5,
       }) : Promise.resolve(null),
 
-      // STAFF/LEADER: tối đa 200 phiếu của mình để tính thống kê cá nhân
+      // STAFF/LEADER: tối đa 200 phiếu liên quan tới mình (đã tạo hoặc được tạo giúp)
       isRestricted ? prisma.deXuatChiPhi.findMany({
-        where: { nguoiTaoId: user.id },
+        where: { OR: [{ nguoiTaoId: user.id }, { nguoiDeXuatId: user.id }] },
         include: proposalInclude,
         orderBy: { ngayTao: 'desc' },
         take: 200,
