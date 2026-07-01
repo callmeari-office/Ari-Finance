@@ -45,6 +45,7 @@ export async function POST(request) {
       },
       include: {
         danhMuc: true,
+        nguoiDeXuat: true,
       },
     });
 
@@ -58,8 +59,8 @@ export async function POST(request) {
     // Kiểm tra tính hợp lệ:
     // 1. Phải ở trạng thái CHO_HOAN_UNG
     // 2. Phải cùng nguồn tiền TIEN_CA_NHAN
-    // 3. Phải thuộc CÙNG một nhân viên đề xuất
-    const staffId = proposals[0].nguoiTaoId;
+    // 3. Phải thuộc CÙNG một người đề xuất (nguoiDeXuatId)
+    const staffId = proposals[0].nguoiDeXuatId;
     for (const prop of proposals) {
       if (prop.trangThai !== 'CHO_HOAN_UNG') {
         return NextResponse.json(
@@ -73,9 +74,9 @@ export async function POST(request) {
           { status: 400 }
         );
       }
-      if (prop.nguoiTaoId !== staffId) {
+      if (prop.nguoiDeXuatId !== staffId) {
         return NextResponse.json(
-          { error: 'Không thể duyệt gộp các đề xuất của nhiều nhân viên khác nhau.' },
+          { error: 'Không thể duyệt gộp các đề xuất của nhiều người đề xuất khác nhau.' },
           { status: 400 }
         );
       }
@@ -84,10 +85,8 @@ export async function POST(request) {
     // Tính tổng tiền hoàn ứng
     const tongTien = proposals.reduce((sum, prop) => sum + prop.soTien, 0);
 
-    // Lấy thông tin nhân viên đề xuất để ghi nội dung
-    const staffUser = await prisma.nhanVien.findUnique({
-      where: { id: staffId },
-    });
+    // Thông tin người đề xuất để ghi nội dung (đã include ở bước fetch proposals)
+    const staffUser = proposals[0].nguoiDeXuat;
 
     let maThuChi;
     const firstProp = proposals[0];
