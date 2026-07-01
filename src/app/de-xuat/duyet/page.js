@@ -1513,8 +1513,14 @@ function DuyetPage() {
 
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Người lập:</span>
-                  <span className={styles.detailValue}>{selectedPreviewProp.nguoiDeXuat.tenNgan || selectedPreviewProp.nguoiDeXuat.hoTen} ({selectedPreviewProp.nguoiDeXuat.role})</span>
+                  <span className={styles.detailValue}>{selectedPreviewProp.nguoiTao.tenNgan || selectedPreviewProp.nguoiTao.hoTen} ({selectedPreviewProp.nguoiTao.role})</span>
                 </div>
+                {selectedPreviewProp.nguoiDeXuatId !== selectedPreviewProp.nguoiTaoId && (
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>Người đề xuất:</span>
+                    <span className={styles.detailValue}>{selectedPreviewProp.nguoiDeXuat.tenNgan || selectedPreviewProp.nguoiDeXuat.hoTen} ({selectedPreviewProp.nguoiDeXuat.role})</span>
+                  </div>
+                )}
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Nguồn tiền:</span>
                   <span className={styles.detailValue}>
