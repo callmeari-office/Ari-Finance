@@ -39,6 +39,8 @@ export async function GET(request) {
     }
 
     if (scope === 'tao-giup') {
+      // Không role-gate: mọi vai trò đều cần chọn người đề xuất khi tạo giúp;
+      // canChonLamNguoiDeXuat() tự lọc theo rank + phòng ban ngay bên dưới.
       const allActive = await prisma.nhanVien.findMany({
         where: { trangThai: 'ACTIVE' },
         orderBy: [{ role: 'asc' }, { hoTen: 'asc' }],
