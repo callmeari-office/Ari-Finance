@@ -51,8 +51,8 @@ export async function POST(request) {
 
     const results = [];
     let successCount = 0;
-    // Gom kết quả thành công theo người tạo để gửi 1 notification tổng hợp
-    const notifyMap = {}; // { nguoiTaoId: { firstId, maPhieus: [], tongTien } }
+    // Gom kết quả thành công theo người đề xuất để gửi 1 notification tổng hợp
+    const notifyMap = {}; // { nguoiDeXuatId: { firstId, maPhieus: [], tongTien } }
 
     // Xử lý TUẦN TỰ để mã phiếu chi (TCyymm-xxxx) sinh liên tiếp, không trùng
     for (const it of items) {
