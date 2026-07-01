@@ -110,6 +110,8 @@ function DeXuatPage() {
   const [nguoiDeXuatId, setNguoiDeXuatId] = useState('');
   const [showTaoGiup, setShowTaoGiup] = useState(false);
   const [nguoiDeXuatOptions, setNguoiDeXuatOptions] = useState([]);
+  const [taoGiupLoading, setTaoGiupLoading] = useState(false);
+  const [taoGiupEmpty, setTaoGiupEmpty] = useState(false);
   // Progressive disclosure: ẩn bớt trường nâng cao cho form gọn, dễ thở trên mobile
   const [showMore, setShowMore] = useState(false);
 
@@ -364,12 +366,6 @@ function DeXuatPage() {
         }
       }
 
-      // Danh sách NV được phép chọn làm "người đề xuất" khi tạo giúp — mọi role đều gọi được
-      const taoGiupRes = await fetch('/api/nhan-su?scope=tao-giup');
-      if (taoGiupRes.ok) {
-        const taoGiupData = await taoGiupRes.json();
-        setNguoiDeXuatOptions(taoGiupData || []);
-      }
     } catch (e) {
       console.error('Error fetching static data:', e);
     }
@@ -2191,14 +2187,44 @@ function DeXuatPage() {
                 {formType === 'ADD' && (
                   <div className="form-group">
                     {!showTaoGiup ? (
-                      <button
-                        type="button"
-                        className={styles.moreToggle}
-                        onClick={() => setShowTaoGiup(true)}
-                        disabled={formLoading || nguoiDeXuatOptions.length === 0}
-                      >
-                        <ChevronDown size={16} /> Tạo giúp cho người khác
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className={styles.moreToggle}
+                          onClick={async () => {
+                            if (nguoiDeXuatOptions.length === 0) {
+                              setTaoGiupLoading(true);
+                              setTaoGiupEmpty(false);
+                              try {
+                                const taoGiupRes = await fetch('/api/nhan-su?scope=tao-giup');
+                                if (taoGiupRes.ok) {
+                                  const taoGiupData = await taoGiupRes.json();
+                                  const options = taoGiupData || [];
+                                  setNguoiDeXuatOptions(options);
+                                  if (options.length === 0) {
+                                    setTaoGiupEmpty(true);
+                                    setTaoGiupLoading(false);
+                                    return;
+                                  }
+                                }
+                              } catch (e) {
+                                console.error('Error fetching nguoi de xuat options:', e);
+                              } finally {
+                                setTaoGiupLoading(false);
+                              }
+                            }
+                            setShowTaoGiup(true);
+                          }}
+                          disabled={formLoading || taoGiupLoading}
+                        >
+                          <ChevronDown size={16} /> {taoGiupLoading ? 'Đang tải...' : 'Tạo giúp cho người khác'}
+                        </button>
+                        {taoGiupEmpty && (
+                          <small style={{ marginTop: '0.3rem', display: 'block', color: 'var(--text-muted)' }}>
+                            Không có nhân viên nào bạn có thể chọn tạo giúp.
+                          </small>
+                        )}
+                      </>
                     ) : (
                       <>
                         <label className="form-label" htmlFor="nguoiDeXuatId" style={{ display: 'inline-flex', alignItems: 'center' }}>
