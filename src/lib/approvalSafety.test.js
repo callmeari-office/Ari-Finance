@@ -22,4 +22,13 @@ describe('approval routes guard against duplicate approval races', () => {
     expect(source).toContain("trangThai: { in: ['CHO_THANH_TOAN', 'DA_THANH_TOAN'] }");
     expect(source).toContain('if (claimed.count !== 1)');
   });
+
+  it('grouped approval claims all selected proposals before returning success', () => {
+    const source = readRoute('src/app/api/de-xuat/duyet-gop/route.js');
+
+    expect(source).toContain('tx.deXuatChiPhi.updateMany({');
+    expect(source).toContain('thuChiId: null');
+    expect(source).toContain("trangThai: 'CHO_HOAN_UNG'");
+    expect(source).toContain('if (claimed.count !== ids.length)');
+  });
 });

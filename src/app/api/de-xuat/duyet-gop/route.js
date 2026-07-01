@@ -113,9 +113,14 @@ export async function POST(request) {
       });
 
       // 2. Cập nhật tất cả đề xuất trỏ về phiếu ThuChi gộp này và chuyển trạng thái
-      await tx.deXuatChiPhi.updateMany({
+      const claimed = await tx.deXuatChiPhi.updateMany({
         where: {
           id: { in: ids },
+          laLichSu: false,
+          thuChiId: null,
+          trangThai: 'CHO_HOAN_UNG',
+          nguonTien: 'TIEN_CA_NHAN',
+          nguoiDeXuatId: staffId,
         },
         data: {
           trangThai: 'DA_THANH_TOAN',
@@ -125,6 +130,10 @@ export async function POST(request) {
           nguoiDuyetId: user.id,
         },
       });
+
+        if (claimed.count !== ids.length) {
+          throw new Error('Mot hoac nhieu de xuat da duoc duyet boi request khac.');
+        }
 
         return phieuChi;
       });
@@ -154,6 +163,12 @@ export async function POST(request) {
     });
   } catch (error) {
     logger.error('POST /api/de-xuat/duyet-gop', error);
+    if (String(error?.message || '').includes('da duoc duyet')) {
+      return NextResponse.json(
+        { error: 'Một hoặc nhiều đề xuất đã được duyệt bởi request khác. Vui lòng tải lại danh sách.' },
+        { status: 409 }
+      );
+    }
     return NextResponse.json(
       { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
