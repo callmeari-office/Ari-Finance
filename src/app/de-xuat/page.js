@@ -107,6 +107,9 @@ function DeXuatPage() {
   const [ngayCanThanhToan, setNgayCanThanhToan] = useState('');
   const [formType, setFormType] = useState('ADD'); // 'ADD' hoặc 'EDIT'
   const [editingId, setEditingId] = useState(null);
+  const [nguoiDeXuatId, setNguoiDeXuatId] = useState('');
+  const [showTaoGiup, setShowTaoGiup] = useState(false);
+  const [nguoiDeXuatOptions, setNguoiDeXuatOptions] = useState([]);
   // Progressive disclosure: ẩn bớt trường nâng cao cho form gọn, dễ thở trên mobile
   const [showMore, setShowMore] = useState(false);
 
@@ -360,6 +363,13 @@ function DeXuatPage() {
           if (quyData?.length > 0) setDuyetQuyId(quyData[0].id);
         }
       }
+
+      // Danh sách NV được phép chọn làm "người đề xuất" khi tạo giúp — mọi role đều gọi được
+      const taoGiupRes = await fetch('/api/nhan-su?scope=tao-giup');
+      if (taoGiupRes.ok) {
+        const taoGiupData = await taoGiupRes.json();
+        setNguoiDeXuatOptions(taoGiupData || []);
+      }
     } catch (e) {
       console.error('Error fetching static data:', e);
     }
@@ -571,6 +581,8 @@ function DeXuatPage() {
     setNoiDung('');
     setAnhHoaDon('');
     setShowMore(false);
+    setNguoiDeXuatId('');
+    setShowTaoGiup(false);
 
     setFormError('');
     setFormSuccess('');
@@ -1416,6 +1428,7 @@ function DeXuatPage() {
           ghiChu,
           ngayCanThanhToan: ngayCanThanhToan || null,
           anhHoaDon: anhHoaDon || null,
+          ...(formType === 'ADD' && nguoiDeXuatId ? { nguoiDeXuatId } : {}),
         }),
       });
 
@@ -2174,6 +2187,57 @@ function DeXuatPage() {
                     />
                   </div>
                 </div>
+
+                {formType === 'ADD' && (
+                  <div className="form-group">
+                    {!showTaoGiup ? (
+                      <button
+                        type="button"
+                        className={styles.moreToggle}
+                        onClick={() => setShowTaoGiup(true)}
+                        disabled={formLoading || nguoiDeXuatOptions.length === 0}
+                      >
+                        <ChevronDown size={16} /> Tạo giúp cho người khác
+                      </button>
+                    ) : (
+                      <>
+                        <label className="form-label" htmlFor="nguoiDeXuatId" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          Người đề xuất
+                          <HelpTip text="Chọn nếu bạn đang tạo phiếu này giúp một nhân viên khác (họ tạm thời chưa dùng app). Phiếu vẫn hiển thị cho cả bạn và người được chọn." />
+                        </label>
+                        <select
+                          id="nguoiDeXuatId"
+                          className="form-control"
+                          value={nguoiDeXuatId}
+                          onChange={(e) => setNguoiDeXuatId(e.target.value)}
+                          disabled={formLoading}
+                        >
+                          <option value="">-- Chính tôi --</option>
+                          {nguoiDeXuatOptions.map((nv) => (
+                            <option key={nv.id} value={nv.id}>
+                              {nv.tenNgan || nv.hoTen} ({nv.role})
+                            </option>
+                          ))}
+                        </select>
+                        {nguoiDeXuatId && (
+                          <small style={{ marginTop: '0.3rem', display: 'block', color: 'var(--info)', fontWeight: 600 }}>
+                            Đang tạo giúp cho: {nguoiDeXuatOptions.find((nv) => nv.id === nguoiDeXuatId)?.tenNgan
+                              || nguoiDeXuatOptions.find((nv) => nv.id === nguoiDeXuatId)?.hoTen}
+                          </small>
+                        )}
+                        <button
+                          type="button"
+                          className={styles.moreToggle}
+                          onClick={() => { setShowTaoGiup(false); setNguoiDeXuatId(''); }}
+                          disabled={formLoading}
+                          style={{ marginTop: '0.4rem' }}
+                        >
+                          Bỏ chọn, tự tạo cho mình
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {/* AI TRẢ KHOẢN NÀY? — thay 2 ô "Nguồn tiền" + "Trạng thái" khó hiểu.
                     Bên dưới vẫn lưu đúng nguonTien + trangThai như cũ. */}
