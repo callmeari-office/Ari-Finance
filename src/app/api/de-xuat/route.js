@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 import { generateMaDeXuat, withUniqueCodeRetry } from '@/lib/generateId';
 import { notifyManagersChoThanhToan } from '@/lib/email';
 import { notifyManagers as pushNotifyManagers } from '@/lib/webpush';
-import { canViewCategory, isRestrictedToOwnProposals, getEffectiveRoles } from '@/lib/roles';
+import { canViewCategory, isRestrictedToOwnProposals, getEffectiveRoles, canChonLamNguoiDeXuat } from '@/lib/roles';
 import { ghiNhatKy } from '@/lib/audit';
 import { validateStorageImageUrl } from '@/lib/validateImage';
 import { VALID_NGUON_TIEN, resolveCreateProposalStatus } from '@/lib/proposalWorkflow';
@@ -194,6 +194,7 @@ export async function POST(request) {
       ghiChu,
       ngayCanThanhToan,
       anhHoaDon,
+      nguoiDeXuatId,
     } = body;
 
     // Kiểm tra URL ảnh hóa đơn nếu có gửi lên
@@ -257,6 +258,18 @@ export async function POST(request) {
       );
     }
 
+    let finalNguoiDeXuatId = user.id;
+    if (nguoiDeXuatId && nguoiDeXuatId !== user.id) {
+      const target = await prisma.nhanVien.findUnique({ where: { id: nguoiDeXuatId } });
+      if (!target || !canChonLamNguoiDeXuat(user, target)) {
+        return NextResponse.json(
+          { error: 'Bạn không có quyền tạo giúp phiếu đề xuất cho người này.' },
+          { status: 403 }
+        );
+      }
+      finalNguoiDeXuatId = target.id;
+    }
+
     const newProposal = await withUniqueCodeRetry(async () => {
       const maPhieu = await generateMaDeXuat();
       return prisma.deXuatChiPhi.create({
@@ -272,6 +285,7 @@ export async function POST(request) {
           trangThai: finalTrangThai,
           ghiChu: ghiChu || null,
           nguoiTaoId: user.id,
+          nguoiDeXuatId: finalNguoiDeXuatId,
           ngayCanThanhToan:
             ngayCanThanhToan && String(ngayCanThanhToan).trim() !== ''
               ? new Date(ngayCanThanhToan)
