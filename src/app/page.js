@@ -25,6 +25,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Users,
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
@@ -59,6 +61,11 @@ export default function Dashboard() {
   const [profitMonths, setProfitMonths] = useState([]);
   const [canhBao, setCanhBao] = useState(null);
   const [insightsLoading, setInsightsLoading] = useState(true);
+  // Bộ chọn tháng cho khối "Sức khỏe tài chính" (dạng 'YYYY-MM', mặc định tháng hiện tại).
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
   // Dự báo dòng tiền
   const [duBao, setDuBao] = useState(null);
   const [duBaoLoading, setDuBaoLoading] = useState(true);
@@ -287,6 +294,11 @@ export default function Dashboard() {
     }
   };
   const thisMonth = new Date().getMonth() + 1;
+  // ===== Bộ chọn tháng (khối Sức khỏe tài chính) =====
+  const currentYM = `${currentYear}-${String(thisMonth).padStart(2, '0')}`;
+  const selYear = parseInt(selectedMonth.slice(0, 4), 10);
+  const selMonthNum = parseInt(selectedMonth.slice(5, 7), 10);
+  const isCurrentMonthSel = selectedMonth === currentYM;
 
   // Lời nhắn ấm áp giọng "Call Me Ari" — đổi theo buổi trong ngày, xoay theo ngày.
   const getAriMotto = () => {
@@ -343,8 +355,23 @@ export default function Dashboard() {
   // Tổng số dư các quỹ (Tiền đang có)
   const tongSoDuQuy = funds.reduce((sum, f) => sum + f.soDuHienTai, 0);
 
-  // ===== Sức khỏe tài chính THÁNG NÀY =====
-  const lnThang = profitMonths.find((m) => m.thang === thisMonth) || null;
+  // ===== Sức khỏe tài chính theo THÁNG ĐANG CHỌN =====
+  // profitMonths là dữ liệu 12 tháng của NĂM NAY (từ /api/dashboard) → tháng cũ cùng năm lấy trực tiếp,
+  // không cần gọi lại API (nhẹ, không reload trang). Chỉ dùng khi tháng chọn thuộc năm nay.
+  const lnThang = (selYear === currentYear ? profitMonths.find((m) => m.thang === selMonthNum) : null) || null;
+  // Chặn tiến quá tháng hiện tại; lùi không quá tháng có dữ liệu (trong năm nay).
+  const earliestDataMonth = (() => {
+    const withData = profitMonths.filter((m) => m.doanhThuThucTe || m.chiPhiThucTe || m.doanhThuChiTieu || m.chiPhiKeHoach);
+    return withData.length ? Math.min(...withData.map((m) => m.thang)) : thisMonth;
+  })();
+  const canGoNextMonth = !isCurrentMonthSel;
+  const canGoPrevMonth = selYear === currentYear && selMonthNum > earliestDataMonth;
+  const goPrevMonth = () => {
+    if (canGoPrevMonth) setSelectedMonth(`${currentYear}-${String(selMonthNum - 1).padStart(2, '0')}`);
+  };
+  const goNextMonth = () => {
+    if (canGoNextMonth) setSelectedMonth(`${currentYear}-${String(selMonthNum + 1).padStart(2, '0')}`);
+  };
   const doanhThuThang = lnThang?.doanhThuThucTe || 0;
   const chiTieuThang = lnThang?.doanhThuChiTieu || 0;
   const chiPhiThang = lnThang?.chiPhiThucTe || 0;
@@ -694,14 +721,37 @@ export default function Dashboard() {
         {/* ❶ ================= BỨC TRANH THÁNG NÀY (KPI) ================= */}
         {canKPI && (
           <>
-            <h2 className={styles.sectionTitle}>
-              Sức khỏe tài chính — Tháng {thisMonth}/{currentYear}
+            <h2 className={styles.sectionTitle} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span>Sức khỏe tài chính</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                <button
+                  type="button"
+                  onClick={goPrevMonth}
+                  disabled={!canGoPrevMonth}
+                  aria-label="Tháng trước"
+                  className={styles.monthNavBtn}
+                >
+                  <ChevronLeft size={18} />
+                </button>
+                <span style={{ minWidth: '6.5rem', textAlign: 'center', fontSize: '0.95rem', fontWeight: 700 }}>
+                  Tháng {selMonthNum}/{selYear}
+                </span>
+                <button
+                  type="button"
+                  onClick={goNextMonth}
+                  disabled={!canGoNextMonth}
+                  aria-label="Tháng sau"
+                  className={styles.monthNavBtn}
+                >
+                  <ChevronRight size={18} />
+                </button>
+              </span>
             </h2>
             <div className={styles.dashboardGrid} style={{ marginBottom: '1.5rem' }}>
               {/* Doanh thu vs chỉ tiêu */}
               <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${tileColor}` }}>
                 <div className={styles.cardHeader}>
-                  <span>Doanh thu tháng này</span>
+                  <span>Doanh thu {isCurrentMonthSel ? 'tháng này' : `T${selMonthNum}`}</span>
                   <Target className={styles.cardIcon} style={{ color: tileColor }} />
                 </div>
                 <h3 style={{ color: tileColor }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={doanhThuThang} format={fmtKpi} />}</h3>
@@ -711,14 +761,14 @@ export default function Dashboard() {
               {/* Chi phí vs kế hoạch */}
               <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--danger)' }}>
                 <div className={styles.cardHeader}>
-                  <span>Chi phí tháng này</span>
+                  <span>Chi phí {isCurrentMonthSel ? 'tháng này' : `T${selMonthNum}`}</span>
                   <TrendingDown className={styles.cardIcon} style={{ color: 'var(--danger)' }} />
                 </div>
                 <h3 style={{ color: 'var(--danger)' }}>{insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={chiPhiThang} format={fmtKpi} />}</h3>
                 <p className={styles.cardInfo}>
                   {chiPhiKeHoachThang > 0 ? `${tileChiPhi}% kế hoạch (${formatVND(chiPhiKeHoachThang)})` : 'Chưa đặt kế hoạch chi tháng'}
                 </p>
-                {conLaiCoDinh > 0 && (
+                {isCurrentMonthSel && conLaiCoDinh > 0 && (
                   <>
                     {sapToiHan > 0 && (
                       <p className={styles.cardInfo} style={{ marginTop: '0.15rem', color: 'var(--warning)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -735,14 +785,14 @@ export default function Dashboard() {
               {/* Lãi/Lỗ tháng + biên lợi nhuận */}
               <div className={`${styles.statCard} glass-card`} style={{ borderLeft: `4px solid ${laiLoThang >= 0 ? '#10b981' : '#ef4444'}` }}>
                 <div className={styles.cardHeader}>
-                  <span>{laiLoThang >= 0 ? 'Lãi tháng này' : 'Lỗ tháng này'}</span>
+                  <span>{laiLoThang >= 0 ? 'Lãi' : 'Lỗ'} {isCurrentMonthSel ? 'tháng này' : `T${selMonthNum}`}</span>
                   <Scale className={styles.cardIcon} style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }} />
                 </div>
                 <h3 style={{ color: laiLoThang >= 0 ? '#10b981' : '#ef4444' }}>
                   {insightsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={laiLoThang} format={fmtKpi} />}
                 </h3>
                 <p className={styles.cardInfo}>Biên lợi nhuận {bienLoiNhuan}% · <span style={{ cursor: 'pointer', color: 'var(--info)' }} onClick={() => router.push('/loi-nhuan')}>Xem 12 tháng →</span></p>
-                {conLaiCoDinh > 0 && (
+                {isCurrentMonthSel && conLaiCoDinh > 0 && (
                   <p className={styles.cardInfo} style={{ marginTop: '0.15rem', color: laiDuKienCaThang >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                     Lãi ước cả tháng ~{formatVND(laiDuKienCaThang)}
                   </p>
@@ -752,7 +802,7 @@ export default function Dashboard() {
               {/* Tiền đang có (số dư quỹ) */}
               <div className={`${styles.statCard} glass-card`} style={{ borderLeft: '4px solid var(--info)' }}>
                 <div className={styles.cardHeader}>
-                  <span>Tiền đang có</span>
+                  <span>Tiền đang có <small style={{ color: 'var(--text-muted)', fontWeight: 500 }}>· hiện tại</small></span>
                   <Banknote className={styles.cardIcon} style={{ color: 'var(--info)' }} />
                 </div>
                 <h3>{fundsLoading ? <span className="skeleton skeletonTitle" style={{ display: 'block', width: '65%' }} /> : <AnimatedNumber value={tongSoDuQuy} format={fmtKpi} />}</h3>

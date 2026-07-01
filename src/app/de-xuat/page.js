@@ -29,7 +29,8 @@ import {
   Clock,
   Wallet,
   Building2,
-  HandCoins
+  HandCoins,
+  Copy
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import FilterDropdown from '@/components/FilterDropdown';
@@ -39,6 +40,7 @@ import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { canViewCategory, canUseProposalCreatorFilter, isRestrictedToOwnProposals } from '@/lib/roles';
 import { formatDate, formatDateOrEmpty } from '@/lib/date';
+import { readFormMemory, writeFormMemory } from '@/lib/formMemory';
 import { docSoTienVND } from '@/lib/docSo';
 import { generateVietQRUrl } from '@/lib/vietqr';
 import { formatSoTienDisplay, parseDateCell, getProposalApproveGroup, resolveBulkApproveGroup } from './helpers';
@@ -78,7 +80,7 @@ function DeXuatPage() {
     }
   };
 
-  // Filter states (empty array = táº¥t cáº£)
+  // Filter states (empty array = tất cả)
   const [filterTrangThai, setFilterTrangThai] = useState([]);
   const [filterNguonTien, setFilterNguonTien] = useState([]);
   const [filterThang, setFilterThang] = useState([String(new Date().getMonth() + 1)]);
@@ -556,8 +558,12 @@ function DeXuatPage() {
     setEditingId(null);
     setNgayPhatSinh(new Date().toISOString().split('T')[0]);
     setNgayCanThanhToan('');
-    setNguonTien('TIEN_SHOP');
-    setTrangThai('CHO_THANH_TOAN');
+    // Nhớ "Ai trả khoản này" (tình huống) từ lần trước — mặc định "Shop trả (chờ duyệt)".
+    // Giá trị lưu không hợp lệ → dùng mặc định.
+    const memChi = readFormMemory('phieu-chi');
+    const tinhHuongNho = ['SHOP_CHUA_TRA', 'SHOP_DA_TRA', 'CA_NHAN'].includes(memChi?.tinhHuong)
+      ? memChi.tinhHuong : 'SHOP_CHUA_TRA';
+    chonTinhHuong(tinhHuongNho);
     setDanhMucId('');
     setSoTien('');
     setNhaCungCapId('');
@@ -589,6 +595,21 @@ function DeXuatPage() {
     setFormError('');
     setFormSuccess('');
     setIsModalOpen(true);
+  };
+
+  // Nhân bản nhanh 1 phiếu đã có sang form tạo mới (khi cần tạo loạt phiếu giống nhau).
+  // Copy nội dung/danh mục/nhà cung cấp/ai-trả; ngày phát sinh để hôm nay; GIỮ số tiền để sửa nhanh.
+  const handleOpenSimilar = (prop) => {
+    handleOpenAdd(); // reset sạch về ADD + đặt ngày = hôm nay
+    setDanhMucId(prop.danhMucId || '');
+    setNoiDung(prop.noiDung || '');
+    setSoTien(prop.soTien != null ? String(prop.soTien) : '');
+    setNhaCungCapId(prop.nhaCungCapId || '');
+    setGhiChu(prop.ghiChu || '');
+    // "Ai trả" theo phiếu nguồn (bản sao nên giống phiếu gốc, ưu tiên hơn giá trị nhớ)
+    setNguonTien(prop.nguonTien);
+    setTrangThai(prop.trangThai === 'HUY' ? 'CHO_THANH_TOAN' : prop.trangThai);
+    setShowMore(!!(prop.nhaCungCapId || prop.ghiChu));
   };
 
   // ===== IMPORT EXCEL (dữ liệu cũ) =====
@@ -1407,6 +1428,10 @@ function DeXuatPage() {
       setFormSuccess(successMsg);
       toast.success(successMsg);
 
+      // Nhớ "Ai trả khoản này" cho lần tạo sau (chỉ lựa chọn ít đổi — KHÔNG lưu nội dung/số tiền).
+      const tinhHuongLuu = getTinhHuong();
+      if (tinhHuongLuu) writeFormMemory('phieu-chi', { tinhHuong: tinhHuongLuu });
+
       // Reset form
       setDanhMucId('');
       setNoiDung('');
@@ -1778,6 +1803,14 @@ function DeXuatPage() {
                               <Eye size={16} />
                             </button>
 
+                            <button
+                              onClick={() => handleOpenSimilar(prop)}
+                              className={styles.actionBtn}
+                              title="Tạo phiếu tương tự"
+                            >
+                              <Copy size={16} />
+                            </button>
+
                             {canEdit(prop) && (
                               <button
                                 onClick={() => handleOpenEdit(prop)}
@@ -1922,6 +1955,13 @@ function DeXuatPage() {
                             title="Xem chi tiết"
                           >
                             <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleOpenSimilar(prop)}
+                            className={styles.actionBtn}
+                            title="Tạo phiếu tương tự"
+                          >
+                            <Copy size={16} />
                           </button>
                           {canEdit(prop) && (
                             <button

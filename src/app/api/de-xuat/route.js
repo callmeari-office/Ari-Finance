@@ -18,7 +18,7 @@ export async function GET(request) {
   try {
     const user = await getSession();
     if (!user) {
-      return NextResponse.json({ error: 'ChÆ°a Ä‘Äƒng nháº­p.' }, { status: 401 });
+      return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -86,14 +86,14 @@ export async function GET(request) {
       where.danhMucId = { in: danhMucId.split(',').map(s => s.trim()).filter(Boolean) };
     }
 
-    // Staff (vĂ  Leader) chá»‰ tháº¥y Ä‘á» xuáº¥t cá»§a mĂ¬nh
+    // Staff (và Leader) chỉ thấy đề xuất của mình
     if (isRestrictedToOwnProposals(user.role)) {
       where.nguoiTaoId = user.id;
     } else if (nguoiTaoId) {
       where.nguoiTaoId = { in: nguoiTaoId.split(',').map(s => s.trim()).filter(Boolean) };
     }
 
-    // Lá»c theo nÄƒm vĂ  thĂ¡ng cá»§a ngayPhatSinh (há»— trá»£ multi-select)
+    // Lọc theo năm và tháng của ngayPhatSinh (hỗ trợ multi-select)
     const dateWhere = buildProposalDateWhere(nam, thang);
     if (dateWhere) {
       where.AND = [
@@ -102,7 +102,7 @@ export async function GET(request) {
       ];
     }
 
-    // TĂ¬m kiáº¿m (mĂ£ phiáº¿u, ná»™i dung, tĂªn NCC)
+    // Tìm kiếm (mã phiếu, nội dung, tên NCC)
     if (search) {
       const q = search.trim();
       where.AND = [
@@ -121,7 +121,7 @@ export async function GET(request) {
       ];
     }
 
-    // [M5] Lá»c quyá»n danh má»¥c táº¡i DB Ä‘á»ƒ count/sum/pagination nháº¥t quĂ¡n
+    // [M5] Lọc quyền danh mục tại DB để count/sum/pagination nhất quán
     if (user.role !== 'OWNER' && user.role !== 'MANAGER') {
       const effectiveRoles = getEffectiveRoles(user.role);
       where.danhMuc = {
@@ -169,7 +169,7 @@ export async function GET(request) {
   } catch (error) {
     logger.error('GET /api/de-xuat', error);
     return NextResponse.json(
-      { error: 'ÄĂ£ xáº£y ra lá»—i trĂªn há»‡ thá»‘ng.' },
+      { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
     );
   }
@@ -179,7 +179,7 @@ export async function POST(request) {
   try {
     const user = await getSession();
     if (!user) {
-      return NextResponse.json({ error: 'ChÆ°a Ä‘Äƒng nháº­p.' }, { status: 401 });
+      return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -196,7 +196,7 @@ export async function POST(request) {
       anhHoaDon,
     } = body;
 
-    // Kiá»ƒm tra URL áº£nh hĂ³a Ä‘Æ¡n náº¿u cĂ³ gá»­i lĂªn
+    // Kiểm tra URL ảnh hóa đơn nếu có gửi lên
     if (anhHoaDon) {
       const imgError = validateStorageImageUrl(anhHoaDon);
       if (imgError) {
@@ -206,26 +206,26 @@ export async function POST(request) {
 
     if (!ngayPhatSinh || !danhMucId || !noiDung || !soTien || !nguonTien) {
       return NextResponse.json(
-        { error: 'Vui lĂ²ng cung cáº¥p Ä‘áº§y Ä‘á»§ thĂ´ng tin báº¯t buá»™c.' },
+        { error: 'Vui lòng cung cấp đầy đủ thông tin bắt buộc.' },
         { status: 400 }
       );
     }
 
     if (typeof noiDung !== 'string' || noiDung.trim().length === 0 || noiDung.length > 500) {
       return NextResponse.json(
-        { error: 'Ná»™i dung Ä‘á» xuáº¥t khĂ´ng há»£p lá»‡ (1â€“500 kĂ½ tá»±).' },
+        { error: 'Nội dung đề xuất không hợp lệ (1–500 ký tự).' },
         { status: 400 }
       );
     }
 
     if (Number(soTien) <= 0) {
       return NextResponse.json(
-        { error: 'Sá»‘ tiá»n Ä‘á» xuáº¥t pháº£i lá»›n hÆ¡n 0.' },
+        { error: 'Số tiền đề xuất phải lớn hơn 0.' },
         { status: 400 }
       );
     }
     if (!VALID_NGUON_TIEN.includes(nguonTien)) {
-      return NextResponse.json({ error: 'Nguá»“n tiá»n khĂ´ng há»£p lá»‡.' }, { status: 400 });
+      return NextResponse.json({ error: 'Nguồn tiền không hợp lệ.' }, { status: 400 });
     }
     const finalTrangThai = resolveCreateProposalStatus({
       role: user.role,
@@ -235,24 +235,24 @@ export async function POST(request) {
 
     const danhMuc = await prisma.danhMuc.findUnique({ where: { id: danhMucId } });
     if (!danhMuc) {
-      return NextResponse.json({ error: 'Danh má»¥c chi phĂ­ khĂ´ng há»£p lá»‡.' }, { status: 400 });
+      return NextResponse.json({ error: 'Danh mục chi phí không hợp lệ.' }, { status: 400 });
     }
 
     try {
       const allowedRoles = JSON.parse(danhMuc.chucVuDuocXem);
       if (!canViewCategory(user.role, allowedRoles)) {
         return NextResponse.json(
-          { error: 'Báº¡n khĂ´ng cĂ³ quyá»n chá»n danh má»¥c chi phĂ­ nĂ y.' },
+          { error: 'Bạn không có quyền chọn danh mục chi phí này.' },
           { status: 403 }
         );
       }
     } catch {
-      return NextResponse.json({ error: 'Lá»—i kiá»ƒm tra quyá»n danh má»¥c.' }, { status: 500 });
+      return NextResponse.json({ error: 'Lỗi kiểm tra quyền danh mục.' }, { status: 500 });
     }
 
     if (danhMuc.yeuCauNCC && !nhaCungCapId) {
       return NextResponse.json(
-        { error: `Danh má»¥c "${danhMuc.tenDanhMuc}" yĂªu cáº§u pháº£i chá»n NhĂ  cung cáº¥p.` },
+        { error: `Danh mục "${danhMuc.tenDanhMuc}" yêu cầu phải chọn Nhà cung cấp.` },
         { status: 400 }
       );
     }
@@ -285,18 +285,18 @@ export async function POST(request) {
       hanhDong: 'TAO',
       doiTuong: 'DE_XUAT',
       maDoiTuong: newProposal.maPhieu,
-      moTa: `Táº¡o Ä‘á» xuáº¥t "${newProposal.noiDung}" â€” ${Number(newProposal.soTien).toLocaleString('vi-VN')}Ä‘`,
+      moTa: `Tạo đề xuất "${newProposal.noiDung}" — ${Number(newProposal.soTien).toLocaleString('vi-VN')}đ`,
     });
 
-    // Gá»­i email thĂ´ng bĂ¡o cho OWNER + MANAGER khi phiáº¿u á»Ÿ tráº¡ng thĂ¡i "Chá» thanh toĂ¡n".
-    // Await Ä‘á»ƒ cháº¯c cháº¯n email Ä‘Æ°á»£c gá»­i trĂªn mĂ´i trÆ°á»ng serverless, nhÆ°ng hĂ m nĂ y
-    // tá»± báº¯t lá»—i bĂªn trong nĂªn KHĂ”NG lĂ m há»ng luá»“ng táº¡o phiáº¿u náº¿u gá»­i mail tháº¥t báº¡i.
+    // Gửi email thông báo cho OWNER + MANAGER khi phiếu ở trạng thái "Chờ thanh toán".
+    // Await để chắc chắn email được gửi trên môi trường serverless, nhưng hàm này
+    // tự bắt lỗi bên trong nên KHÔNG làm hỏng luồng tạo phiếu nếu gửi mail thất bại.
     if (newProposal.trangThai === 'CHO_THANH_TOAN') {
       await notifyManagersChoThanhToan(newProposal.id);
-      // Gá»­i push notification song song vá»›i email (tá»± báº¯t lá»—i bĂªn trong)
+      // Gửi push notification song song với email (tự bắt lỗi bên trong)
       pushNotifyManagers({
-        title: 'Phiáº¿u má»›i chá» duyá»‡t',
-        body: `${newProposal.noiDung} â€” ${Number(newProposal.soTien).toLocaleString('vi-VN')}Ä‘`,
+        title: 'Phiếu mới chờ duyệt',
+        body: `${newProposal.noiDung} — ${Number(newProposal.soTien).toLocaleString('vi-VN')}đ`,
         url: '/de-xuat/duyet',
         tag: 'new-proposals',
       }).catch(() => {});
@@ -312,12 +312,12 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       proposal: newProposal,
-      message: `ÄĂ£ táº¡o Ä‘á» xuáº¥t ${newProposal.maPhieu} thĂ nh cĂ´ng.`,
+      message: `Đã tạo đề xuất ${newProposal.maPhieu} thành công.`,
     });
   } catch (error) {
     logger.error('POST /api/de-xuat', error);
     return NextResponse.json(
-      { error: 'ÄĂ£ xáº£y ra lá»—i trĂªn há»‡ thá»‘ng.' },
+      { error: 'Đã xảy ra lỗi trên hệ thống.' },
       { status: 500 }
     );
   }

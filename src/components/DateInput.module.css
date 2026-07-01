@@ -11,6 +11,11 @@
   padding-right: 2.75rem !important;
 }
 
+/* Touch: ô ngày là trigger mở lịch → con trỏ pointer gợi ý bấm được */
+@media (pointer: coarse) {
+  .textInput { cursor: pointer; }
+}
+
 /* Nút mở lịch — nằm bên trong input, góc phải giữa dọc */
 .calBtn {
   position: absolute;

@@ -371,6 +371,30 @@
   margin: 0 0 var(--space-4);
 }
 
+/* Nút ‹ › chọn tháng trong tiêu đề khối Sức khỏe tài chính */
+.monthNavBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: transparent;
+  color: var(--brand-brown);
+  cursor: pointer;
+  transition: background 0.15s var(--ease-out, ease), opacity 0.15s var(--ease-out, ease);
+}
+
+.monthNavBtn:hover:not(:disabled) {
+  background: rgba(var(--brand-brown-rgb), 0.08);
+}
+
+.monthNavBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 /* ============ Hàng cảnh báo — 3 mức visual weight rõ ràng ============
    Critical (quá hạn/vượt KH) > Warning (sắp hạn/sắp chạm) > Info (chờ duyệt) */
 .alertRow {

@@ -1,7 +1,10 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { CalendarDays } from 'lucide-react';
 import styles from './DateInput.module.css';
+
+// useLayoutEffect chạy client-side; guard để không cảnh báo khi SSR.
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 // yyyy-mm-dd → dd/mm/yyyy
 function toDisplay(iso) {
@@ -32,14 +35,38 @@ function autoFormat(raw) {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
+// Vị trí caret trong chuỗi đã format sao cho có đúng `n` chữ số ở bên trái.
+// Dùng để giữ caret đúng chỗ khi autoFormat chèn/bỏ dấu '/'.
+function caretPosForDigits(formatted, n) {
+  if (n <= 0) return 0;
+  let count = 0;
+  for (let i = 0; i < formatted.length; i++) {
+    if (formatted[i] >= '0' && formatted[i] <= '9') {
+      count++;
+      if (count === n) return i + 1;
+    }
+  }
+  return formatted.length;
+}
+
 /**
  * DateInput — hiển thị dd/mm/yyyy, value/onChange dùng yyyy-mm-dd.
  * Props: id, value, onChange, className, required, disabled, min, max, style, title
  */
 export default function DateInput({ id, value, onChange, className, required, disabled, min, max, style, inputStyle, title }) {
   const [display, setDisplay] = useState(() => toDisplay(value));
+  const [isTouch, setIsTouch] = useState(false);
   const pickerRef = useRef(null);
+  const textRef = useRef(null);
+  const caretRef = useRef(null); // vị trí caret mong muốn sau khi reformat (null = không đụng)
   const prevISO = useRef(value);
+
+  // Phát hiện thiết bị cảm ứng (coarse pointer) — tính 1 lần sau mount để tránh lệch SSR/hydration.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+      setIsTouch(window.matchMedia('(pointer: coarse)').matches);
+    }
+  }, []);
 
   // Sync khi parent đổi value từ bên ngoài
   useEffect(() => {
@@ -49,8 +76,23 @@ export default function DateInput({ id, value, onChange, className, required, di
     }
   }, [value]);
 
+  // Sau khi React set lại value (controlled), trình duyệt đẩy caret về cuối.
+  // Khôi phục caret về vị trí logic đã tính trong handleChange.
+  useIsoLayoutEffect(() => {
+    if (caretRef.current != null && textRef.current) {
+      const pos = caretRef.current;
+      caretRef.current = null;
+      try { textRef.current.setSelectionRange(pos, pos); } catch { /* input không hỗ trợ selection */ }
+    }
+  });
+
   function handleChange(e) {
-    const newDisplay = autoFormat(e.target.value);
+    const raw = e.target.value;
+    const rawCaret = e.target.selectionStart ?? raw.length;
+    // Đếm số chữ số bên trái caret trong chuỗi thô (bất biến qua reformat)
+    const digitsLeft = raw.slice(0, rawCaret).replace(/\D/g, '').length;
+    const newDisplay = autoFormat(raw);
+    caretRef.current = caretPosForDigits(newDisplay, digitsLeft);
     setDisplay(newDisplay);
     const iso = toISO(newDisplay);
     if (iso || newDisplay === '') {
@@ -76,6 +118,13 @@ export default function DateInput({ id, value, onChange, className, required, di
     setDisplay(toDisplay(iso));
   }
 
+  // Touch: chạm ô = mở lịch. preventDefault trên pointerdown để KHÔNG focus ô text (tránh bàn phím số).
+  function handleTouchTrigger(e) {
+    if (!isTouch) return;
+    e.preventDefault();
+    openPicker();
+  }
+
   function openPicker() {
     try { pickerRef.current?.showPicker(); }
     catch { pickerRef.current?.click(); }
@@ -85,12 +134,14 @@ export default function DateInput({ id, value, onChange, className, required, di
     <div className={styles.wrap} style={style}>
       <input
         id={id}
+        ref={textRef}
         type="text"
-        inputMode="numeric"
+        inputMode={isTouch ? 'none' : 'numeric'}
         placeholder="dd/mm/yyyy"
         value={display}
         onChange={handleChange}
-        onBlur={handleBlur}
+        onBlur={isTouch ? undefined : handleBlur}
+        onPointerDown={handleTouchTrigger}
         className={`${className || ''} ${styles.textInput}`}
         style={inputStyle}
         required={required}

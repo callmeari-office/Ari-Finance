@@ -64,6 +64,7 @@ Mỗi khối bật/tắt qua `canViewMenu(user, 'tq...')` (định nghĩa ở đ
 **OWNER/MANAGER (theo độ ưu tiên — ĐỪNG đảo lộn nếu không có lý do):**
 
 1. **Sức khỏe tài chính (KPI 4 thẻ)** `canKPI` — Doanh thu / Chi phí / Lãi-Lỗ / Tiền đang có. *Ưu tiên cao nhất → trên cùng.*
+   - **Bộ chọn tháng `‹ Tháng M/YYYY ›`** (Đợt 35) ở tiêu đề khối. State `selectedMonth` (`YYYY-MM`) ở `page.js`. 3 thẻ đầu đổi theo `selMonthNum` — lấy **trực tiếp từ `profitMonths`** (đã là 12 tháng năm nay), KHÔNG gọi API mới. **"Tiền đang có" luôn hiện tại** (nhãn "· hiện tại"). Dòng dự báo (sắp tới hạn/ước cả tháng/lãi ước) chỉ hiện khi `isCurrentMonthSel`. Chặn tiến quá tháng này, lùi không quá `earliestDataMonth`. Chỉ trong năm nay (muốn năm trước → thêm fetch `nam`). Các widget STAFF/LEADER (Ngân sách/Doanh thu mini) và "Đề xuất theo người"/"Cảnh báo" GIỮ tháng hiện tại — không gắn selector.
 2. **Cần xử lý** `canXuLy` — phiếu chờ duyệt + cảnh báo (nhắc hạn, vượt hạn mức, vượt KH).
 3. **Quỹ — số dư từng nơi** `canQuy` — fund strip (đã bỏ Fund Hero; tổng nằm ở KPI).
 4. **Dự báo dòng tiền** `canDuBao`.

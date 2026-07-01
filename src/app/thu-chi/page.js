@@ -27,6 +27,7 @@ import FilterDropdown from '@/components/FilterDropdown';
 import { useToast } from '@/components/Toast';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { formatDate } from '@/lib/date';
+import { readFormMemory, writeFormMemory } from '@/lib/formMemory';
 import styles from './thu-chi.module.css';
 
 export default function ThuChiPage() {
@@ -308,7 +309,10 @@ export default function ThuChiPage() {
       if (!res.ok) throw new Error(data.error || 'Tạo phiếu thu thất bại.');
 
       setFormSuccess(data.message || 'Đã tạo phiếu thu thành công! Số dư quỹ đã tăng.');
-      
+
+      // Nhớ lựa chọn ít đổi cho lần nhập sau (quỹ + danh mục + nội dung). KHÔNG lưu số tiền.
+      writeFormMemory('phieu-thu', { quyId, danhMucId, noiDung });
+
       // Reset form
       setSoTien('');
       setNoiDung('');
@@ -324,6 +328,22 @@ export default function ThuChiPage() {
     } finally {
       setFormLoading(false);
     }
+  };
+
+  // Mở modal TH4: điền sẵn quỹ/danh mục/nội dung theo lần nhập gần nhất (nếu id vẫn hợp lệ).
+  // Số tiền luôn để trống. Giá trị đã lưu mà quỹ/danh mục bị xóa → bỏ qua, giữ mặc định.
+  const openReceiptModal = () => {
+    const mem = readFormMemory('phieu-thu');
+    if (mem) {
+      if (mem.quyId && funds.some((f) => f.id === mem.quyId)) setQuyId(mem.quyId);
+      if (mem.danhMucId && categories.some((c) => c.id === mem.danhMucId)) setDanhMucId(mem.danhMucId);
+      if (typeof mem.noiDung === 'string') setNoiDung(mem.noiDung);
+    }
+    setSoTien('');
+    setGhiChu('');
+    setFormError('');
+    setFormSuccess('');
+    setIsModalOpen(true);
   };
 
   const handleCancelTransaction = async (id, maPhieu, soTien, loaiGiaoDich) => {
@@ -442,7 +462,7 @@ export default function ThuChiPage() {
                 <span>Nhập lịch sử quỹ</span>
               </button>
             )}
-            <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
+            <button onClick={openReceiptModal} className="btn btn-primary">
               <PlusCircle size={20} />
               <span>Ghi nhận Phiếu Thu (TH4)</span>
             </button>
