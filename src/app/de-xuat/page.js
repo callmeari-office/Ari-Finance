@@ -1235,7 +1235,7 @@ function DeXuatPage() {
         p.maPhieu,
         formatDateOrEmpty(p.ngayPhatSinh),
         formatDateOrEmpty(p.ngayCanThanhToan),
-        p.nguoiDeXuat ? (p.nguoiDeXuat.tenNgan || p.nguoiDeXuat.hoTen) : '',
+        p.nguoiTao ? (p.nguoiTao.tenNgan || p.nguoiTao.hoTen) : '',
         p.danhMuc?.tenDanhMuc || '',
         p.noiDung || '',
         p.nhaCungCap?.tenNCC || '',
