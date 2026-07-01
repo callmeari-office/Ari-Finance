@@ -23,6 +23,7 @@ model NhanVien {
 
   sessions            Session[]
   deXuatTao           DeXuatChiPhi[] @relation("NguoiTao")
+  deXuatDuocDeXuat    DeXuatChiPhi[] @relation("NguoiDeXuat")
   deXuatDuyet         DeXuatChiPhi[] @relation("NguoiDuyet")
   thuChiTao           ThuChi[]
   pushSubscriptions   PushSubscription[]
@@ -174,6 +175,7 @@ model DeXuatChiPhi {
   quyThanhToanId   String?
   thuChiId         String?
   nguoiTaoId       String
+  nguoiDeXuatId    String
   ngayThanhToan    DateTime?
   nguoiDuyetId     String?
   ghiChu           String?
@@ -187,11 +189,13 @@ model DeXuatChiPhi {
   quyThanhToan    Quy?        @relation(fields: [quyThanhToanId], references: [id])
   thuChi          ThuChi?     @relation(fields: [thuChiId], references: [id], onDelete: SetNull)
   nguoiTao        NhanVien    @relation("NguoiTao", fields: [nguoiTaoId], references: [id])
+  nguoiDeXuat     NhanVien    @relation("NguoiDeXuat", fields: [nguoiDeXuatId], references: [id])
   nguoiDuyet      NhanVien?   @relation("NguoiDuyet", fields: [nguoiDuyetId], references: [id])
 
   @@index([trangThai])
   @@index([ngayPhatSinh])
   @@index([nguoiTaoId])
+  @@index([nguoiDeXuatId])
   @@index([danhMucId])
   @@index([ngayCanThanhToan])
 }
