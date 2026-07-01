@@ -600,7 +600,7 @@ export async function getDeXuatTheoNguoiThang(prisma) {
         soTien: true,
         trangThai: true,
         thuChiId: true,
-        nguoiTao: { select: { id: true, hoTen: true, tenNgan: true } },
+        nguoiDeXuat: { select: { id: true, hoTen: true, tenNgan: true } },
       },
     }),
     prisma.deXuatChiPhi.findMany({
@@ -619,8 +619,8 @@ export async function getDeXuatTheoNguoiThang(prisma) {
 
   const byNguoi = {};
   for (const r of rows) {
-    const id = r.nguoiTao?.id || '__unknown__';
-    const name = r.nguoiTao?.tenNgan || r.nguoiTao?.hoTen || 'Không xác định';
+    const id = r.nguoiDeXuat?.id || '__unknown__';
+    const name = r.nguoiDeXuat?.tenNgan || r.nguoiDeXuat?.hoTen || 'Không xác định';
     if (!byNguoi[id]) byNguoi[id] = { id, name, daDuyet: 0, choDuyet: 0, soPhieu: 0 };
     const isDone = r.trangThai === 'DA_THANH_TOAN' && r.thuChiId != null;
     if (isDone) byNguoi[id].daDuyet += r.soTien;
