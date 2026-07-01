@@ -56,6 +56,7 @@ export async function GET(request) {
       FROM "ThuChi"
       WHERE "ngayGiaoDich" >= ${startOfYear} AND "ngayGiaoDich" < ${endOfYear}
         AND "loaiGiaoDich" = 'CHI'
+        AND "buTruLichSu" = false
       GROUP BY thang, "danhMucId"
     `;
 

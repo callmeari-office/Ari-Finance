@@ -69,6 +69,9 @@ export async function GET(request) {
 
     // Xây dựng where cho ThuChi
     const where = {};
+    if (includeHistory) {
+      where.buTruLichSu = false;
+    }
     if (loaiGiaoDich) {
       where.loaiGiaoDich = { in: loaiGiaoDich.split(',').map(s => s.trim()).filter(Boolean) };
     }
