@@ -193,7 +193,8 @@ export async function PUT(request, { params }) {
 
     // 1. Nghiệp vụ HỦY ĐỀ XUẤT (action === 'HUY')
     if (action === 'HUY') {
-      // Staff chỉ được hủy đề xuất của mình, Owner/Manager được hủy đề xuất bất kỳ (RBAC)
+      // Staff chỉ được hủy đề xuất của mình, Owner/Manager được hủy đề xuất bất kỳ (RBAC).
+      // Cố ý CHỈ theo nguoiTaoId (không cả nguoiDeXuatId) — người đề xuất chỉ xem, không tự hủy hộ được.
       if (isRestrictedToOwnProposals(user.role) && existingProposal.nguoiTaoId !== user.id) {
         return NextResponse.json(
           { error: 'Bạn không có quyền hủy đề xuất này.' },
@@ -315,6 +316,8 @@ export async function PUT(request, { params }) {
     }
 
     // 3. Nghiệp vụ CHỈNH SỬA THÔNG TIN (Dành cho người tạo khi chưa thanh toán)
+    // Cố ý CHỈ theo nguoiTaoId (không cả nguoiDeXuatId như quyền XEM ở GET):
+    // người đề xuất được tạo giúp chỉ xem, không tự sửa/hủy hộ người tạo được.
     if (isRestrictedToOwnProposals(user.role) && existingProposal.nguoiTaoId !== user.id) {
       return NextResponse.json(
         { error: 'Bạn không có quyền sửa đề xuất này.' },
