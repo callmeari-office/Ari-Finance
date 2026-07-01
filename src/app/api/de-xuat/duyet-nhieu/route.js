@@ -130,8 +130,8 @@ export async function POST(request) {
           moTa: `Duyệt thanh toán ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ từ quỹ ${quy.tenQuy} → sinh phiếu chi ${maThuChi} (duyệt hàng loạt)`,
         });
 
-        // Gom notification theo người tạo, không gửi riêng từng phiếu
-        const nid = existingProposal.nguoiTaoId;
+        // Gom notification theo người đề xuất, không gửi riêng từng phiếu
+        const nid = existingProposal.nguoiDeXuatId;
         if (!notifyMap[nid]) notifyMap[nid] = { firstId: id, maPhieus: [], tongTien: 0 };
         notifyMap[nid].maPhieus.push(existingProposal.maPhieu);
         notifyMap[nid].tongTien += Number(existingProposal.soTien);
@@ -144,18 +144,18 @@ export async function POST(request) {
       }
     }
 
-    // Gửi 1 notification tổng hợp cho mỗi người (thay vì N cái riêng lẻ)
-    for (const [nguoiTaoId, info] of Object.entries(notifyMap)) {
+    // Gửi 1 notification tổng hợp cho mỗi người đề xuất (thay vì N cái riêng lẻ)
+    for (const [nguoiDeXuatId, info] of Object.entries(notifyMap)) {
       try {
         const count = info.maPhieus.length;
         const body = count === 1
           ? `${info.maPhieus[0]} — ${info.tongTien.toLocaleString('vi-VN')}đ đã được thanh toán.`
           : `${count} phiếu (${info.maPhieus.slice(0, 3).join(', ')}${count > 3 ? '...' : ''}) — tổng ${info.tongTien.toLocaleString('vi-VN')}đ đã được thanh toán.`;
-        await notifyProposalApproved(nguoiTaoId, {
+        await notifyProposalApproved(nguoiDeXuatId, {
           title: '✅ Phiếu đã được duyệt',
           body,
           url: '/de-xuat?open=' + info.firstId,
-          tag: 'duyet-nhieu-' + nguoiTaoId,
+          tag: 'duyet-nhieu-' + nguoiDeXuatId,
         }, user.id);
       } catch (_) { /* push thất bại không làm hỏng nghiệp vụ */ }
     }
