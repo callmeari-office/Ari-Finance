@@ -110,8 +110,13 @@ export async function POST(request) {
             },
           });
 
-          await tx.deXuatChiPhi.update({
-            where: { id },
+          const claimed = await tx.deXuatChiPhi.updateMany({
+            where: {
+              id,
+              laLichSu: false,
+              thuChiId: null,
+              trangThai: { in: ['CHO_THANH_TOAN', 'DA_THANH_TOAN'] },
+            },
             data: {
               trangThai: 'DA_THANH_TOAN',
               quyThanhToanId,
@@ -120,6 +125,10 @@ export async function POST(request) {
               nguoiDuyetId: user.id,
             },
           });
+          if (claimed.count !== 1) {
+            throw new Error('De xuat da duoc duyet boi request khac.');
+          }
+          return phieuChi;
           });
         });
 
@@ -141,7 +150,12 @@ export async function POST(request) {
         results.push({ id, maPhieu: existingProposal.maPhieu, success: true, maThuChi });
       } catch (err) {
         logger.error('POST /api/de-xuat/duyet-nhieu (item)', err);
-        results.push({ id, success: false, error: 'Lỗi khi duyệt phiếu này.' });
+        const duplicateApproval = String(err?.message || '').includes('da duoc duyet');
+        results.push({
+          id,
+          success: false,
+          error: duplicateApproval ? 'Đề xuất đã được duyệt bởi request khác.' : 'Lỗi khi duyệt phiếu này.',
+        });
       }
     }
 

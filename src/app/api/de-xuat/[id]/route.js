@@ -276,8 +276,13 @@ export async function PUT(request, { params }) {
           },
         });
 
-        const proposalUpdated = await tx.deXuatChiPhi.update({
-          where: { id },
+        const claimed = await tx.deXuatChiPhi.updateMany({
+          where: {
+            id,
+            laLichSu: false,
+            thuChiId: null,
+            trangThai: { in: ['CHO_THANH_TOAN', 'DA_THANH_TOAN'] },
+          },
           data: {
             trangThai: 'DA_THANH_TOAN',
             quyThanhToanId,
@@ -286,6 +291,14 @@ export async function PUT(request, { params }) {
             nguoiDuyetId: user.id,
             ghiChu: ghiChu || existingProposal.ghiChu,
           },
+        });
+
+        if (claimed.count !== 1) {
+          throw new Error('De xuat da duoc duyet boi request khac.');
+        }
+
+        const proposalUpdated = await tx.deXuatChiPhi.findUnique({
+          where: { id },
         });
 
           return { phieuChi, proposalUpdated };
