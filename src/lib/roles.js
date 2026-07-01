@@ -160,8 +160,11 @@ export const ROLE_RANK = { OWNER: 4, MANAGER: 3, LEADER: 2, STAFF: 1 };
 export function canChonLamNguoiDeXuat(nguoiTao, target) {
   if (!nguoiTao || !target) return false;
   if (target.trangThai !== 'ACTIVE') return false;
-  const rankNguoiTao = ROLE_RANK[nguoiTao.role] || 0;
-  const rankTarget = ROLE_RANK[target.role] || 0;
+  // Fail closed: vai trò không xác định (không nằm trong ROLE_RANK) thì từ chối
+  // luôn, không dựa vào fallback `|| 0` (dễ vô tình cho phép qua rank 0).
+  if (!(nguoiTao.role in ROLE_RANK) || !(target.role in ROLE_RANK)) return false;
+  const rankNguoiTao = ROLE_RANK[nguoiTao.role];
+  const rankTarget = ROLE_RANK[target.role];
   if (rankTarget > rankNguoiTao) return false;
   if (nguoiTao.role !== 'OWNER' && target.phongBan !== nguoiTao.phongBan) return false;
   return true;

@@ -152,4 +152,23 @@ describe('canChonLamNguoiDeXuat', () => {
     expect(canChonLamNguoiDeXuat(null, { role: 'STAFF', phongBan: 'FINANCE', trangThai: 'ACTIVE' })).toBe(false);
     expect(canChonLamNguoiDeXuat({ role: 'OWNER', phongBan: 'FINANCE' }, null)).toBe(false);
   });
+
+  it('LEADER chon duoc STAFF cung phong ban', () => {
+    const nguoiTao = { role: 'LEADER', phongBan: 'FINANCE' };
+    const target = { role: 'STAFF', phongBan: 'FINANCE', trangThai: 'ACTIVE' };
+    expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(true);
+  });
+
+  it('LEADER khong chon duoc MANAGER (cap tren) cung phong ban', () => {
+    const nguoiTao = { role: 'LEADER', phongBan: 'FINANCE' };
+    const target = { role: 'MANAGER', phongBan: 'FINANCE', trangThai: 'ACTIVE' };
+    expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(false);
+  });
+
+  it('role khong xac dinh (nguoiTao hoac target) -> false, khong fallback rank 0', () => {
+    const nguoiTaoHopLe = { role: 'MANAGER', phongBan: 'FINANCE' };
+    const targetLa = { role: 'STAFF', phongBan: 'FINANCE', trangThai: 'ACTIVE' };
+    expect(canChonLamNguoiDeXuat({ role: 'HACKER', phongBan: 'FINANCE' }, targetLa)).toBe(false);
+    expect(canChonLamNguoiDeXuat(nguoiTaoHopLe, { role: 'HACKER', phongBan: 'FINANCE', trangThai: 'ACTIVE' })).toBe(false);
+  });
 });
