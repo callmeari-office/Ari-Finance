@@ -29,6 +29,9 @@ export async function GET(request, { params }) {
         nguoiTao: {
           select: { id: true, hoTen: true, tenNgan: true, email: true, role: true },
         },
+        nguoiDeXuat: {
+          select: { id: true, hoTen: true, tenNgan: true, email: true, role: true },
+        },
         nguoiDuyet: {
           select: { id: true, hoTen: true, tenNgan: true, email: true },
         },
@@ -39,8 +42,12 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Không tìm thấy đề xuất.' }, { status: 404 });
     }
 
-    // RBAC check
-    if (isRestrictedToOwnProposals(user.role) && proposal.nguoiTaoId !== user.id) {
+    // RBAC check — được xem nếu là người tạo HOẶC người được tạo giúp (người đề xuất)
+    if (
+      isRestrictedToOwnProposals(user.role) &&
+      proposal.nguoiTaoId !== user.id &&
+      proposal.nguoiDeXuatId !== user.id
+    ) {
       return NextResponse.json({ error: 'Bạn không có quyền xem đề xuất này.' }, { status: 403 });
     }
 
@@ -292,7 +299,7 @@ export async function PUT(request, { params }) {
       });
 
       try {
-        await notifyProposalApproved(existingProposal.nguoiTaoId, {
+        await notifyProposalApproved(existingProposal.nguoiDeXuatId, {
           title: '✅ Phiếu đã được duyệt',
           body: `${existingProposal.maPhieu} — ${Number(existingProposal.soTien).toLocaleString('vi-VN')}đ đã được thanh toán.`,
           url: '/de-xuat?open=' + existingProposal.id,
