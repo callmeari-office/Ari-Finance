@@ -27,7 +27,7 @@ export async function GET(request) {
     const nguonTien = searchParams.get('nguonTien');
     const nhaCungCapId = searchParams.get('nhaCungCapId');
     const danhMucId = searchParams.get('danhMucId');
-    const nguoiTaoId = searchParams.get('nguoiTaoId');
+    const nguoiDeXuatId = searchParams.get('nguoiDeXuatId');
     const nam = searchParams.get('nam');
     const thang = searchParams.get('thang');
     const search = searchParams.get('search');
@@ -86,11 +86,14 @@ export async function GET(request) {
       where.danhMucId = { in: danhMucId.split(',').map(s => s.trim()).filter(Boolean) };
     }
 
-    // Staff (và Leader) chỉ thấy đề xuất của mình
+    // Staff (và Leader) chỉ thấy đề xuất liên quan tới mình — đã tạo HOẶC được tạo giúp cho.
     if (isRestrictedToOwnProposals(user.role)) {
-      where.nguoiTaoId = user.id;
-    } else if (nguoiTaoId) {
-      where.nguoiTaoId = { in: nguoiTaoId.split(',').map(s => s.trim()).filter(Boolean) };
+      where.AND = [
+        ...(where.AND || []),
+        { OR: [{ nguoiTaoId: user.id }, { nguoiDeXuatId: user.id }] },
+      ];
+    } else if (nguoiDeXuatId) {
+      where.nguoiDeXuatId = { in: nguoiDeXuatId.split(',').map(s => s.trim()).filter(Boolean) };
     }
 
     // Lọc theo năm và tháng của ngayPhatSinh (hỗ trợ multi-select)
@@ -134,6 +137,7 @@ export async function GET(request) {
       nhaCungCap: true,
       quyThanhToan: true,
       nguoiTao: { select: { id: true, hoTen: true, tenNgan: true, email: true, role: true } },
+      nguoiDeXuat: { select: { id: true, hoTen: true, tenNgan: true, email: true, role: true } },
       nguoiDuyet: { select: { id: true, hoTen: true, tenNgan: true, email: true } },
     };
 
