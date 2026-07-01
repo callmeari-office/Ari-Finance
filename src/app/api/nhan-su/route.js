@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getSession, checkRole } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { ghiNhatKy } from '@/lib/audit';
-import { canUseProposalCreatorFilter } from '@/lib/roles';
+import { canUseProposalCreatorFilter, canChonLamNguoiDeXuat } from '@/lib/roles';
 
 export async function GET(request) {
   try {
@@ -36,6 +36,28 @@ export async function GET(request) {
       });
 
       return NextResponse.json(proposalCreators);
+    }
+
+    if (scope === 'tao-giup') {
+      const allActive = await prisma.nhanVien.findMany({
+        where: { trangThai: 'ACTIVE' },
+        orderBy: [{ role: 'asc' }, { hoTen: 'asc' }],
+        select: {
+          id: true,
+          hoTen: true,
+          tenNgan: true,
+          role: true,
+          phongBan: true,
+          trangThai: true,
+        },
+      });
+
+      const eligible = allActive
+        .filter((nv) => nv.id !== user.id)
+        .filter((nv) => canChonLamNguoiDeXuat(user, nv))
+        .map(({ id, hoTen, tenNgan, role }) => ({ id, hoTen, tenNgan, role }));
+
+      return NextResponse.json(eligible);
     }
 
     if (!checkRole(user, ['OWNER'])) {
