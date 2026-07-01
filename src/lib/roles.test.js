@@ -124,10 +124,16 @@ describe('canChonLamNguoiDeXuat', () => {
     expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(true);
   });
 
-  it('MANAGER khong chon duoc NV khac phong ban', () => {
+  it('MANAGER van chon duoc NV khac phong ban (chi xet rank)', () => {
     const nguoiTao = { role: 'MANAGER', phongBan: 'FINANCE' };
     const target = { role: 'STAFF', phongBan: 'MARKETING', trangThai: 'ACTIVE' };
-    expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(false);
+    expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(true);
+  });
+
+  it('cung rank nhung khac phong ban van chon duoc nhau', () => {
+    const nguoiTao = { role: 'LEADER', phongBan: 'FINANCE' };
+    const target = { role: 'LEADER', phongBan: 'MARKETING', trangThai: 'ACTIVE' };
+    expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(true);
   });
 
   it('STAFF khong chon duoc cap tren (MANAGER) cung phong ban', () => {

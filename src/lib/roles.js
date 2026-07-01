@@ -154,8 +154,8 @@ export const ROLE_RANK = { OWNER: 4, MANAGER: 3, LEADER: 2, STAFF: 1 };
  * Người tạo (`nguoiTao`, dạng { role, phongBan }) có được chọn `target`
  * (dạng { role, phongBan, trangThai }) làm "người đề xuất" khi tạo giúp không?
  * - target phải ACTIVE.
- * - target không được có role cao hơn nguoiTao.
- * - Phải cùng phòng ban, TRỪ khi nguoiTao là OWNER (không giới hạn phòng ban).
+ * - target không được có role cao hơn nguoiTao (chỉ theo cấp bậc vai trò, không
+ *   giới hạn phòng ban).
  */
 export function canChonLamNguoiDeXuat(nguoiTao, target) {
   if (!nguoiTao || !target) return false;
@@ -166,6 +166,5 @@ export function canChonLamNguoiDeXuat(nguoiTao, target) {
   const rankNguoiTao = ROLE_RANK[nguoiTao.role];
   const rankTarget = ROLE_RANK[target.role];
   if (rankTarget > rankNguoiTao) return false;
-  if (nguoiTao.role !== 'OWNER' && target.phongBan !== nguoiTao.phongBan) return false;
   return true;
 }
