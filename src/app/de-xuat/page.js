@@ -86,7 +86,7 @@ function DeXuatPage() {
   const [filterThang, setFilterThang] = useState([String(new Date().getMonth() + 1)]);
   const [filterNam, setFilterNam] = useState([String(new Date().getFullYear())]);
   const [filterDanhMuc, setFilterDanhMuc] = useState([]);
-  const [filterNguoiTao, setFilterNguoiTao] = useState([]);
+  const [filterNguoiDeXuat, setFilterNguoiDeXuat] = useState([]);
   const [filterSearch, setFilterSearch] = useState('');
 
   // Modal / Form state
@@ -291,7 +291,7 @@ function DeXuatPage() {
       if (filterNam.length > 0) params.append('nam', filterNam.join(','));
       if (filterThang.length > 0) params.append('thang', filterThang.join(','));
       if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
-      if (filterNguoiTao.length > 0) params.append('nguoiTaoId', filterNguoiTao.join(','));
+      if (filterNguoiDeXuat.length > 0) params.append('nguoiDeXuatId', filterNguoiDeXuat.join(','));
       if (filterSearch) params.append('search', filterSearch);
       if (sortBy) params.append('sortBy', sortBy);
       if (sortOrder) params.append('sortOrder', sortOrder);
@@ -387,7 +387,7 @@ function DeXuatPage() {
         fetchData(user, 1);
       }
     }
-  }, [filterTrangThai, filterNguonTien, filterThang, filterNam, filterDanhMuc, filterNguoiTao, filterSearch, sortBy, sortOrder]);
+  }, [filterTrangThai, filterNguonTien, filterThang, filterNam, filterDanhMuc, filterNguoiDeXuat, filterSearch, sortBy, sortOrder]);
 
   useEffect(() => {
     if (filterNam.length === 0 && filterThang.length > 0) {
@@ -1207,7 +1207,7 @@ function DeXuatPage() {
       if (filterNam.length > 0) params.append('nam', filterNam.join(','));
       if (filterThang.length > 0) params.append('thang', filterThang.join(','));
     if (filterDanhMuc.length > 0) params.append('danhMucId', filterDanhMuc.join(','));
-    if (filterNguoiTao.length > 0) params.append('nguoiTaoId', filterNguoiTao.join(','));
+    if (filterNguoiDeXuat.length > 0) params.append('nguoiDeXuatId', filterNguoiDeXuat.join(','));
     if (filterSearch) params.append('search', filterSearch);
 
     try {
@@ -1235,7 +1235,7 @@ function DeXuatPage() {
         p.maPhieu,
         formatDateOrEmpty(p.ngayPhatSinh),
         formatDateOrEmpty(p.ngayCanThanhToan),
-        p.nguoiTao ? (p.nguoiTao.tenNgan || p.nguoiTao.hoTen) : '',
+        p.nguoiDeXuat ? (p.nguoiDeXuat.tenNgan || p.nguoiDeXuat.hoTen) : '',
         p.danhMuc?.tenDanhMuc || '',
         p.noiDung || '',
         p.nhaCungCap?.tenNCC || '',
@@ -1675,8 +1675,8 @@ function DeXuatPage() {
                 <FilterDropdown
                   label="Người đề xuất"
                   options={availableCreators.map((nv) => ({ value: nv.id, label: nv.tenNgan || nv.hoTen }))}
-                  selected={filterNguoiTao}
-                  onChange={setFilterNguoiTao}
+                  selected={filterNguoiDeXuat}
+                  onChange={setFilterNguoiDeXuat}
                 />
               )}
             </div>
@@ -1780,11 +1780,19 @@ function DeXuatPage() {
                         </td>
 
                         <td>
-                          <span style={{ fontWeight: '600' }} title={prop.nguoiTao.hoTen}>
-                            {prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}
+                          <span style={{ fontWeight: '600' }} title={prop.nguoiDeXuat.hoTen}>
+                            {prop.nguoiDeXuat.tenNgan || prop.nguoiDeXuat.hoTen}
                           </span>
                           <br />
-                          <small style={{ color: 'var(--text-muted)' }}>{prop.nguoiTao.role}</small>
+                          <small style={{ color: 'var(--text-muted)' }}>{prop.nguoiDeXuat.role}</small>
+                          {prop.nguoiDeXuatId !== prop.nguoiTaoId && (
+                            <>
+                              <br />
+                              <small style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                tạo bởi {prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}
+                              </small>
+                            </>
+                          )}
                         </td>
                         <td>{prop.danhMuc.tenDanhMuc}</td>
                         <td>
@@ -1930,7 +1938,14 @@ function DeXuatPage() {
                       <div className={styles.cardBodyRow}>
                         <div className={styles.cardDetailItem}>
                           <span className={styles.cardLabel}>Người đề xuất:</span>
-                          <span className={styles.cardValue}>{prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}</span>
+                          <span className={styles.cardValue}>
+                            {prop.nguoiDeXuat.tenNgan || prop.nguoiDeXuat.hoTen}
+                            {prop.nguoiDeXuatId !== prop.nguoiTaoId && (
+                              <small style={{ display: 'block', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                tạo bởi {prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}
+                              </small>
+                            )}
+                          </span>
                         </div>
                         <div className={styles.cardDetailItem}>
                           <span className={styles.cardLabel}>Danh mục:</span>
@@ -3047,6 +3062,12 @@ function DeXuatPage() {
                   <span className={styles.detailLabel}>Người lập:</span>
                   <span className={styles.detailValue}>{selectedProp.nguoiTao.tenNgan || selectedProp.nguoiTao.hoTen} ({selectedProp.nguoiTao.role})</span>
                 </div>
+                {selectedProp.nguoiDeXuatId !== selectedProp.nguoiTaoId && (
+                  <div className={styles.detailItem}>
+                    <span className={styles.detailLabel}>Người đề xuất:</span>
+                    <span className={styles.detailValue}>{selectedProp.nguoiDeXuat.tenNgan || selectedProp.nguoiDeXuat.hoTen} ({selectedProp.nguoiDeXuat.role})</span>
+                  </div>
+                )}
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Nguồn tiền:</span>
                   <span className={styles.detailValue}>
