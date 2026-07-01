@@ -6,6 +6,7 @@ import {
   canUseProposalCreatorFilter,
   defaultMenuAllowed,
   canViewMenu,
+  canChonLamNguoiDeXuat,
 } from './roles';
 
 describe('getEffectiveRoles', () => {
@@ -107,5 +108,48 @@ describe('canViewMenu', () => {
   it('khong co override -> dung mac dinh theo vai tro', () => {
     expect(canViewMenu({ role: 'STAFF', permissions: {} }, 'deXuat')).toBe(true);
     expect(canViewMenu({ role: 'STAFF', permissions: {} }, 'quyen')).toBe(false);
+  });
+});
+
+describe('canChonLamNguoiDeXuat', () => {
+  it('OWNER chon duoc bat ky ai ACTIVE, khac phong ban van duoc', () => {
+    const nguoiTao = { role: 'OWNER', phongBan: 'FINANCE' };
+    const target = { role: 'STAFF', phongBan: 'MARKETING', trangThai: 'ACTIVE' };
+    expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(true);
+  });
+
+  it('MANAGER chon duoc STAFF cung phong ban', () => {
+    const nguoiTao = { role: 'MANAGER', phongBan: 'FINANCE' };
+    const target = { role: 'STAFF', phongBan: 'FINANCE', trangThai: 'ACTIVE' };
+    expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(true);
+  });
+
+  it('MANAGER khong chon duoc NV khac phong ban', () => {
+    const nguoiTao = { role: 'MANAGER', phongBan: 'FINANCE' };
+    const target = { role: 'STAFF', phongBan: 'MARKETING', trangThai: 'ACTIVE' };
+    expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(false);
+  });
+
+  it('STAFF khong chon duoc cap tren (MANAGER) cung phong ban', () => {
+    const nguoiTao = { role: 'STAFF', phongBan: 'FINANCE' };
+    const target = { role: 'MANAGER', phongBan: 'FINANCE', trangThai: 'ACTIVE' };
+    expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(false);
+  });
+
+  it('STAFF chon duoc STAFF khac cung cap, cung phong ban', () => {
+    const nguoiTao = { role: 'STAFF', phongBan: 'FINANCE' };
+    const target = { role: 'STAFF', phongBan: 'FINANCE', trangThai: 'ACTIVE' };
+    expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(true);
+  });
+
+  it('khong chon duoc NV INACTIVE', () => {
+    const nguoiTao = { role: 'MANAGER', phongBan: 'FINANCE' };
+    const target = { role: 'STAFF', phongBan: 'FINANCE', trangThai: 'INACTIVE' };
+    expect(canChonLamNguoiDeXuat(nguoiTao, target)).toBe(false);
+  });
+
+  it('thieu nguoiTao hoac target -> false', () => {
+    expect(canChonLamNguoiDeXuat(null, { role: 'STAFF', phongBan: 'FINANCE', trangThai: 'ACTIVE' })).toBe(false);
+    expect(canChonLamNguoiDeXuat({ role: 'OWNER', phongBan: 'FINANCE' }, null)).toBe(false);
   });
 });

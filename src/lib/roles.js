@@ -143,3 +143,26 @@ export function canViewMenu(user, key) {
   }
   return defaultMenuAllowed(user.role, key);
 }
+
+/**
+ * Thứ hạng vai trò dùng để giới hạn "tạo giúp cho người khác" — người tạo
+ * chỉ được chọn người đề xuất có hạng <= hạng của chính mình (không chọn cấp trên).
+ */
+export const ROLE_RANK = { OWNER: 4, MANAGER: 3, LEADER: 2, STAFF: 1 };
+
+/**
+ * Người tạo (`nguoiTao`, dạng { role, phongBan }) có được chọn `target`
+ * (dạng { role, phongBan, trangThai }) làm "người đề xuất" khi tạo giúp không?
+ * - target phải ACTIVE.
+ * - target không được có role cao hơn nguoiTao.
+ * - Phải cùng phòng ban, TRỪ khi nguoiTao là OWNER (không giới hạn phòng ban).
+ */
+export function canChonLamNguoiDeXuat(nguoiTao, target) {
+  if (!nguoiTao || !target) return false;
+  if (target.trangThai !== 'ACTIVE') return false;
+  const rankNguoiTao = ROLE_RANK[nguoiTao.role] || 0;
+  const rankTarget = ROLE_RANK[target.role] || 0;
+  if (rankTarget > rankNguoiTao) return false;
+  if (nguoiTao.role !== 'OWNER' && target.phongBan !== nguoiTao.phongBan) return false;
+  return true;
+}
