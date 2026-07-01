@@ -186,7 +186,7 @@ function DuyetPage() {
       setActiveTab('TH2');
     } else if (target.nguonTien === 'TIEN_CA_NHAN' && target.trangThai === 'CHO_HOAN_UNG') {
       setActiveTab('TH3');
-      setSelectedStaffId(target.nguoiTaoId);
+      setSelectedStaffId(target.nguoiDeXuatId);
     }
 
     setHighlightId(openId);
@@ -476,41 +476,41 @@ function DuyetPage() {
     (p) => p.nguonTien === 'TIEN_CA_NHAN' && p.trangThai === 'CHO_HOAN_UNG'
   );
 
-  // Lọc "Người đề xuất" cho TH1/TH2: danh sách nhân viên distinct + danh sách phiếu đã lọc.
+  // Lọc "Người đề xuất" cho TH1/TH2: danh sách người đề xuất distinct + danh sách phiếu đã lọc.
   const distinctStaffOf = (arr) => {
     const map = new Map();
     arr.forEach((p) => {
-      if (p.nguoiTao && !map.has(p.nguoiTao.id)) map.set(p.nguoiTao.id, p.nguoiTao);
+      if (p.nguoiDeXuat && !map.has(p.nguoiDeXuat.id)) map.set(p.nguoiDeXuat.id, p.nguoiDeXuat);
     });
     return Array.from(map.values());
   };
   const staffOptionsTH1 = distinctStaffOf(pendingPaymentProps);
   const staffOptionsTH2 = distinctStaffOf(pendingAssignFundProps);
   const filteredPaymentProps = filterNvDuyet
-    ? pendingPaymentProps.filter((p) => p.nguoiTao?.id === filterNvDuyet)
+    ? pendingPaymentProps.filter((p) => p.nguoiDeXuat?.id === filterNvDuyet)
     : pendingPaymentProps;
   const filteredAssignFundProps = filterNvDuyet
-    ? pendingAssignFundProps.filter((p) => p.nguoiTao?.id === filterNvDuyet)
+    ? pendingAssignFundProps.filter((p) => p.nguoiDeXuat?.id === filterNvDuyet)
     : pendingAssignFundProps;
 
-  // Khi đổi nhân viên lọc: bỏ chọn các phiếu không còn hiển thị để tránh duyệt nhầm.
+  // Khi đổi người lọc: bỏ chọn các phiếu không còn hiển thị để tránh duyệt nhầm.
   const handleChangeFilterNv = (value, baseProps) => {
     setFilterNvDuyet(value);
     if (value) {
       const visibleIds = baseProps
-        .filter((p) => p.nguoiTao?.id === value)
+        .filter((p) => p.nguoiDeXuat?.id === value)
         .map((p) => p.id);
       setSelectedPayIds((prev) => prev.filter((id) => visibleIds.includes(id)));
     }
   };
 
-  // Nhóm các đề xuất chờ hoàn ứng theo từng Nhân viên để duyệt gộp
+  // Nhóm các đề xuất chờ hoàn ứng theo từng người đề xuất để duyệt gộp
   const staffGroups = {};
   pendingReimburseProps.forEach((p) => {
-    const sId = p.nguoiTao.id;
+    const sId = p.nguoiDeXuat.id;
     if (!staffGroups[sId]) {
       staffGroups[sId] = {
-        nhanVien: p.nguoiTao,
+        nhanVien: p.nguoiDeXuat,
         proposals: [],
       };
     }
@@ -880,9 +880,17 @@ function DuyetPage() {
 
 
                         <td>
-                          <span style={{ fontWeight: '600' }}>{prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}</span>
+                          <span style={{ fontWeight: '600' }}>{prop.nguoiDeXuat.tenNgan || prop.nguoiDeXuat.hoTen}</span>
                           <br />
-                          <small style={{ color: 'var(--text-muted)' }}>{prop.nguoiTao.role}</small>
+                          <small style={{ color: 'var(--text-muted)' }}>{prop.nguoiDeXuat.role}</small>
+                          {prop.nguoiDeXuatId !== prop.nguoiTaoId && (
+                            <>
+                              <br />
+                              <small style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                tạo bởi {prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}
+                              </small>
+                            </>
+                          )}
                         </td>
                         <td>{prop.danhMuc.tenDanhMuc}</td>
                         <td>
@@ -938,7 +946,7 @@ function DuyetPage() {
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <div className={styles.approvalButtons}>
-                            <button 
+                            <button
                               onClick={() => handleApproveSingle(prop.id, prop.maPhieu)}
                               className="btn btn-primary"
                               style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
@@ -1148,9 +1156,17 @@ function DuyetPage() {
 
 
                         <td>
-                          <span style={{ fontWeight: '600' }}>{prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}</span>
+                          <span style={{ fontWeight: '600' }}>{prop.nguoiDeXuat.tenNgan || prop.nguoiDeXuat.hoTen}</span>
                           <br />
-                          <small style={{ color: 'var(--text-muted)' }}>{prop.nguoiTao.role}</small>
+                          <small style={{ color: 'var(--text-muted)' }}>{prop.nguoiDeXuat.role}</small>
+                          {prop.nguoiDeXuatId !== prop.nguoiTaoId && (
+                            <>
+                              <br />
+                              <small style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                tạo bởi {prop.nguoiTao.tenNgan || prop.nguoiTao.hoTen}
+                              </small>
+                            </>
+                          )}
                         </td>
                         <td>{prop.danhMuc.tenDanhMuc}</td>
                         <td>
@@ -1497,7 +1513,7 @@ function DuyetPage() {
 
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Người lập:</span>
-                  <span className={styles.detailValue}>{selectedPreviewProp.nguoiTao.tenNgan || selectedPreviewProp.nguoiTao.hoTen} ({selectedPreviewProp.nguoiTao.role})</span>
+                  <span className={styles.detailValue}>{selectedPreviewProp.nguoiDeXuat.tenNgan || selectedPreviewProp.nguoiDeXuat.hoTen} ({selectedPreviewProp.nguoiDeXuat.role})</span>
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Nguồn tiền:</span>
