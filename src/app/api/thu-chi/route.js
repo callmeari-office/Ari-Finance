@@ -1,7 +1,8 @@
 ﻿import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { lamTronTien } from '@/lib/finance';
-import { getSession, checkRole } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
+import { hasApiPermission } from '@/lib/permissions';
 import { logger } from '@/lib/logger';
 import { allocateSequentialCodes, generateMaThuChi, getThuChiPrefix, withUniqueCodeRetry } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
@@ -16,7 +17,7 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
-    if (!checkRole(user, ['OWNER', 'MANAGER'])) {
+    if (!(await hasApiPermission(prisma, user, 'thuChi'))) {
       return NextResponse.json(
         { error: 'Bạn không có quyền truy cập dữ liệu Thu-Chi.' },
         { status: 403 }
@@ -419,9 +420,9 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Chưa đăng nhập.' }, { status: 401 });
     }
 
-    if (!checkRole(user, ['OWNER', 'MANAGER'])) {
+    if (!(await hasApiPermission(prisma, user, 'thuChi'))) {
       return NextResponse.json(
-        { error: 'Chỉ Chủ shop (Owner) hoặc Quản lý (Manager) mới có quyền tạo giao dịch Thu-Chi trực tiếp.' },
+        { error: 'Bạn không có quyền tạo giao dịch Thu-Chi trực tiếp.' },
         { status: 403 }
       );
     }

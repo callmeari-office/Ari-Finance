@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { lamTronTien } from '@/lib/finance';
-import { getSession, checkRole } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
+import { hasApiPermission } from '@/lib/permissions';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi, withUniqueCodeRetry } from '@/lib/generateId';
 import { isRestrictedToOwnProposals } from '@/lib/roles';
@@ -227,9 +228,9 @@ export async function PUT(request, { params }) {
 
     // 2. Nghiệp vụ DUYỆT & THANH TOÁN (action === 'DUYET') - Dành riêng cho OWNER/MANAGER
     if (action === 'DUYET') {
-      if (!checkRole(user, ['OWNER', 'MANAGER'])) {
+      if (!(await hasApiPermission(prisma, user, 'duyet'))) {
         return NextResponse.json(
-          { error: 'Chỉ Chủ shop (Owner) hoặc Quản lý (Manager) mới có quyền duyệt thanh toán.' },
+          { error: 'Bạn không có quyền duyệt thanh toán.' },
           { status: 403 }
         );
       }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession, checkRole } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
+import { hasApiPermission } from '@/lib/permissions';
 import { logger } from '@/lib/logger';
 import { generateMaThuChi, withUniqueCodeRetry } from '@/lib/generateId';
 import { ghiNhatKy } from '@/lib/audit';
@@ -14,7 +15,7 @@ export async function POST(request) {
     }
 
     // Chỉ Owner/Manager được duyệt hoàn ứng gộp
-    if (!checkRole(user, ['OWNER', 'MANAGER'])) {
+    if (!(await hasApiPermission(prisma, user, 'duyet'))) {
       return NextResponse.json(
         { error: 'Chỉ Chủ shop (Owner) hoặc Quản lý (Manager) mới có quyền duyệt hoàn ứng.' },
         { status: 403 }

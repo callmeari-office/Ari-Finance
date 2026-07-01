@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { hasApiPermission } from './permissions';
 
@@ -48,5 +50,27 @@ describe('hasApiPermission', () => {
 
     await expect(hasApiPermission(db, null, 'thuChi')).resolves.toBe(false);
     await expect(hasApiPermission(db, { role: 'MANAGER', trangThai: 'INACTIVE' }, 'thuChi')).resolves.toBe(false);
+  });
+});
+
+describe('sensitive api routes enforce permission overrides', () => {
+  const route = (relativePath) => fs.readFileSync(path.resolve(process.cwd(), relativePath), 'utf8');
+
+  it('thu-chi route enforces thuChi permission for GET and POST', () => {
+    const source = route('src/app/api/thu-chi/route.js');
+
+    expect(source).toContain("import { hasApiPermission } from '@/lib/permissions';");
+    expect(source).toContain("hasApiPermission(prisma, user, 'thuChi')");
+  });
+
+  it('approval routes enforce duyet permission', () => {
+    const single = route('src/app/api/de-xuat/[id]/route.js');
+    const many = route('src/app/api/de-xuat/duyet-nhieu/route.js');
+    const grouped = route('src/app/api/de-xuat/duyet-gop/route.js');
+
+    for (const source of [single, many, grouped]) {
+      expect(source).toContain("import { hasApiPermission } from '@/lib/permissions';");
+      expect(source).toContain("hasApiPermission(prisma, user, 'duyet')");
+    }
   });
 });
