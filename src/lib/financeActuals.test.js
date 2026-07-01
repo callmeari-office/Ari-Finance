@@ -19,4 +19,14 @@ describe('finance actual expense source invariants', () => {
 
     expect(source).toContain('where.buTruLichSu = false');
   });
+
+  it('/api/danh-muc monthly actuals include historical expense proposals', () => {
+    const source = read('src/app/api/danh-muc/route.js');
+
+    expect(source).toContain('chiLichSuRaw');
+    expect(source).toContain('prisma.$queryRaw`');
+    expect(source).toContain('FROM "DeXuatChiPhi"');
+    expect(source).toContain('"laLichSu" = true');
+    expect(source).toContain('"ngayPhatSinh" >= ${startOfMonth}');
+  });
 });

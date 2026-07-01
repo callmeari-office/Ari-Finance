@@ -25,19 +25,34 @@ export async function GET() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    const chiThangRaw = await prisma.thuChi.groupBy({
-      by: ['danhMucId'],
-      where: {
-        loaiGiaoDich: 'CHI',
-        ngayGiaoDich: { gte: startOfMonth, lt: endOfMonth },
-      },
-      _sum: { soTien: true },
-    });
+    const [chiThangRaw, chiLichSuRaw] = await Promise.all([
+      prisma.thuChi.groupBy({
+        by: ['danhMucId'],
+        where: {
+          loaiGiaoDich: 'CHI',
+          ngayGiaoDich: { gte: startOfMonth, lt: endOfMonth },
+          buTruLichSu: false,
+        },
+        _sum: { soTien: true },
+      }),
+      prisma.$queryRaw`
+        SELECT "danhMucId", COALESCE(SUM("soTien"), 0) AS total
+        FROM "DeXuatChiPhi"
+        WHERE "laLichSu" = true
+          AND "thuChiId" IS NULL
+          AND "ngayPhatSinh" >= ${startOfMonth}
+          AND "ngayPhatSinh" < ${endOfMonth}
+        GROUP BY "danhMucId"
+      `,
+    ]);
 
     // Map danhMucId → soTienDaThuong
     const chiThangMap = {};
     chiThangRaw.forEach((r) => {
-      chiThangMap[r.danhMucId] = r._sum.soTien || 0;
+      chiThangMap[r.danhMucId] = (chiThangMap[r.danhMucId] || 0) + Number(r._sum.soTien || 0);
+    });
+    chiLichSuRaw.forEach((r) => {
+      chiThangMap[r.danhMucId] = (chiThangMap[r.danhMucId] || 0) + Number(r.total || 0);
     });
 
     // Lọc danh mục theo vai trò
