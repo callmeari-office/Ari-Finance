@@ -230,6 +230,140 @@
   border-bottom: 1px solid var(--border);
 }
 
+.mobilePlanEditor {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    padding: var(--space-4) 0.85rem var(--mobile-bottom-nav-offset, 72px);
+  }
+
+  .pageHeader,
+  .headerActions,
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .viewToggle {
+    width: 100%;
+  }
+
+  .toggleBtn,
+  .toggleActive {
+    flex: 1;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .tableWrapper {
+    display: none;
+  }
+
+  .mobilePlanEditor {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding-bottom: calc(var(--mobile-bottom-nav-offset, 72px) + 120px);
+  }
+
+  .mobileMonthPicker,
+  .mobilePlanGroup,
+  .mobilePlanCard {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  .mobileMonthPicker {
+    padding: 0.9rem;
+  }
+
+  .mobilePlanGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 0.9rem;
+  }
+
+  .mobilePlanGroup h3 {
+    margin: 0;
+    color: var(--brand-brown);
+    font-size: 0.95rem;
+  }
+
+  .mobilePlanCard {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.85rem;
+    background: rgba(var(--brand-brown-rgb), 0.02);
+  }
+
+  .mobilePlanDirty {
+    border-color: rgba(var(--warning-rgb), 0.45);
+    background: var(--warning-bg);
+  }
+
+  .mobilePlanCardHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .mobilePlanCardHeader h4 {
+    margin: 0 0 0.2rem;
+    color: var(--text-main);
+    font-size: 0.95rem;
+  }
+
+  .mobilePlanCardHeader p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+  }
+
+  .mobileDirtyBadge {
+    flex-shrink: 0;
+    padding: 0.2rem 0.45rem;
+    border-radius: var(--radius-sm);
+    background: rgba(var(--warning-rgb), 0.18);
+    color: var(--warning);
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .mobilePlanCard input {
+    text-align: right;
+  }
+
+  .mobileSaveFooter {
+    position: fixed;
+    left: 0.85rem;
+    right: 0.85rem;
+    bottom: var(--mobile-bottom-nav-offset, 72px);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+    color: var(--text-muted);
+    font-weight: 700;
+  }
+
+  .mobileSaveFooter button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+}
+
 /* Hàng tổng */
 .totalRow td {
   background: rgba(99,102,241,0.12);
@@ -379,7 +513,7 @@
 }
 
 @media (max-width: 768px) {
-  .mainContent { padding: 1rem; }
+  .mainContent { padding: 1rem 1rem var(--mobile-bottom-nav-offset, 72px); }
   .pageHeader { flex-direction: column; }
   .headerActions { flex-direction: column; align-items: flex-start; }
 }
@@ -705,5 +839,3 @@
   color: var(--text-muted);
   white-space: nowrap;
 }
-
-

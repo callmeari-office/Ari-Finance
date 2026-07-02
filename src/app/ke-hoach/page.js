@@ -46,6 +46,7 @@ export default function KeHoachPage() {
   const [view, setView] = useState('ke-hoach'); // 'ke-hoach' | 'db-thang' | 'db-nam'
   const [nam, setNam] = useState(new Date().getFullYear());
   const [thangXem, setThangXem] = useState(new Date().getMonth() + 1); // tháng đang xem ở DB Tháng
+  const [mobileEditMonth, setMobileEditMonth] = useState(new Date().getMonth() + 1);
   const [dataLoading, setDataLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
@@ -337,6 +338,7 @@ export default function KeHoachPage() {
   );
 
   const hasDirty = Object.values(dirtyMap).some(Boolean);
+  const dirtyCount = Object.values(dirtyMap).filter(Boolean).length;
 
   if (loading) {
     return (
@@ -444,6 +446,7 @@ export default function KeHoachPage() {
             {/* BẢNG KẾ HOẠCH */}
             {dataLoading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                <p aria-live="polite" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Đang tải dữ liệu...</p>
                 {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeletonRow" />)}
               </div>
             ) : categories.length === 0 ? (
@@ -451,6 +454,7 @@ export default function KeHoachPage() {
                 Chưa có danh mục CHI nào. Hãy thêm danh mục trong Cấu hình trước.
               </div>
             ) : (
+              <>
               <div className={styles.tableWrapper}>
                 <table className={styles.spreadsheet}>
                   <thead>
@@ -533,6 +537,68 @@ export default function KeHoachPage() {
                   </tbody>
                 </table>
               </div>
+              <div className={styles.mobilePlanEditor}>
+                <div className={styles.mobileMonthPicker}>
+                  <label className="form-label" htmlFor="mobile-plan-month">Tháng đang sửa</label>
+                  <select
+                    id="mobile-plan-month"
+                    className="form-control"
+                    value={mobileEditMonth}
+                    onChange={(e) => setMobileEditMonth(Number(e.target.value))}
+                  >
+                    {THANG_LABELS.map((label, index) => (
+                      <option key={label} value={index + 1}>{label}/{nam}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {groupedCats.map((grp) => (
+                  <section key={grp.id} className={styles.mobilePlanGroup}>
+                    <h3>{grp.tenNhom}</h3>
+                    {grp.cats.map((cat) => {
+                      const kh = getKH(cat.id, mobileEditMonth);
+                      const tt = getTT(cat.id, mobileEditMonth);
+                      const pct = kh > 0 ? Math.round((tt / kh) * 100) : 0;
+                      const isDirty = getDirty(cat.id, mobileEditMonth);
+                      return (
+                        <article key={cat.id} className={`${styles.mobilePlanCard} ${isDirty ? styles.mobilePlanDirty : ''}`}>
+                          <div className={styles.mobilePlanCardHeader}>
+                            <div>
+                              <h4>{cat.tenDanhMuc}</h4>
+                              <p>Thực tế: {tt > 0 ? formatVND(tt) : '—'} · {kh > 0 ? `${pct}%` : 'Chưa có KH'}</p>
+                            </div>
+                            {isDirty && <span className={styles.mobileDirtyBadge}>Chưa lưu</span>}
+                          </div>
+                          <label className="form-label" htmlFor={`mobile-plan-${cat.id}`}>
+                            Kế hoạch {THANG_LABELS[mobileEditMonth - 1]}
+                          </label>
+                          <input
+                            id={`mobile-plan-${cat.id}`}
+                            type="text"
+                            inputMode="numeric"
+                            className="form-control"
+                            value={kh > 0 ? formatVND(kh) : ''}
+                            placeholder="0"
+                            onChange={(e) => handleCellChange(cat.id, mobileEditMonth, e.target.value)}
+                          />
+                        </article>
+                      );
+                    })}
+                  </section>
+                ))}
+
+                <div className={styles.mobileSaveFooter}>
+                  <span>{dirtyCount} thay đổi chưa lưu</span>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleSave}
+                    disabled={saving || !hasDirty}
+                  >
+                    <Save size={14} /> {saving ? 'Đang lưu...' : 'Lưu kế hoạch'}
+                  </button>
+                </div>
+              </div>
+              </>
             )}
           </>
         )}

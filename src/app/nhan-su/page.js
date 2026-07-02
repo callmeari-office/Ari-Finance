@@ -443,7 +443,8 @@ export default function NhanSuPage() {
           ) : filteredEmployees.length === 0 ? (
             <div className={styles.emptyState}>Không tìm thấy nhân viên nào phù hợp với bộ lọc.</div>
           ) : (
-            <div className="table-responsive">
+            <>
+            <div className={`${styles.desktopEmployeeTable} table-responsive`}>
               <table className="custom-table">
                 <thead>
                   <tr>
@@ -566,6 +567,67 @@ export default function NhanSuPage() {
                 </tbody>
               </table>
             </div>
+            <div className={styles.mobileEmployeeCards}>
+              {sortedEmployees.map((emp) => (
+                <article key={emp.id} className={styles.employeeMobileCard}>
+                  <div className={styles.employeeMobileHeader}>
+                    <div>
+                      <p className={styles.employeeCode}>{emp.id}</p>
+                      <h3>{emp.hoTen}</h3>
+                      <p>{emp.username}</p>
+                    </div>
+                    <span className={`badge ${getRoleBadgeClass(emp.role)}`}>
+                      {getRoleText(emp.role)}
+                    </span>
+                  </div>
+
+                  <div className={styles.employeeMobileGrid}>
+                    <span>Tên ngắn</span><strong>{emp.tenNgan || '---'}</strong>
+                    <span>Phòng ban</span><strong>{emp.phongBan || '---'}</strong>
+                    <span>Vị trí</span><strong>{emp.viTri || '---'}</strong>
+                    <span>Trạng thái</span>
+                    <strong>{emp.trangThai === 'ACTIVE' ? 'Active' : 'Inactive'}</strong>
+                  </div>
+
+                  <div className={styles.employeeMobileActions}>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEdit(emp)}
+                      className="btn btn-secondary"
+                    >
+                      <Edit3 size={15} /> Sửa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPassword(emp)}
+                      className="btn btn-secondary"
+                    >
+                      <Key size={15} /> Mật khẩu
+                    </button>
+                    {emp.email && emp.email.includes('@') && (
+                      <button
+                        type="button"
+                        onClick={() => handleResetPasswordByEmail(emp)}
+                        className="btn btn-secondary"
+                        disabled={resetLoadingId === emp.id}
+                      >
+                        <Mail size={15} /> Email
+                      </button>
+                    )}
+                    {emp.id !== user.id && emp.trangThai === 'ACTIVE' && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(emp)}
+                        className="btn btn-danger"
+                      >
+                        <Lock size={15} /> Khóa
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+            </>
           )}
         </div>
 

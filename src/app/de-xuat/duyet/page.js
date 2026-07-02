@@ -612,6 +612,137 @@ function DuyetPage() {
     return '';
   };
 
+  const getApprovalSummary = (prop) => ({
+    id: prop.id,
+    maPhieu: prop.maPhieu,
+    ngayPhatSinh: prop.ngayPhatSinh,
+    ngayCanThanhToan: prop.ngayCanThanhToan,
+    nguoiDeXuat: prop.nguoiDeXuat?.tenNgan || prop.nguoiDeXuat?.hoTen || '',
+    nguoiTao: prop.nguoiTao?.tenNgan || prop.nguoiTao?.hoTen || '',
+    danhMuc: prop.danhMuc?.tenDanhMuc || '',
+    nhaCungCap: prop.nhaCungCap?.tenNCC || 'Không có',
+    noiDung: prop.noiDung,
+    soTien: prop.soTien,
+    daThanhToanSan: prop.trangThai === 'DA_THANH_TOAN',
+  });
+
+  const renderApprovalMobileCards = (propsList, approveLabel, showReject = true) => (
+    <div className={styles.mobileApprovalCards}>
+      {getSortedProposals(propsList).map((prop) => {
+        const summary = getApprovalSummary(prop);
+        const isSelected = selectedPayIds.includes(prop.id);
+        return (
+          <article key={prop.id} className={`${styles.approvalCard} ${isSelected ? styles.approvalCardSelected : ''}`}>
+            <div className={styles.approvalCardTop}>
+              <label className={styles.approvalCheck}>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => handleTogglePay(prop.id)}
+                  disabled={actionLoading}
+                />
+                <span>{summary.maPhieu}</span>
+              </label>
+              <strong>{formatVND(summary.soTien)}</strong>
+            </div>
+
+            <div className={styles.approvalMetaGrid}>
+              <div>
+                <span>Ngày lập</span>
+                <strong suppressHydrationWarning>{formatDate(summary.ngayPhatSinh)}</strong>
+              </div>
+              <div>
+                <span>Hạn thanh toán</span>
+                <strong suppressHydrationWarning>{summary.ngayCanThanhToan ? formatDate(summary.ngayCanThanhToan) : 'Không có'}</strong>
+              </div>
+              <div>
+                <span>Người đề xuất</span>
+                <strong>{summary.nguoiDeXuat}</strong>
+              </div>
+              <div>
+                <span>Danh mục</span>
+                <strong>{summary.danhMuc}</strong>
+              </div>
+            </div>
+
+            <div className={styles.approvalCardBody}>
+              <span>Nội dung</span>
+              <p>{summary.noiDung}</p>
+              <small>NCC: {summary.nhaCungCap}</small>
+              {summary.daThanhToanSan && <span className={styles.prepaidPill}>Đã thanh toán sẵn</span>}
+            </div>
+
+            <div className={styles.approvalCardControls}>
+              <label>
+                <span>Chọn quỹ</span>
+                <select
+                  className="form-control form-control-sm"
+                  value={selectedQuyId[prop.id] || ''}
+                  onChange={(e) => setSelectedQuyId((prev) => ({
+                    ...prev,
+                    [prop.id]: e.target.value,
+                  }))}
+                  disabled={actionLoading}
+                >
+                  <option value="">-- Chọn quỹ thanh toán --</option>
+                  {funds.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.tenQuy} ({formatVND(f.soDuHienTai)})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Ngày GD</span>
+                <DateInput
+                  className="form-control form-control-sm"
+                  value={selectedNgayGD[prop.id] || todayStr}
+                  onChange={(e) => setSelectedNgayGD((prev) => ({
+                    ...prev,
+                    [prop.id]: e.target.value,
+                  }))}
+                  disabled={actionLoading}
+                />
+              </label>
+            </div>
+
+            <div className={styles.approvalCardActions}>
+              <button
+                type="button"
+                onClick={() => setSelectedPreviewProp(prop)}
+                className="btn btn-secondary"
+                disabled={actionLoading}
+              >
+                <Eye size={15} />
+                Xem
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApproveSingle(prop.id, prop.maPhieu)}
+                className="btn btn-primary"
+                disabled={actionLoading}
+              >
+                <CheckCircle size={15} />
+                {approveLabel}
+              </button>
+              {showReject && (
+                <button
+                  type="button"
+                  onClick={() => handleCancelSingle(prop.id, prop.maPhieu)}
+                  className="btn btn-secondary"
+                  disabled={actionLoading}
+                >
+                  <XCircle size={15} />
+                  Từ chối
+                </button>
+              )}
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="layout-wrapper">
       <Sidebar user={user} />
@@ -707,6 +838,7 @@ function DuyetPage() {
             
             {dataLoading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                <p aria-live="polite" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Đang tải dữ liệu...</p>
                 {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeletonRow" />)}
               </div>
             ) : pendingPaymentProps.length === 0 ? (
@@ -794,7 +926,8 @@ function DuyetPage() {
                     </div>
                   </div>
                 )}
-              <div className="table-responsive">
+              {renderApprovalMobileCards(filteredPaymentProps, 'Duyệt chi', true)}
+              <div className={`table-responsive ${styles.desktopApprovalTable}`}>
                 <table className="custom-table">
                   <thead>
                     <tr>
@@ -983,6 +1116,7 @@ function DuyetPage() {
             
             {dataLoading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                <p aria-live="polite" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Đang tải dữ liệu...</p>
                 {[1, 2, 3, 4].map((i) => <div key={i} className="skeleton skeletonRow" />)}
               </div>
             ) : pendingAssignFundProps.length === 0 ? (
@@ -1070,7 +1204,8 @@ function DuyetPage() {
                     </div>
                   </div>
                 )}
-              <div className="table-responsive">
+              {renderApprovalMobileCards(filteredAssignFundProps, 'Gán quỹ & Duyệt', false)}
+              <div className={`table-responsive ${styles.desktopApprovalTable}`}>
                 <table className="custom-table">
                   <thead>
                     <tr>
@@ -1258,6 +1393,7 @@ function DuyetPage() {
               
               {dataLoading ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+                  <p aria-live="polite" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Đang tải dữ liệu...</p>
                   {[1, 2, 3].map((i) => <div key={i} className="skeleton skeletonRow" />)}
                 </div>
               ) : reimbursementStaffs.length === 0 ? (

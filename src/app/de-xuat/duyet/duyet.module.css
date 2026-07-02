@@ -132,6 +132,136 @@
   justify-content: center;
 }
 
+.mobileApprovalCards {
+  display: none;
+}
+
+.desktopApprovalTable {
+  display: block;
+}
+
+.approvalCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1rem;
+  background: rgba(var(--brand-brown-rgb), 0.025);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.approvalCardSelected {
+  border-color: var(--primary);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.approvalCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.approvalCardTop strong {
+  color: var(--text-main);
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
+.approvalCheck {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--info);
+  font-weight: 800;
+}
+
+.approvalCheck input {
+  width: 18px;
+  height: 18px;
+}
+
+.approvalMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.approvalMetaGrid div,
+.approvalCardControls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.approvalMetaGrid span,
+.approvalCardBody span,
+.approvalCardControls span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.approvalMetaGrid strong {
+  color: var(--text-main);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.approvalCardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.75rem;
+  background: rgba(var(--brand-brown-rgb), 0.035);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.approvalCardBody p {
+  color: var(--text-main);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.approvalCardBody small {
+  color: var(--text-muted);
+}
+
+.prepaidPill {
+  align-self: flex-start;
+  color: var(--success) !important;
+  background: var(--success-bg);
+  border: 1px solid var(--success);
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+  text-transform: none !important;
+}
+
+.approvalCardControls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.approvalCardActions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.approvalCardActions button {
+  min-height: 42px;
+  justify-content: center;
+  padding: 0.5rem 0.45rem;
+  font-size: 0.82rem;
+}
+
 /* Split Layout for TH3 */
 .splitLayout {
   display: flex;
@@ -272,6 +402,14 @@
 }
 
 @media (max-width: 768px) {
+  .desktopApprovalTable {
+    display: none;
+  }
+  .mobileApprovalCards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
   .tabContainer {
     flex-direction: column;
   }
@@ -304,6 +442,18 @@
   }
   .mainContent {
     padding: 1.5rem 1rem;
+  }
+  .approvalCardActions {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 769px) {
+  .desktopApprovalTable {
+    display: block;
+  }
+  .mobileApprovalCards {
+    display: none;
   }
 }
 

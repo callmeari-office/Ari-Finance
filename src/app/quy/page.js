@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { useToast } from '@/components/Toast';
+import { useConfirm } from '@/components/ConfirmDialog';
 import { formatDate } from '@/lib/date';
 import styles from './quy.module.css';
 
@@ -33,6 +34,7 @@ const RECENT_LIMIT = 8;
 export default function QuyReportPage() {
   const router = useRouter();
   const toast = useToast();
+  const showConfirm = useConfirm();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -157,6 +159,23 @@ export default function QuyReportPage() {
       setAdjustError('Vui lòng nhập số dư thực tế hợp lệ.');
       return;
     }
+
+    const nextDelta = target - adjustFund.soDuHienTai;
+    const ok = await showConfirm({
+      title: 'Xác nhận điều chỉnh quỹ',
+      message:
+        `Quỹ: ${adjustFund.tenQuy}\n` +
+        `Số dư hiện tại: ${formatVND(adjustFund.soDuHienTai)}\n` +
+        `Số dư mới: ${formatVND(target)}\n` +
+        `Chênh lệch: ${nextDelta >= 0 ? '+' : ''}${formatVND(nextDelta)}\n` +
+        `Lý do: ${adjustReason.trim()}\n\n` +
+        'Thao tác này sẽ thay đổi số dư quỹ và không tạo phiếu thu-chi.',
+      confirmLabel: 'Xác nhận điều chỉnh',
+      cancelLabel: 'Kiểm tra lại',
+      danger: true,
+    });
+    if (!ok) return;
+
     setAdjustSubmitting(true);
     setAdjustError('');
     try {

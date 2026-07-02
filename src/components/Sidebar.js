@@ -251,6 +251,7 @@ export default function Sidebar({ user }) {
             type="button"
             onClick={() => switchTheme('dark')}
             className={`${styles.themeBtnHeader} ${theme === 'dark' ? styles.themeBtnHeaderActive : ''}`}
+            aria-label="Chuyển sang chế độ tối"
             title="Chế độ Tối"
           >
             <Moon size={18} />
@@ -259,6 +260,7 @@ export default function Sidebar({ user }) {
             type="button"
             onClick={() => switchTheme('pink')}
             className={`${styles.themeBtnHeader} ${theme === 'pink' ? styles.themeBtnHeaderActive : ''}`}
+            aria-label="Chuyển sang chế độ Ari"
             title="Chế độ Ari"
           >
             <Flower2 size={18} />
@@ -269,6 +271,7 @@ export default function Sidebar({ user }) {
               if (!isOpen) setIsOpen(true);
               setShowNotifPanel((v) => !v);
             }}
+            aria-label="Mở thông báo"
             title="Thông báo"
           >
             <Bell size={20} />
@@ -278,7 +281,7 @@ export default function Sidebar({ user }) {
               </span>
             )}
           </button>
-          <button onClick={toggleSidebar} className={styles.toggleBtn}>
+          <button onClick={toggleSidebar} className={styles.toggleBtn} aria-label={isOpen ? 'Đóng menu' : 'Mở menu'} aria-expanded={isOpen}>
             {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>

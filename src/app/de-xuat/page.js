@@ -1294,6 +1294,93 @@ function DeXuatPage() {
   const filledBulkRows = bulkRows.filter((r) => r.danhMucId || r.noiDung.trim() || r.soTien);
   const bulkTongTien = bulkRows.reduce((s, r) => s + (Number(r.soTien) || 0), 0);
 
+  const renderBulkMobileCards = () => (
+    <div className={styles.bulkMobileCards}>
+      {bulkRows.map((r, idx) => {
+        const cat = categories.find((c) => c.id === r.danhMucId);
+        return (
+          <div key={idx} className={styles.bulkMobileCard}>
+            <div className={styles.bulkMobileCardHeader}>
+              <span>Phiếu {idx + 1}</span>
+              <button
+                type="button"
+                className={styles.bulkDelBtn}
+                onClick={() => removeBulkRow(idx)}
+                disabled={bulkLoading || bulkRows.length <= 1}
+                title="Xóa dòng"
+                aria-label={`Xóa phiếu ${idx + 1}`}
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+
+            <label className="form-label" htmlFor={`bulk-mobile-cat-${idx}`}>Danh mục *</label>
+            <select
+              id={`bulk-mobile-cat-${idx}`}
+              className="form-control"
+              value={r.danhMucId}
+              onChange={(e) => updateBulkRow(idx, 'danhMucId', e.target.value)}
+              disabled={bulkLoading}
+            >
+              <option value="">-- Chọn --</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.tenDanhMuc}</option>
+              ))}
+            </select>
+
+            <label className="form-label" htmlFor={`bulk-mobile-content-${idx}`}>Nội dung chi tiết *</label>
+            <input
+              id={`bulk-mobile-content-${idx}`}
+              type="text"
+              className="form-control"
+              placeholder="Mô tả lý do chi..."
+              value={r.noiDung}
+              onChange={(e) => updateBulkRow(idx, 'noiDung', e.target.value)}
+              disabled={bulkLoading}
+            />
+
+            <label className="form-label" htmlFor={`bulk-mobile-amount-${idx}`}>Số tiền *</label>
+            <input
+              id={`bulk-mobile-amount-${idx}`}
+              type="text"
+              inputMode="numeric"
+              className="form-control"
+              placeholder="0"
+              value={formatSoTienDisplay(r.soTien)}
+              onChange={(e) => updateBulkRow(idx, 'soTien', e.target.value.replace(/\D/g, ''))}
+              disabled={bulkLoading}
+            />
+
+            <label className="form-label" htmlFor={`bulk-mobile-vendor-${idx}`}>Nhà cung cấp</label>
+            <select
+              id={`bulk-mobile-vendor-${idx}`}
+              className="form-control"
+              value={r.nhaCungCapId}
+              onChange={(e) => updateBulkRow(idx, 'nhaCungCapId', e.target.value)}
+              disabled={bulkLoading}
+            >
+              <option value="">{cat?.yeuCauNCC ? '-- Bắt buộc --' : '-- Không --'}</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={v.id}>{v.tenNCC} ({v.tenNganHang})</option>
+              ))}
+            </select>
+
+            <label className="form-label" htmlFor={`bulk-mobile-note-${idx}`}>Nội dung CK</label>
+            <input
+              id={`bulk-mobile-note-${idx}`}
+              type="text"
+              className="form-control"
+              placeholder={r.nhaCungCapId ? 'Nội dung CK *' : '—'}
+              value={r.ghiChu}
+              onChange={(e) => updateBulkRow(idx, 'ghiChu', e.target.value)}
+              disabled={bulkLoading}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+
   const handleSubmitBulk = async () => {
     setBulkError('');
     setBulkRowErrors([]);
@@ -1691,6 +1778,7 @@ function DeXuatPage() {
         <div className="glass-card" style={{ marginTop: '0.5rem' }}>
           {dataLoading ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.25rem 0' }}>
+              <p aria-live="polite" style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Đang tải dữ liệu...</p>
               {[1, 2, 3, 4, 5].map((i) => <div key={i} className="skeleton skeletonRow" />)}
             </div>
           ) : (
@@ -2683,24 +2771,24 @@ function DeXuatPage() {
                 </table>
               </div>
 
-              <button type="button" onClick={addBulkRow} className="btn btn-secondary" disabled={bulkLoading} style={{ marginBottom: '1rem' }}>
-                <Plus size={16} />
-                <span>Thêm dòng</span>
-              </button>
+              {renderBulkMobileCards()}
 
-              <div className={styles.bulkFooter}>
+              <div className={styles.bulkStickyFooter}>
                 <div className={styles.bulkTotal}>
                   Tổng: <strong>{filledBulkRows.length} phiếu</strong> — <strong>{bulkTongTien.toLocaleString('vi-VN')} ₫</strong>
                 </div>
-              </div>
-
-              <div className={styles.formActions}>
-                <button type="button" onClick={() => setIsBulkOpen(false)} className="btn btn-secondary" disabled={bulkLoading}>
-                  Hủy bỏ
-                </button>
-                <button type="button" onClick={handleSubmitBulk} className="btn btn-primary" disabled={bulkLoading || filledBulkRows.length === 0}>
-                  {bulkLoading ? 'Đang tạo...' : `Tạo ${filledBulkRows.length} phiếu`}
-                </button>
+                <div className={styles.bulkFooterActions}>
+                  <button type="button" onClick={addBulkRow} className="btn btn-secondary" disabled={bulkLoading}>
+                    <Plus size={16} />
+                    <span>Thêm dòng</span>
+                  </button>
+                  <button type="button" onClick={handleSubmitBulk} className="btn btn-primary" disabled={bulkLoading || filledBulkRows.length === 0}>
+                    {bulkLoading ? 'Đang tạo...' : `Tạo ${filledBulkRows.length} phiếu`}
+                  </button>
+                  <button type="button" onClick={() => setIsBulkOpen(false)} className="btn btn-secondary" disabled={bulkLoading}>
+                    Hủy bỏ
+                  </button>
+                </div>
               </div>
             </div>
           </div>

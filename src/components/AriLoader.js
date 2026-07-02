@@ -14,7 +14,7 @@ import styles from './AriLoader.module.css';
  */
 export default function AriLoader({ text = 'Đang tải...', size = 52 }) {
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} role="status" aria-live="polite" aria-busy="true">
       <div className={styles.ring}>
         <AriCameo size={size} className={styles.cameo} />
       </div>

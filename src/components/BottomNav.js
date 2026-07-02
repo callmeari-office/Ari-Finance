@@ -19,6 +19,7 @@ export default function BottomNav({ items = [], value, onChange }) {
             onClick={() => onChange && onChange(it.key)}
             className={`${styles.item} ${active ? styles.active : ''}`}
             aria-current={active ? 'page' : undefined}
+            aria-label={it.label}
           >
             {active && <span className={styles.indicator} />}
             <span className={styles.iconWrap}>

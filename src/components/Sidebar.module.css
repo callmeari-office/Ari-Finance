@@ -283,8 +283,8 @@
   cursor: pointer;
   color: var(--text-muted);
   padding: 6px;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 8px;
   line-height: 0;
   flex-shrink: 0;
@@ -352,8 +352,8 @@
   border: none;
   color: var(--brand-brown);
   cursor: pointer;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -390,8 +390,8 @@
     align-items: center;
     justify-content: center;
     position: relative;
-    min-width: 36px;
-    min-height: 36px;
+    min-width: 44px;
+    min-height: 44px;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -439,7 +439,7 @@
     left: 0;
     top: 0;
     bottom: 0;
-    padding-bottom: calc(var(--space-6) + 72px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--space-6) + var(--mobile-bottom-nav-offset, 72px));
     transform: translateX(-100%);
     z-index: 120;
     box-shadow: 10px 0 30px rgba(99, 77, 62, 0.15);

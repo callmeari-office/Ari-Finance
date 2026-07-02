@@ -367,7 +367,7 @@ export default function QuyenPage() {
                 </div>
               )}
 
-              <div className="table-responsive">
+              <div className={`${styles.desktopPermissionMatrix} table-responsive`}>
                 <table className={styles.matrixTable}>
                   <thead>
                     <tr>
@@ -405,6 +405,32 @@ export default function QuyenPage() {
                     })}
                   </tbody>
                 </table>
+              </div>
+
+              <div className={styles.mobilePermissionList}>
+                {systemMenus.map((menu) => {
+                  const isAllowed = menuPermissions[menu.key] || false;
+                  const isSensitive = ['duyet', 'thuChi', 'quy', 'quyen'].includes(menu.key);
+                  return (
+                    <article key={menu.key} className={`${styles.mobilePermissionCard} ${menu.sub ? styles.mobilePermissionSub : ''}`}>
+                      <div className={styles.mobilePermissionText}>
+                        <h3>{menu.name}</h3>
+                        <p>{menu.desc}</p>
+                        <code>{menu.path}</code>
+                        {isSensitive && <span className={styles.sensitiveHint}>Quyền nhạy cảm</span>}
+                      </div>
+                      <label className={styles.switchToggle} aria-label={`Bật tắt ${menu.name}`}>
+                        <input
+                          type="checkbox"
+                          checked={isAllowed}
+                          onChange={() => handleToggleMenu(menu.key)}
+                          disabled={activeRole === 'OWNER'}
+                        />
+                        <span className={styles.slider}></span>
+                      </label>
+                    </article>
+                  );
+                })}
               </div>
 
               <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', background: 'rgba(99,77,62,0.03)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>

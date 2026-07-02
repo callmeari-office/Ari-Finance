@@ -44,6 +44,9 @@ export default function FilterDropdown({ label, options, selected, onChange }) {
         type="button"
         className={`${styles.trigger} ${!isAll ? styles.triggerActive : ''}`}
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label={`${label}: ${displayValue}`}
       >
         <span className={styles.triggerInner}>
           <span className={styles.labelText}>{label}</span>
@@ -53,7 +56,7 @@ export default function FilterDropdown({ label, options, selected, onChange }) {
       </button>
 
       {open && (
-        <div className={styles.dropdown}>
+        <div className={styles.dropdown} role="listbox" aria-label={label}>
           <div className={styles.dropHeader}>
             <span className={styles.dropTitle}>{label}</span>
             {!isAll && (

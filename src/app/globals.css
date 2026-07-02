@@ -119,6 +119,7 @@
   /* ----- Layout ----- */
   --sidebar-width: 260px;
   --content-max: 1200px;
+  --mobile-bottom-nav-offset: calc(72px + env(safe-area-inset-bottom, 0px));
 
   /* ----- Duration ----- */
   --dur-fast: 0.15s;
@@ -909,7 +910,7 @@ button, input, select, textarea {
    ========================================================= */
 @media (max-width: 768px) {
   .layout-wrapper main {
-    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--mobile-bottom-nav-offset);
   }
 }
 
